@@ -1,0 +1,87 @@
+export const palette = {
+  primary: {
+    0: '#D3E7FF',
+    10: '#BED8F6',
+    50: '#A9C8EE',
+    100: '#94B9E5',
+    200: '#7FA9DD',
+    300: '#558ACB',
+    400: '#2B6BBA',
+    500: '#014CA9',
+    600: '#013D87',
+    700: '#012E65',
+    800: '#001E44',
+    900: '#001733',
+  },
+  neutral: {
+    10: '#E9E9E9',
+    50: '#D2D2D2',
+    100: '#BCBCBC',
+    200: '#A5A5A5',
+    300: '#787878',
+    400: '#4B4B4B',
+    500: '#1E1E1E',
+    600: '#181818',
+  },
+  danger: {
+    10: '#FCEAEA',
+    50: '#F8D5D5',
+    100: '#F5C0C0',
+    200: '#F1ABAB',
+    300: '#EA8282',
+    400: '#E35858',
+    500: '#DC2E2E',
+    600: '#B02525',
+    700: '#841C1C',
+    800: '#581212',
+  },
+  success: {
+    0: '#E9FAEB',
+    10: '#D5F0D8',
+    50: '#C2E6C5',
+    100: '#AEDCB3',
+    200: '#9AD2A0',
+    300: '#73BF7A',
+    400: '#4BAB55',
+    500: '#24972F',
+    600: '#1D7926',
+    700: '#165B1C',
+    800: '#0E3C13',
+  },
+  warning: {
+    10: '#FDF8E6',
+    50: '#FAF0CC',
+    100: '#F8E9B3',
+    200: '#F5E199',
+    300: '#F1D366',
+    400: '#ECC433',
+    500: '#E7B500',
+    600: '#B99100',
+    700: '#8B6D00',
+    800: '#5C4800',
+  },
+} as const;
+
+export const colors = {
+  ...palette,
+  text: {
+    primary: palette.neutral[600],
+    secondary: palette.neutral[300],
+    disabled: palette.neutral[200],
+    inverse: '#F5F5FC',
+  },
+  background: {
+    base: '#FFFFFF',
+    surface: '#F4F4F8',
+    elevated: '#FFFFFF',
+  },
+  border: {
+    subtle: palette.neutral[10],
+    default: palette.neutral[50],
+    strong: palette.neutral[100],
+  },
+  brand: palette.primary[500],
+} as const;
+
+export type ColorPalette = typeof palette;
+export type Colors = typeof colors;
