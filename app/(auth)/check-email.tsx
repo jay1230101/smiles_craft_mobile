@@ -59,11 +59,11 @@ export default function CheckEmailScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: spacing.lg,
+    paddingTop: spacing.xl,
   },
   headerBlock: {
-    gap: spacing.lg,
-    marginBottom: spacing.xl,
+    gap: spacing.xl,
+    marginBottom: spacing.huge,
   },
   titleGroup: {
     gap: spacing.sm,
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   submitWrap: {
-    gap: spacing.lg,
+    gap: spacing.xl,
   },
   helperRow: {
     flexDirection: 'row',

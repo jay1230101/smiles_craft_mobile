@@ -140,11 +140,11 @@ export default function ResetPasswordScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: spacing.lg,
+    paddingTop: spacing.xl,
   },
   headerBlock: {
-    gap: spacing.lg,
-    marginBottom: spacing.xl,
+    gap: spacing.xl,
+    marginBottom: spacing.huge,
   },
   titleGroup: {
     gap: spacing.sm,
@@ -161,11 +161,11 @@ const styles = StyleSheet.create({
   },
   formBlock: {
     gap: spacing.xl,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
   },
   rulesBlock: {
     gap: spacing.xs,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.huge,
   },
   rulesTitle: {
     ...typography.label.large,
@@ -179,10 +179,10 @@ const styles = StyleSheet.create({
   serverError: {
     ...typography.body.medium,
     color: colors.danger[500],
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
     textAlign: 'center',
   },
   submitWrap: {
-    marginTop: spacing.md,
+    marginTop: 0,
   },
 });

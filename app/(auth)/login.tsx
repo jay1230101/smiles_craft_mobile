@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   },
   headerBlock: {
     gap: spacing.sm,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.huge,
   },
   title: {
     ...typography.title.large,
@@ -142,21 +142,20 @@ const styles = StyleSheet.create({
   },
   formBlock: {
     gap: spacing.xl,
-    marginBottom: spacing.md,
   },
   optionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.sm,
+    marginTop: spacing.xl,
   },
   serverError: {
     ...typography.body.medium,
     color: colors.danger[500],
-    marginTop: spacing.lg,
+    marginTop: spacing.xl,
     textAlign: 'center',
   },
   submitWrap: {
-    marginTop: spacing.xxl,
+    marginTop: spacing.huge,
   },
 });

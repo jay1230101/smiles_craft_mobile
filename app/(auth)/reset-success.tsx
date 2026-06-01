@@ -34,7 +34,7 @@ const styles = StyleSheet.create({
   },
   contentBlock: {
     alignItems: 'center',
-    gap: spacing.lg,
+    gap: spacing.xl,
     paddingHorizontal: spacing.lg,
     marginTop: spacing.xxxl,
   },
@@ -45,6 +45,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[0],
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: spacing.sm,
   },
   title: {
     ...typography.title.large,
