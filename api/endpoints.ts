@@ -2,7 +2,7 @@ export const endpoints = {
   auth: {
     login: '/login',
     logout: '/logout',
-    forgotPassword: '/forgot-password',
+    forgotPassword: '/pass-token',
   },
   calendar: {
     list: '/getAllEvents',

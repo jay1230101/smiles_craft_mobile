@@ -50,4 +50,11 @@ AGENTS.md
 # design references (local only)
 assets/images/app/
 
+# local build artifacts
+*.apk
+*.aab
+*.ipa
+build-*.apk
+build-*.aab
+
 

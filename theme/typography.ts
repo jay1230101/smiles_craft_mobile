@@ -1,3 +1,5 @@
+import { ms } from '@/lib/responsive';
+
 export const fontFamily = {
   regular: 'Inter_400Regular',
   medium: 'Inter_500Medium',
@@ -9,52 +11,52 @@ export const typography = {
   title: {
     large: {
       fontFamily: fontFamily.regular,
-      fontSize: 22,
-      lineHeight: 28,
+      fontSize: ms(22),
+      lineHeight: ms(28),
     },
     medium: {
       fontFamily: fontFamily.medium,
-      fontSize: 16,
-      lineHeight: 20,
+      fontSize: ms(16),
+      lineHeight: ms(20),
     },
     small: {
       fontFamily: fontFamily.semibold,
-      fontSize: 14,
-      lineHeight: 18,
+      fontSize: ms(14),
+      lineHeight: ms(18),
     },
   },
   label: {
     large: {
       fontFamily: fontFamily.medium,
-      fontSize: 16,
-      lineHeight: 19,
+      fontSize: ms(16),
+      lineHeight: ms(19),
     },
     medium: {
       fontFamily: fontFamily.semibold,
-      fontSize: 14,
-      lineHeight: 18,
+      fontSize: ms(14),
+      lineHeight: ms(18),
     },
     small: {
       fontFamily: fontFamily.bold,
-      fontSize: 12,
-      lineHeight: 16,
+      fontSize: ms(12),
+      lineHeight: ms(16),
     },
   },
   body: {
     large: {
       fontFamily: fontFamily.regular,
-      fontSize: 16,
-      lineHeight: 22,
+      fontSize: ms(16),
+      lineHeight: ms(22),
     },
     medium: {
       fontFamily: fontFamily.regular,
-      fontSize: 14,
-      lineHeight: 20,
+      fontSize: ms(14),
+      lineHeight: ms(20),
     },
     small: {
       fontFamily: fontFamily.regular,
-      fontSize: 12,
-      lineHeight: 16,
+      fontSize: ms(12),
+      lineHeight: ms(16),
     },
   },
 } as const;
