@@ -1,5 +1,7 @@
 import { Image, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { s } from '@/lib/responsive';
+
 const logo = require('@/assets/images/brand/smilecraft-wordmark.png');
 
 const ASPECT = 592 / 174;
@@ -11,9 +13,9 @@ type BrandLogoProps = {
 };
 
 const PRESETS = {
-  small: 160,
-  medium: 227,
-  large: 296,
+  small: s(160),
+  medium: s(227),
+  large: s(296),
 } as const;
 
 export function BrandLogo({ size = 'medium', width, style }: BrandLogoProps) {

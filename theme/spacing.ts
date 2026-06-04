@@ -1,13 +1,15 @@
+import { s } from '@/lib/responsive';
+
 export const spacing = {
-  xxs: 2,
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
-  xxl: 32,
-  huge: 40,
-  xxxl: 48,
+  xxs: s(2),
+  xs: s(4),
+  sm: s(8),
+  md: s(12),
+  lg: s(16),
+  xl: s(24),
+  xxl: s(32),
+  huge: s(40),
+  xxxl: s(48),
 } as const;
 
 export const radius = {

@@ -90,11 +90,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 48,
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.lg,
     backgroundColor: colors.background.base,
     borderWidth: 1,
     borderColor: colors.border.subtle,
-    borderRadius: radius.pill,
+    borderRadius: radius.md,
   },
   inputFocused: {
     borderColor: colors.primary[500],

@@ -1,5 +1,6 @@
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MAX_CONTENT_WIDTH } from '@/lib/responsive';
 import { colors, spacing } from '@/theme';
 
 type ScreenProps = {
@@ -7,7 +8,7 @@ type ScreenProps = {
   scrollable?: boolean;
   contentContainerStyle?: StyleProp<ViewStyle>;
   style?: StyleProp<ViewStyle>;
-  edges?: Array<'top' | 'bottom' | 'left' | 'right'>;
+  edges?: ('top' | 'bottom' | 'left' | 'right')[];
 };
 
 export function Screen({
@@ -54,9 +55,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    alignItems: 'center',
   },
   inner: {
-    flex: 1,
+    flexGrow: 1,
+    width: '100%',
+    maxWidth: MAX_CONTENT_WIDTH,
+    alignSelf: 'center',
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
     paddingBottom: spacing.xl,
