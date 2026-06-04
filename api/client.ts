@@ -1,7 +1,7 @@
 import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
 import { tokenStorage } from './storage';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') ?? 'https://smilescraft.com';
+const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') ?? 'https://www.smilescraft.com';
 
 type UnauthorizedHandler = () => void | Promise<void>;
 

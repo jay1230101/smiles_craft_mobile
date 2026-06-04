@@ -3,6 +3,8 @@ import { loginRequest } from '@/api/auth';
 import { clearAuthStorage, tokenStorage, userStorage } from '@/api/storage';
 import type { User } from '@/types/auth';
 
+const DEV_BYPASS_LOGIN = false;
+
 type AuthStatus = 'unknown' | 'authenticated' | 'unauthenticated';
 
 type AuthState = {
@@ -28,6 +30,10 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
   isSubmitting: false,
 
   hydrate: async () => {
+    if (DEV_BYPASS_LOGIN) {
+      set({ status: 'authenticated', token: 'dev-bypass-token', user: null });
+      return;
+    }
     const [token, user] = await Promise.all([tokenStorage.get(), userStorage.get()]);
     if (token) {
       set({

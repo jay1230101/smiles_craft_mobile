@@ -40,12 +40,15 @@ export default function ForgotPasswordScreen() {
     setSubmitting(true);
     try {
       await forgotPasswordRequest(email);
+      router.push({ pathname: '/(auth)/check-email', params: { email } });
     } catch (err) {
-      const message = err && typeof err === 'object' && 'message' in err ? String(err.message) : null;
-      if (message) setServerError(message);
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String(err.message)
+          : 'Could not send reset email. Please try again.';
+      setServerError(message);
     } finally {
       setSubmitting(false);
-      router.push({ pathname: '/(auth)/check-email', params: { email } });
     }
   };
 
