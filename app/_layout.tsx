@@ -14,6 +14,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useSocketEvents } from '@/hooks/use-socket-events';
 import { queryClient } from '@/lib/query-client';
 import { useAuthStore } from '@/store/auth';
 
@@ -51,6 +52,7 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <SocketBridge />
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack>
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
@@ -61,4 +63,9 @@ export default function RootLayout() {
       </ThemeProvider>
     </QueryClientProvider>
   );
+}
+
+function SocketBridge() {
+  useSocketEvents();
+  return null;
 }
