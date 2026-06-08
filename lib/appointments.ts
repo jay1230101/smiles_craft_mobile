@@ -81,13 +81,16 @@ export function eventsForDate(events: BackendEvent[], ymd: string): BackendEvent
 
 export function summarize(events: BackendEvent[], ymd: string): SummaryCounts {
   const todays = eventsForDate(events, ymd);
-  const counts: SummaryCounts = { confirmed: 0, cancelled: 0, unconfirmed: 0, total: todays.length };
+  const counts: SummaryCounts = { confirmed: 0, cancelled: 0, unconfirmed: 0, total: 0 };
   for (const e of todays) {
     const s = deriveStatus(e);
     if (s === 'confirmed') counts.confirmed += 1;
     else if (s === 'cancelled') counts.cancelled += 1;
     else counts.unconfirmed += 1;
   }
+  // Total reflects the day's actual workload: confirmed + unconfirmed only.
+  // Cancelled appointments are shown in their own card and excluded here.
+  counts.total = counts.confirmed + counts.unconfirmed;
   return counts;
 }
 

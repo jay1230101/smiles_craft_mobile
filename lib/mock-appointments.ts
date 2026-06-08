@@ -153,5 +153,6 @@ export const MOCK_SUMMARY: SummaryCounts = {
   confirmed: 18,
   cancelled: 4,
   unconfirmed: 3,
-  total: 12,
+  // Total = confirmed + unconfirmed (cancelled excluded; shown in its own card).
+  total: 21,
 };
