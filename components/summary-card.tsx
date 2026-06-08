@@ -18,25 +18,25 @@ const variantConfig: Record<
   { icon: keyof typeof Ionicons.glyphMap; iconColor: string; iconBg: string; captionColor: string }
 > = {
   confirmed: {
-    icon: 'checkmark-circle',
+    icon: 'checkmark-circle-outline',
     iconColor: colors.success[500],
     iconBg: colors.success[0],
     captionColor: colors.success[500],
   },
   cancelled: {
-    icon: 'close-circle',
+    icon: 'close-circle-outline',
     iconColor: colors.danger[500],
     iconBg: colors.danger[10],
     captionColor: colors.danger[500],
   },
   unconfirmed: {
-    icon: 'sparkles',
+    icon: 'sparkles-outline',
     iconColor: colors.primary[500],
     iconBg: colors.primary[0],
     captionColor: colors.success[500],
   },
   total: {
-    icon: 'calendar',
+    icon: 'calendar-outline',
     iconColor: colors.primary[500],
     iconBg: colors.primary[0],
     captionColor: colors.text.secondary,
