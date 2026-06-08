@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { AppointmentCard } from '@/components/appointment-card';
 import { LinkText } from '@/components/link-text';
+import { LogoutButton } from '@/components/logout-button';
 import { NotificationButton } from '@/components/notification-button';
 import { Screen } from '@/components/screen';
 import { SummaryCard } from '@/components/summary-card';
@@ -63,7 +64,10 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>{`${greeting} ${firstName}!`}</Text>
           <Text style={styles.dateLabel}>{dateLabel}</Text>
         </View>
-        <NotificationButton onPress={() => {}} />
+        <View style={styles.headerActions}>
+          <NotificationButton onPress={() => {}} />
+          <LogoutButton />
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -151,6 +155,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
   headerText: {
     flex: 1,
