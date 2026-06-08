@@ -49,10 +49,11 @@ export default function TabLayout() {
     return <Redirect href="/(auth)/login" />;
   }
 
-  // Non-owner Doctors only see Home + Calendar (their own appointments).
-  // Owner Doctors, Assistants, Admins, and SystemAdmins see the full clinic-wide tabs.
+  // Non-owner Doctors get the full clinic-day tabs EXCEPT Reports
+  // (Home, Register, Calendar, Billing — but no Reports).
+  // Owner Doctors, Assistants, Admins, and SystemAdmins see all five tabs.
   const isRestrictedDoctor = user?.role === 'DOCTOR' && !user.is_owner;
-  const showClinicWideTabs = !isRestrictedDoctor;
+  const canSeeReports = !isRestrictedDoctor;
 
   // Content height of the tab bar (above the system gesture bar / home indicator).
   // SYSTEM_BAR_CLEARANCE adds a visible gap above the phone's nav/gesture bar
@@ -89,7 +90,6 @@ export default function TabLayout() {
         name="register"
         options={{
           title: 'Register',
-          href: showClinicWideTabs ? '/register' : null,
           tabBarIcon: ({ color }) => <TabIcon name="register" color={color} />,
           tabBarLabel: ({ focused, color }) => (
             <TabLabel focused={focused} color={color} label="Register" />
@@ -110,7 +110,6 @@ export default function TabLayout() {
         name="billing"
         options={{
           title: 'Billing',
-          href: showClinicWideTabs ? '/billing' : null,
           tabBarIcon: ({ color }) => <TabIcon name="billing" color={color} />,
           tabBarLabel: ({ focused, color }) => (
             <TabLabel focused={focused} color={color} label="Billing" />
@@ -121,7 +120,7 @@ export default function TabLayout() {
         name="reports"
         options={{
           title: 'Reports',
-          href: showClinicWideTabs ? '/reports' : null,
+          href: canSeeReports ? '/reports' : null,
           tabBarIcon: ({ color }) => <TabIcon name="reports" color={color} />,
           tabBarLabel: ({ focused, color }) => (
             <TabLabel focused={focused} color={color} label="Reports" />
