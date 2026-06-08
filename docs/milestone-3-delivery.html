@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Smile Craft Mobile — Milestone 3 Delivery</title>
+<style>
+  @page { size: A4; margin: 22mm 18mm; }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; }
+  body {
+    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #1E1E1E;
+    font-size: 11.5pt;
+    line-height: 1.55;
+    margin: 0;
+  }
+  h1 { font-size: 26pt; margin: 0 0 6pt; color: #014CA9; letter-spacing: -0.3pt; }
+  h2 {
+    font-size: 16pt;
+    margin: 22pt 0 10pt;
+    padding-bottom: 6pt;
+    border-bottom: 1.5pt solid #D3E7FF;
+    color: #014CA9;
+  }
+  h3 { font-size: 13pt; margin: 16pt 0 6pt; color: #1E1E1E; }
+  p { margin: 6pt 0; }
+  ul, ol { margin: 4pt 0 8pt 18pt; padding: 0; }
+  li { margin: 3pt 0; }
+  strong { color: #1E1E1E; }
+  code {
+    background: #F4F4F8; padding: 1pt 5pt; border-radius: 3pt;
+    font-family: "SF Mono", Consolas, Menlo, monospace; font-size: 10pt;
+  }
+  .lead { font-size: 12pt; color: #4B4B4B; margin: 0 0 14pt; }
+  .meta {
+    display: flex; gap: 18pt; flex-wrap: wrap;
+    background: #F4F4F8; border-radius: 6pt; padding: 10pt 14pt;
+    font-size: 10.5pt; color: #4B4B4B; margin: 8pt 0 18pt;
+  }
+  .meta b { color: #1E1E1E; }
+  .card {
+    border: 1pt solid #E9E9E9; border-radius: 8pt;
+    padding: 12pt 14pt; margin: 8pt 0;
+    background: #FFF;
+    page-break-inside: avoid;
+  }
+  .card .title { font-weight: 600; color: #014CA9; margin-bottom: 4pt; }
+  .pill {
+    display: inline-block;
+    background: #E9FAEB; color: #1D7926;
+    border-radius: 99pt; padding: 1pt 8pt; font-size: 9.5pt; font-weight: 600;
+  }
+  .pill.amber { background: #FDF8E6; color: #8B6D00; }
+  .pill.grey  { background: #E9E9E9; color: #4B4B4B; }
+  table { width: 100%; border-collapse: collapse; margin: 6pt 0 10pt; font-size: 10.5pt; }
+  th, td { text-align: left; border: 1pt solid #E9E9E9; padding: 6pt 8pt; vertical-align: top; }
+  th { background: #F4F4F8; font-weight: 600; }
+  .note {
+    background: #FDF8E6; border-left: 3pt solid #ECC433;
+    padding: 8pt 12pt; border-radius: 4pt; margin: 8pt 0;
+    font-size: 10.5pt;
+  }
+  .ok  { color: #1D7926; font-weight: 600; }
+  .footer-note { color: #787878; font-size: 9.5pt; margin-top: 18pt; }
+</style>
+</head>
+<body>
+
+<h1>Smile Craft Mobile</h1>
+<p class="lead">Milestone 3 — Delivery Summary</p>
+
+<div class="meta">
+  <div><b>Project:</b> Smile Craft mobile app</div>
+  <div><b>Platforms:</b> iOS &amp; Android</div>
+  <div><b>Milestone:</b> M3 — Patient Records, Appointment Actions &amp; Profile</div>
+  <div><b>Status:</b> <span class="ok">Delivered</span></div>
+</div>
+
+<h2>1. What this milestone covers</h2>
+<p>
+  Milestone 3 turns the app from a read-only schedule viewer into a working
+  clinic tool. Clinic staff can now register new patients, cancel and reschedule
+  appointments from a tap-and-act popover on the calendar, manage their account
+  from a proper profile screen, and review a live notifications feed of
+  everything happening in the clinic.
+</p>
+
+<h2>2. Features delivered</h2>
+
+<div class="card">
+  <div class="title">2.1 Patient Registration <span class="pill">Live</span></div>
+  <ul>
+    <li><b>New-patient form</b> on the Register tab with first name, last name, father's name, date of birth, phone, gender, assigned doctor, email, and allergies/notes.</li>
+    <li><b>Built-in validation:</b> required-field checks, date-of-birth is auto-masked to <code>DD-MM-YYYY</code> and rejected if not a real past date, phone is digits-only, email is checked for the right format.</li>
+    <li><b>Duplicate detection:</b> if the phone is already registered to another patient, the app surfaces a confirm dialog showing the existing patient's name and gives the user the choice to continue anyway or cancel.</li>
+    <li><b>Role-aware doctor selection:</b> non-owner doctors can only register patients under their own name (the field is locked); owners, assistants, and admins pick from a doctor list.</li>
+    <li>Wired to the existing <code>POST /register-patient</code> backend; gender list pulled live from <code>GET /getGender</code>.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="title">2.2 Calendar Appointment Popover <span class="pill">Live</span></div>
+  <p>Tapping a booked appointment on the Day or Week view opens a popover modal with patient name, status, time range, treatment, and doctor.</p>
+  <ul>
+    <li><b>Cancel appointment</b> — reason picker (loaded live from <code>GET /cancellation-reasons</code>), submits to <code>POST /cancel-appt</code>, and the calendar updates immediately when the server confirms.</li>
+    <li><b>Edit / Reschedule</b> — opens a full-screen edit form pre-filled with the appointment's current date, start &amp; end time, doctor, treatment, and a WhatsApp-reminder toggle. Saves through <code>POST /encounter</code> (the backend's update path).</li>
+    <li><b>Confirm appointment</b> — shown as a placeholder action. Needs a small backend addition (see Section 4) before it can be wired.</li>
+    <li><b>Charge / Take payment</b> — shown as a placeholder. Ships with the Billing module in M4 (the backend endpoint, <code>/treatment-plan</code>, handles both the encounter recording and the billing in one call).</li>
+    <li>Already-cancelled appointments show the Cancel action greyed out with explanatory helper text.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="title">2.3 Edit / Reschedule Appointment <span class="pill">Live</span></div>
+  <ul>
+    <li>Modal-style screen reached from the appointment popover's "Edit / Reschedule" action.</li>
+    <li>Editable: <b>date</b> (DD-MM-YYYY mask), <b>start &amp; end time</b> (HH:MM mask), <b>doctor</b> (picker), <b>treatment</b>, and a <b>WhatsApp-reminder</b> toggle.</li>
+    <li>End time must be after start time; date and time fields are validated as the user types.</li>
+    <li>Patient identity (name, family, DOB, phone) is carried over from the selected appointment so the backend's patient lookup matches.</li>
+    <li>On save, the calendar and dashboard refresh automatically to show the new schedule.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="title">2.4 Profile &amp; Settings <span class="pill">Live</span></div>
+  <ul>
+    <li>New <b>profile</b> screen reached from the avatar button in the Dashboard header (replaces the interim Logout button that was sitting on the dashboard since M2).</li>
+    <li><b>User card</b> with avatar (auto-initials), name, role (pretty-printed: "Owner Doctor", "Assistant", etc.), and email.</li>
+    <li><b>Preferences</b> section with Language and Push Notifications listed as roadmap items (push needs a backend update — see Section 4).</li>
+    <li><b>About</b> section with the app version, build number, and clinic ID.</li>
+    <li><b>Log out</b> button with a confirmation dialog before signing out.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="title">2.5 Notifications Inbox <span class="pill">Live</span></div>
+  <ul>
+    <li>New <b>Notifications</b> screen reached from the bell button on the Dashboard.</li>
+    <li>Captures every appointment and patient change that arrives in real time over the existing socket connection (new bookings, updates, confirmations, cancellations, deletions, patient registrations, edits, removals).</li>
+    <li>Each entry has a kind-aware icon and tint, the headline of what changed, who it relates to, and a relative timestamp ("Just now", "5m ago", "3h ago", etc.).</li>
+    <li>The Dashboard bell shows a <b>red dot</b> as long as there are unread notifications.</li>
+    <li><b>Mark all as read</b> and <b>Clear all</b> actions; the inbox keeps the 100 most recent items.</li>
+    <li>This is a client-side feed; a server-backed inbox would land later if the team wants notifications to persist across devices or app reinstalls.</li>
+  </ul>
+</div>
+
+<h2>3. Technical notes</h2>
+<ul>
+  <li>All M3 screens are <b>fully wired to the existing live backend</b> — no new backend services were stood up. The mobile app uses the same APIs the web app already uses.</li>
+  <li>Demo mode (which the QA tester uses by default) returns realistic fake responses so every flow can be exercised without hitting the live system. Switching from demo to live is a one-line flag.</li>
+  <li>Forms use <b>React Hook Form + Zod</b> (same stack as the M2 login and forgot-password forms) for consistent validation and a single way to maintain forms going forward.</li>
+  <li>The doctor picker added in the M2 polish round is reused throughout M3 — same selection control on Calendar, Dashboard, Registration, and Edit screens.</li>
+</ul>
+
+<h2>4. Backend updates needed for the next milestone</h2>
+<p>Two small backend additions would close the placeholders shown in M3:</p>
+<ul>
+  <li><b>Manual confirm appointment endpoint</b> — today the only way an appointment moves to "confirmed" is through the WhatsApp webhook (patient taps Confirm in WhatsApp). The mobile app needs:<br/>
+    <code>POST /confirm-appt&nbsp; { bookingId }</code> &nbsp;→&nbsp; sets <code>patient_confirmed = True</code> and emits <code>confirmedAppointment</code> on the same rooms the existing flow uses.</li>
+  <li><b>Push notification device-token registration</b> — needed before iOS/Android push notifications can be turned on:<br/>
+    <code>POST /register-device-token&nbsp; { token, platform }</code> &nbsp;→&nbsp; stores per-user, then the existing socket emits should call a Celery task that pushes to those tokens via FCM / APNs.</li>
+</ul>
+
+<h2>5. What sits outside M3</h2>
+<table>
+  <tr><th>Module</th><th>Where it lands</th><th>Why</th></tr>
+  <tr>
+    <td><b>Encounter recording</b> (in-visit treatment, tooth numbers, notes, attachments)</td>
+    <td>M4, alongside Billing</td>
+    <td>The backend endpoint that records a clinical encounter, <code>/treatment-plan</code>, also handles billing, payments, and outstanding balances in one call. Splitting them in the mobile UI would mean two competing flows for the same endpoint, so they ship together.</td>
+  </tr>
+  <tr>
+    <td><b>Confirm appointment</b></td>
+    <td>Wired as soon as the backend endpoint above is added</td>
+    <td>UI is already in place in the popover — it just needs the endpoint.</td>
+  </tr>
+  <tr>
+    <td><b>Push notifications</b></td>
+    <td>Once the device-token endpoint exists</td>
+    <td>Mobile-side device-token registration + Expo push handler will be a small follow-up build.</td>
+  </tr>
+  <tr>
+    <td><b>Per-procedure colour list</b> (carried over from M2 polish)</td>
+    <td>Next build, once the clinic confirms the colour mapping</td>
+    <td>Blocked on the procedure&nbsp;→&nbsp;colour list we asked for.</td>
+  </tr>
+</table>
+
+<h2>6. What's coming next (M4 preview)</h2>
+<ul>
+  <li><b>Cashier &amp; Billing</b> — pending bills, payments, outstanding balances, bill receipts. Wires the "Charge / Take payment" action in the calendar popover.</li>
+  <li><b>Encounter recording</b> — record what happened during a visit (procedures, tooth numbers, notes, status changes), backed by <code>/treatment-plan</code>.</li>
+  <li><b>Confirm appointment</b> — wired the moment the backend endpoint lands.</li>
+  <li><b>Push notifications</b> — same.</li>
+</ul>
+
+<p class="footer-note">
+  Smile Craft Mobile — Milestone 3 Delivery Summary. Prepared for client review.
+</p>
+
+</body>
+</html>
