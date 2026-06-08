@@ -78,6 +78,17 @@
   <div><b>Status:</b> <span class="ok">Delivered</span></div>
 </div>
 
+<div class="note" style="background:#E9FAEB; border-left-color:#24972F;">
+  <b>Updated build — incorporates the review feedback.</b> Changes from the first M2 build:
+  <ul style="margin:4pt 0 0 18pt; padding:0;">
+    <li>Dashboard <b>Total Appointments</b> now equals Confirmed + Unconfirmed (cancelled excluded).</li>
+    <li><b>Tab visibility for non-owner doctors</b> corrected: they now see Home, Register, Calendar, and Billing (only Reports is hidden).</li>
+    <li><b>Socket scoping</b> clarified: owner doctors, assistants, and admins subscribe to the clinic-wide room (whole clinic activity); non-owner doctors stay on their own room.</li>
+    <li><b>Doctor picker</b> added at the top of the Calendar (and shared with the Dashboard) so owners, assistants, and admins can switch between doctors or view "All Doctors".</li>
+    <li>Calendar appointment cards are color-coded by treatment type; the finer per-procedure color list will be applied in the next build, once the clinic confirms the mapping.</li>
+  </ul>
+</div>
+
 <h2>1. What this milestone covers</h2>
 <p>
   Milestone 2 establishes the foundation of the mobile app: a secure login experience,
@@ -104,7 +115,7 @@
   <div class="title">2.2 Dashboard <span class="pill">Live</span></div>
   <ul>
     <li><b>Personalized greeting</b> — time-of-day greeting (Good Morning / Afternoon / Evening) plus the user's first name and today's date.</li>
-    <li><b>Today's Summary</b> — four cards: Confirmed, Cancelled, Unconfirmed, Total Appointments — counted live from the backend.</li>
+    <li><b>Today's Summary</b> — four cards: Confirmed, Cancelled, Unconfirmed, Total Appointments — counted live from the backend. <i>Total = Confirmed + Unconfirmed</i> (the day's actual workload); Cancelled is shown in its own card and excluded from the total.</li>
     <li><b>Today's Appointments</b> — up to four upcoming appointments for today with patient initials, time, treatment, doctor, and status pill. "View All" opens the full list.</li>
     <li><b>Notifications &amp; Logout</b> buttons in the header (notifications screen ships in M3).</li>
   </ul>
@@ -118,12 +129,14 @@
     <li><b>Week view</b> — Monday–Sunday day-picker strip plus a compact appointment list for the selected day.</li>
     <li><b>Month view</b> — a 6×7 calendar grid with weekday headers. Each date shows up to three small status dots (confirmed / cancelled / unconfirmed) so the team can read the month at a glance. Tapping a date jumps the Day/Week views to that date.</li>
     <li><b>Chevrons</b> at the top step forward/back by day, week, or month depending on the active view.</li>
+    <li><b>Doctor picker</b> — a chip strip at the top of the Calendar with "All Doctors" plus one chip per doctor in the clinic. Owners, Assistants, and Admins use it to switch between doctors; the selection is shared with the Dashboard so the Today's Summary and Today's Appointments respect the same scope. Non-owner doctors don't see the picker — they only ever see their own appointments.</li>
     <li><b>Color coding by treatment type:</b>
       <ul>
         <li><span class="pill">Green</span> &nbsp;Cleaning</li>
         <li><span class="pill amber">Yellow</span> &nbsp;Consultation / First check-up</li>
         <li><span class="pill blue">Blue</span> &nbsp;Production work (root canal, crown, filling, extraction, implant, etc.)</li>
       </ul>
+      <i>Note: a finer per-procedure color scheme (one color per individual procedure) will replace these three buckets in the next build, once the procedure&nbsp;→&nbsp;color list is confirmed by the clinic.</i>
     </li>
   </ul>
 </div>
@@ -136,7 +149,7 @@
     <li><b>Role-aware visibility:</b>
       <ul>
         <li><b>Owner Doctor / Assistant / Admin / System Admin</b> — sees all five tabs (clinic-wide view).</li>
-        <li><b>Non-owner Doctor</b> — sees only Home and Calendar, scoped to their own appointments (matches the web app's privacy rules).</li>
+        <li><b>Non-owner Doctor</b> — sees <b>Home, Register, Calendar, and Billing</b>; only Reports is hidden (matches the web app's privacy rules).</li>
       </ul>
     </li>
     <li>The tab bar respects the phone's system gesture bar / home indicator on every device so labels never sit flush against the system UI.</li>
@@ -148,7 +161,12 @@
   <ul>
     <li>All appointment data is fetched from the same backend the web app uses — no separate database, no duplicate sources of truth.</li>
     <li><b>Real-time sync</b> — the app maintains a live socket connection. When an appointment is created, updated, confirmed, cancelled, or deleted on the web (or on another mobile device), the mobile app updates within a second without the user having to refresh.</li>
-    <li>Doctor accounts subscribe only to their own room, mirroring the web app's behavior.</li>
+    <li><b>Room scoping</b> mirrors the web app:
+      <ul>
+        <li><b>Owner Doctors, Assistants, Admins, System Admins</b> — subscribe to the clinic-wide room and receive real-time updates for the whole clinic's activity.</li>
+        <li><b>Non-owner Doctors</b> — subscribe only to their own room and receive updates for their own appointments.</li>
+      </ul>
+    </li>
   </ul>
 </div>
 
@@ -235,7 +253,8 @@
 <h2>7. What's coming next (M3 preview)</h2>
 <ul>
   <li><b>Patient Registration</b> — full new-patient form with validation and duplicate detection.</li>
-  <li><b>Encounter</b> — record a clinical visit: procedures, notes, attachments.</li>
+  <li><b>Calendar appointment popover</b> — tap a booked appointment to confirm, cancel, edit, or reschedule (mirrors the popover on the web app). The in-popover charging action ships with the Billing module in M4.</li>
+  <li><b>Encounter</b> — record a clinical visit: procedures, notes, attachments. Links to a registered patient and an appointment.</li>
   <li><b>Notifications inbox</b> — surfaces appointment confirmations, cancellations, and clinic-wide alerts.</li>
   <li><b>Profile / Settings</b> — proper home for account info, language preference, and logout.</li>
   <li><b>Push notifications</b> — for new appointments and cancellations on the doctor's phone.</li>
