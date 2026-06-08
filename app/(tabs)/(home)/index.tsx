@@ -6,8 +6,8 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { AppointmentCard } from '@/components/appointment-card';
 import { DoctorPicker } from '@/components/doctor-picker';
 import { LinkText } from '@/components/link-text';
-import { LogoutButton } from '@/components/logout-button';
 import { NotificationButton } from '@/components/notification-button';
+import { ProfileButton } from '@/components/profile-button';
 import { Screen } from '@/components/screen';
 import { SummaryCard } from '@/components/summary-card';
 import { useAllEvents } from '@/hooks/use-appointments';
@@ -28,6 +28,7 @@ import {
 } from '@/lib/mock-appointments';
 import { useAuthStore } from '@/store/auth';
 import { useDoctorFilterStore } from '@/store/doctor-filter';
+import { useNotificationsStore } from '@/store/notifications';
 import { colors, spacing, typography } from '@/theme';
 
 const DASHBOARD_VISIBLE = 4;
@@ -41,6 +42,9 @@ export default function HomeScreen() {
   const { data: doctors } = useDoctors();
   const selectedDoctorId = useDoctorFilterStore((s) => s.selectedDoctorId);
   const setSelectedDoctorId = useDoctorFilterStore((s) => s.setSelectedDoctorId);
+  const hasUnreadNotifications = useNotificationsStore((s) =>
+    s.items.some((it) => !it.read),
+  );
 
   // Same rule as the Calendar: non-owner doctors don't get the picker — they
   // only ever see their own appointments and any filter would be a no-op.
@@ -110,8 +114,11 @@ export default function HomeScreen() {
           <Text style={styles.dateLabel}>{dateLabel}</Text>
         </View>
         <View style={styles.headerActions}>
-          <NotificationButton onPress={() => {}} />
-          <LogoutButton />
+          <NotificationButton
+            hasUnread={hasUnreadNotifications}
+            onPress={() => router.push('/(tabs)/(home)/notifications' as never)}
+          />
+          <ProfileButton />
         </View>
       </View>
 
