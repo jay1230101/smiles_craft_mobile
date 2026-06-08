@@ -1,6 +1,7 @@
 import type { AppointmentStatus } from '@/components/status-pill';
 import type { BackendEvent } from '@/types/appointments';
 import type { Doctor } from '@/types/doctors';
+import type { Gender } from '@/types/genders';
 import { todayYMD, type SummaryCounts } from './appointments';
 
 export const MOCK_DOCTORS: Doctor[] = [
@@ -9,6 +10,58 @@ export const MOCK_DOCTORS: Doctor[] = [
   { id: 3, name: 'James', family: 'Parker' },
   { id: 4, name: 'Eli', family: 'Shamlos' },
 ];
+
+export const MOCK_GENDERS: Gender[] = [
+  { id: 1, gen: 'Male' },
+  { id: 2, gen: 'Female' },
+];
+
+export const MOCK_CANCELLATION_REASONS = [
+  { id: 1, reason: 'Patient requested cancellation' },
+  { id: 2, reason: 'Patient no-show' },
+  { id: 3, reason: 'Rescheduled' },
+  { id: 4, reason: 'Clinic emergency' },
+  { id: 5, reason: 'Other' },
+];
+
+export function getMockNotifications() {
+  const now = Date.now();
+  const minutesAgo = (m: number) => new Date(now - m * 60_000).toISOString();
+  return [
+    {
+      id: 'mock-1',
+      kind: 'newAppointment' as const,
+      title: 'New appointment',
+      body: 'Booked for Emily Rodriguez at 9:00 AM.',
+      timestamp: minutesAgo(5),
+      read: false,
+    },
+    {
+      id: 'mock-2',
+      kind: 'confirmedAppointment' as const,
+      title: 'Appointment confirmed',
+      body: 'Michael Chen confirmed via WhatsApp.',
+      timestamp: minutesAgo(42),
+      read: false,
+    },
+    {
+      id: 'mock-3',
+      kind: 'cancelledAppointment' as const,
+      title: 'Appointment cancelled',
+      body: "Sarah Wilson's consultation was cancelled.",
+      timestamp: minutesAgo(180),
+      read: true,
+    },
+    {
+      id: 'mock-4',
+      kind: 'patientAdded' as const,
+      title: 'Patient registered',
+      body: 'Johny Achkar was added to the clinic.',
+      timestamp: minutesAgo(60 * 26),
+      read: true,
+    },
+  ];
+}
 
 // Flip to `false` to use live backend data on Dashboard + All Appointments + Calendar.
 export const DEMO_MODE = true;

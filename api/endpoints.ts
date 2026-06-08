@@ -7,12 +7,21 @@ export const endpoints = {
   calendar: {
     list: '/getAllEvents',
   },
+  appointments: {
+    cancellationReasons: '/cancellation-reasons',
+    cancel: '/cancel-appt',
+    encounter: '/encounter',
+  },
   doctors: {
     list: '/get_doctors',
   },
   patients: {
     list: '/getAllPatients',
     search: '/searchPatient',
+    register: '/register-patient',
+  },
+  genders: {
+    list: '/getGender',
   },
   bills: {
     pending: '/getPendingBills',
