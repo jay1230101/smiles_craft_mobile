@@ -55,9 +55,12 @@ export default function TabLayout() {
   const showClinicWideTabs = !isRestrictedDoctor;
 
   // Content height of the tab bar (above the system gesture bar / home indicator).
+  // SYSTEM_BAR_CLEARANCE adds a visible gap above the phone's nav/gesture bar
+  // so labels never sit flush against the system UI on any device.
+  const SYSTEM_BAR_CLEARANCE = 14;
   const tabContentHeight = Platform.OS === 'ios' ? 56 : 56;
-  const tabBarHeight = tabContentHeight + insets.bottom;
-  const tabBarPaddingBottom = Math.max(insets.bottom, 8);
+  const tabBarPaddingBottom = insets.bottom + SYSTEM_BAR_CLEARANCE;
+  const tabBarHeight = tabContentHeight + tabBarPaddingBottom;
 
   return (
     <Tabs
