@@ -3,6 +3,7 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { AppointmentPopover } from '@/components/appointment-popover';
 import { DoctorPicker } from '@/components/doctor-picker';
 import { Screen } from '@/components/screen';
 import { type AppointmentStatus } from '@/components/status-pill';
@@ -30,6 +31,7 @@ const DAY_END_HOUR = 20;
 export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [view, setView] = useState<CalendarView>('Day');
+  const [activeEvent, setActiveEvent] = useState<BackendEvent | null>(null);
   const selectedDoctorId = useDoctorFilterStore((s) => s.selectedDoctorId);
   const setSelectedDoctorId = useDoctorFilterStore((s) => s.setSelectedDoctorId);
   const bottomTabHeight = useBottomTabBarHeight();
@@ -131,12 +133,13 @@ export default function CalendarScreen() {
       </View>
 
       {view === 'Day' ? (
-        <DayView events={dayEvents} />
+        <DayView events={dayEvents} onSelectEvent={setActiveEvent} />
       ) : view === 'Week' ? (
         <WeekView
           events={events}
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
+          onSelectEvent={setActiveEvent}
         />
       ) : (
         <MonthView
@@ -145,11 +148,19 @@ export default function CalendarScreen() {
           onSelectDate={setSelectedDate}
         />
       )}
+
+      <AppointmentPopover event={activeEvent} onClose={() => setActiveEvent(null)} />
     </Screen>
   );
 }
 
-function DayView({ events }: { events: BackendEvent[] }) {
+function DayView({
+  events,
+  onSelectEvent,
+}: {
+  events: BackendEvent[];
+  onSelectEvent: (event: BackendEvent) => void;
+}) {
   const hours = useMemo(() => {
     const arr: number[] = [];
     for (let h = DAY_START_HOUR; h <= DAY_END_HOUR; h++) arr.push(h);
@@ -172,7 +183,12 @@ function DayView({ events }: { events: BackendEvent[] }) {
   return (
     <View style={styles.dayView}>
       {hours.map((h) => (
-        <TimeRow key={h} hour={h} events={eventsByHour.get(h) ?? []} />
+        <TimeRow
+          key={h}
+          hour={h}
+          events={eventsByHour.get(h) ?? []}
+          onSelectEvent={onSelectEvent}
+        />
       ))}
     </View>
   );
@@ -182,10 +198,12 @@ function WeekView({
   events,
   selectedDate,
   onSelectDate,
+  onSelectEvent,
 }: {
   events: BackendEvent[];
   selectedDate: Date;
   onSelectDate: (date: Date) => void;
+  onSelectEvent: (event: BackendEvent) => void;
 }) {
   const weekDates = useMemo(() => {
     const start = startOfWeekMonday(selectedDate);
@@ -237,7 +255,11 @@ function WeekView({
       ) : (
         <View style={styles.weekList}>
           {dayEvents.map((e) => (
-            <WeekCard key={String(e.extendedProps?.mainId ?? e.id)} event={e} />
+            <WeekCard
+              key={String(e.extendedProps?.mainId ?? e.id)}
+              event={e}
+              onPress={() => onSelectEvent(e)}
+            />
           ))}
         </View>
       )}
@@ -360,7 +382,15 @@ function uniqueStatusesFor(events: BackendEvent[]): AppointmentStatus[] {
   return STATUS_ORDER.filter((s) => present.has(s));
 }
 
-function TimeRow({ hour, events }: { hour: number; events: BackendEvent[] }) {
+function TimeRow({
+  hour,
+  events,
+  onSelectEvent,
+}: {
+  hour: number;
+  events: BackendEvent[];
+  onSelectEvent: (event: BackendEvent) => void;
+}) {
   return (
     <View style={styles.row}>
       <Text style={styles.timeLabel}>{formatHour(hour)}</Text>
@@ -368,7 +398,13 @@ function TimeRow({ hour, events }: { hour: number; events: BackendEvent[] }) {
         {events.length === 0 ? (
           <EmptySlot />
         ) : (
-          events.map((e) => <SlotCard key={String(e.extendedProps?.mainId ?? e.id)} event={e} />)
+          events.map((e) => (
+            <SlotCard
+              key={String(e.extendedProps?.mainId ?? e.id)}
+              event={e}
+              onPress={() => onSelectEvent(e)}
+            />
+          ))
         )}
       </View>
     </View>
@@ -379,7 +415,7 @@ function EmptySlot() {
   return <View style={styles.emptySlot} />;
 }
 
-function SlotCard({ event }: { event: BackendEvent }) {
+function SlotCard({ event, onPress }: { event: BackendEvent; onPress: () => void }) {
   const treatment = event.extendedProps?.procedure ?? '';
   const palette = procedurePalette(treatment);
   const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
@@ -387,10 +423,14 @@ function SlotCard({ event }: { event: BackendEvent }) {
   const doctor = event.doctor ? `Dr. ${event.doctor}` : '';
 
   return (
-    <View
-      style={[
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Open appointment for ${fullName || 'patient'}`}
+      onPress={onPress}
+      style={({ pressed }) => [
         styles.slotCard,
         { backgroundColor: palette.bg, borderLeftColor: palette.border },
+        pressed && styles.pressed,
       ]}>
       <View style={[styles.statusDot, { backgroundColor: palette.dot }]} />
       <Text style={styles.slotName} numberOfLines={1}>
@@ -399,11 +439,11 @@ function SlotCard({ event }: { event: BackendEvent }) {
       <Text style={styles.slotTime}>{timeRange}</Text>
       {treatment ? <Text style={styles.slotTreatment}>{treatment}</Text> : null}
       {doctor ? <Text style={styles.slotDoctor}>{doctor}</Text> : null}
-    </View>
+    </Pressable>
   );
 }
 
-function WeekCard({ event }: { event: BackendEvent }) {
+function WeekCard({ event, onPress }: { event: BackendEvent; onPress: () => void }) {
   const procedure = event.extendedProps?.procedure ?? '';
   const palette = procedurePalette(procedure);
   const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
@@ -412,17 +452,21 @@ function WeekCard({ event }: { event: BackendEvent }) {
     : formatEventTime(event.start);
 
   return (
-    <View
-      style={[
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Open appointment for ${fullName || 'patient'}`}
+      onPress={onPress}
+      style={({ pressed }) => [
         styles.weekCard,
         { backgroundColor: palette.bg, borderLeftColor: palette.border },
+        pressed && styles.pressed,
       ]}>
       <View style={[styles.statusDot, { backgroundColor: palette.dot }]} />
       <Text style={styles.slotName} numberOfLines={1}>
         {fullName || 'Unknown'}
       </Text>
       <Text style={styles.slotTime}>{subtitle}</Text>
-    </View>
+    </Pressable>
   );
 }
 
