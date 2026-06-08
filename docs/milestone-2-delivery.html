@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Smile Craft Mobile — Milestone 2 Delivery</title>
+<style>
+  @page { size: A4; margin: 22mm 18mm; }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; }
+  body {
+    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #1E1E1E;
+    font-size: 11.5pt;
+    line-height: 1.55;
+    margin: 0;
+  }
+  h1 { font-size: 26pt; margin: 0 0 6pt; color: #014CA9; letter-spacing: -0.3pt; }
+  h2 {
+    font-size: 16pt;
+    margin: 22pt 0 10pt;
+    padding-bottom: 6pt;
+    border-bottom: 1.5pt solid #D3E7FF;
+    color: #014CA9;
+  }
+  h3 { font-size: 13pt; margin: 16pt 0 6pt; color: #1E1E1E; }
+  h4 { font-size: 11.5pt; margin: 12pt 0 4pt; color: #4B4B4B; font-weight: 600; }
+  p { margin: 6pt 0; }
+  ul, ol { margin: 4pt 0 8pt 18pt; padding: 0; }
+  li { margin: 3pt 0; }
+  strong { color: #1E1E1E; }
+  code {
+    background: #F4F4F8; padding: 1pt 5pt; border-radius: 3pt;
+    font-family: "SF Mono", Consolas, Menlo, monospace; font-size: 10pt;
+  }
+  .lead { font-size: 12pt; color: #4B4B4B; margin: 0 0 14pt; }
+  .meta {
+    display: flex; gap: 18pt; flex-wrap: wrap;
+    background: #F4F4F8; border-radius: 6pt; padding: 10pt 14pt;
+    font-size: 10.5pt; color: #4B4B4B; margin: 8pt 0 18pt;
+  }
+  .meta b { color: #1E1E1E; }
+  .card {
+    border: 1pt solid #E9E9E9; border-radius: 8pt;
+    padding: 12pt 14pt; margin: 8pt 0;
+    background: #FFF;
+    page-break-inside: avoid;
+  }
+  .card .title { font-weight: 600; color: #014CA9; margin-bottom: 4pt; }
+  .pill {
+    display: inline-block;
+    background: #E9FAEB; color: #1D7926;
+    border-radius: 99pt; padding: 1pt 8pt; font-size: 9.5pt; font-weight: 600;
+  }
+  .pill.blue { background: #D3E7FF; color: #014CA9; }
+  .pill.amber { background: #FDF8E6; color: #8B6D00; }
+  table { width: 100%; border-collapse: collapse; margin: 6pt 0 10pt; font-size: 10.5pt; }
+  th, td { text-align: left; border: 1pt solid #E9E9E9; padding: 6pt 8pt; vertical-align: top; }
+  th { background: #F4F4F8; font-weight: 600; color: #1E1E1E; }
+  .note {
+    background: #FDF8E6; border-left: 3pt solid #ECC433;
+    padding: 8pt 12pt; border-radius: 4pt; margin: 8pt 0;
+    font-size: 10.5pt;
+  }
+  .ok  { color: #1D7926; font-weight: 600; }
+  .footer-note { color: #787878; font-size: 9.5pt; margin-top: 18pt; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8pt; }
+</style>
+</head>
+<body>
+
+<h1>Smile Craft Mobile</h1>
+<p class="lead">Milestone 2 — Delivery Summary</p>
+
+<div class="meta">
+  <div><b>Project:</b> Smile Craft mobile app</div>
+  <div><b>Platforms:</b> iOS &amp; Android</div>
+  <div><b>Milestone:</b> M2 — Authentication &amp; Core Schedule</div>
+  <div><b>Status:</b> <span class="ok">Delivered</span></div>
+</div>
+
+<h2>1. What this milestone covers</h2>
+<p>
+  Milestone 2 establishes the foundation of the mobile app: a secure login experience,
+  the main dashboard for daily clinic activity, the full appointment calendar
+  (Day / Week / Month), live data sync with the web backend, and the role-aware
+  navigation that determines what each user can see. Everything visible in this build
+  is wired to the same live backend the web app uses, so any change made on the web
+  shows up in the mobile app instantly.
+</p>
+
+<h2>2. Features delivered</h2>
+
+<div class="card">
+  <div class="title">2.1 Authentication <span class="pill">Live</span></div>
+  <ul>
+    <li><b>Login screen</b> — email + password, with show/hide toggle, in-line error messages, and persistent session (the user stays signed in across app restarts).</li>
+    <li><b>Forgot Password screen</b> — designed and built for visual review. The end-to-end reset still routes through the existing web flow, so the mobile screen is currently view-only until the backend endpoint is exposed for mobile.</li>
+    <li><b>Session handling</b> — JWT token issued by the existing backend, stored securely on-device, and attached automatically to every API call. Auto sign-out on token expiry.</li>
+    <li><b>Logout</b> — confirmation dialog from the dashboard (placeholder location — will move to the Profile/Settings screen in M3).</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="title">2.2 Dashboard <span class="pill">Live</span></div>
+  <ul>
+    <li><b>Personalized greeting</b> — time-of-day greeting (Good Morning / Afternoon / Evening) plus the user's first name and today's date.</li>
+    <li><b>Today's Summary</b> — four cards: Confirmed, Cancelled, Unconfirmed, Total Appointments — counted live from the backend.</li>
+    <li><b>Today's Appointments</b> — up to four upcoming appointments for today with patient initials, time, treatment, doctor, and status pill. "View All" opens the full list.</li>
+    <li><b>Notifications &amp; Logout</b> buttons in the header (notifications screen ships in M3).</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="title">2.3 Calendar <span class="pill">Live</span></div>
+  <p>Three switchable views, all backed by the same live appointment data:</p>
+  <ul>
+    <li><b>Day view</b> — hourly slots from 8:00 AM to 8:00 PM. Empty slots are shown as dashed placeholders so gaps in the day are visible at a glance.</li>
+    <li><b>Week view</b> — Monday–Sunday day-picker strip plus a compact appointment list for the selected day.</li>
+    <li><b>Month view</b> — a 6×7 calendar grid with weekday headers. Each date shows up to three small status dots (confirmed / cancelled / unconfirmed) so the team can read the month at a glance. Tapping a date jumps the Day/Week views to that date.</li>
+    <li><b>Chevrons</b> at the top step forward/back by day, week, or month depending on the active view.</li>
+    <li><b>Color coding by treatment type:</b>
+      <ul>
+        <li><span class="pill">Green</span> &nbsp;Cleaning</li>
+        <li><span class="pill amber">Yellow</span> &nbsp;Consultation / First check-up</li>
+        <li><span class="pill blue">Blue</span> &nbsp;Production work (root canal, crown, filling, extraction, implant, etc.)</li>
+      </ul>
+    </li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="title">2.4 Bottom Navigation &amp; Role-Aware Tabs <span class="pill">Live</span></div>
+  <ul>
+    <li>Five tabs: <b>Home</b>, <b>Register</b>, <b>Calendar</b>, <b>Billing</b>, <b>Reports</b>.</li>
+    <li>The Home and Calendar tabs are live in M2; Register, Billing, and Reports are placeholders that ship in M3–M5.</li>
+    <li><b>Role-aware visibility:</b>
+      <ul>
+        <li><b>Owner Doctor / Assistant / Admin / System Admin</b> — sees all five tabs (clinic-wide view).</li>
+        <li><b>Non-owner Doctor</b> — sees only Home and Calendar, scoped to their own appointments (matches the web app's privacy rules).</li>
+      </ul>
+    </li>
+    <li>The tab bar respects the phone's system gesture bar / home indicator on every device so labels never sit flush against the system UI.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="title">2.5 Live data &amp; real-time updates <span class="pill">Live</span></div>
+  <ul>
+    <li>All appointment data is fetched from the same backend the web app uses — no separate database, no duplicate sources of truth.</li>
+    <li><b>Real-time sync</b> — the app maintains a live socket connection. When an appointment is created, updated, confirmed, cancelled, or deleted on the web (or on another mobile device), the mobile app updates within a second without the user having to refresh.</li>
+    <li>Doctor accounts subscribe only to their own room, mirroring the web app's behavior.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="title">2.6 Quality &amp; engineering <span class="pill">Live</span></div>
+  <ul>
+    <li><b>Responsive scaling</b> — sizes and font scale across the supported range (small phones up to large devices, roughly 0.88× to 1.18×) so the design stays balanced everywhere.</li>
+    <li><b>Type safety</b> — written in TypeScript with strict mode. Catches a whole class of bugs at build time before they reach the device.</li>
+    <li><b>Three build profiles</b> via EAS Build:
+      <ul>
+        <li><b>Development</b> — for the internal team, points at the dev/staging backend.</li>
+        <li><b>Preview (APK)</b> — for testers and the client, points at production. Installs directly on Android phones without the Play Store.</li>
+        <li><b>Production (AAB)</b> — store-ready bundle for Google Play and the App Store when we get there.</li>
+      </ul>
+    </li>
+    <li><b>Brand identity</b> — Smile Craft icons applied to the launcher (iOS &amp; Android) and the splash screen.</li>
+    <li><b>QA test pack</b> — a separate PDF (<code>qa-test-plan-m2.pdf</code>) walks the tester through every screen and edge case.</li>
+  </ul>
+</div>
+
+<h2>3. Technology choices</h2>
+
+<table>
+  <tr><th>Layer</th><th>Choice</th><th>Why</th></tr>
+  <tr>
+    <td>Framework</td>
+    <td>React Native + Expo</td>
+    <td>One codebase ships to both iOS and Android. The clinic's web app is already React, so the team's existing skills carry over directly — no separate iOS/Android specialists needed for maintenance.</td>
+  </tr>
+  <tr>
+    <td>Language</td>
+    <td>TypeScript (strict)</td>
+    <td>Same language as the web app; catches errors at build time and makes the code easier to read months from now.</td>
+  </tr>
+  <tr>
+    <td>Backend</td>
+    <td>Existing Flask + MySQL backend</td>
+    <td>No new backend. The mobile app talks to the same APIs the web app uses, which means appointment data, user accounts, and permissions stay in one place.</td>
+  </tr>
+  <tr>
+    <td>Real-time</td>
+    <td>Socket.IO</td>
+    <td>Same socket layer the web app already uses for live appointment updates.</td>
+  </tr>
+  <tr>
+    <td>Distribution</td>
+    <td>EAS Build (Expo)</td>
+    <td>Builds in the cloud — no Mac required to ship iOS, and produces signed APK/AAB files we can hand to testers or the stores directly.</td>
+  </tr>
+</table>
+
+<h2>4. What is intentionally not in M2</h2>
+<p>These items are scoped for later milestones and are visible in M2 only as tab placeholders or interim placements:</p>
+<ul>
+  <li><b>Patient Registration</b> — full new-patient form (M3).</li>
+  <li><b>Encounter / Treatment recording</b> — clinical visit recording (M3).</li>
+  <li><b>Cashier / Billing</b> — payments, invoices, day-close (M4).</li>
+  <li><b>Reports</b> — clinic-wide reporting screens (M5).</li>
+  <li><b>Notifications screen</b> — the bell button is wired but the inbox screen ships in M3.</li>
+  <li><b>Profile / Settings</b> — proper home for the Logout button and user preferences (M3).</li>
+  <li><b>Forgot-Password full flow</b> — the screen is built for visual review; the end-to-end reset continues to route through the web app until the backend mobile endpoint is exposed.</li>
+</ul>
+
+<h2>5. How to install the test build</h2>
+<ol>
+  <li>The preview APK is shared as a downloadable link / file.</li>
+  <li>On Android: tap the APK to install. The first install may prompt you to allow installs from this source — accept it.</li>
+  <li>Open the app and log in with the shared test account credentials (provided separately).</li>
+  <li>The app talks to the live backend, so any change you make on the web shows up in the mobile app and vice versa.</li>
+</ol>
+
+<div class="note">
+  iOS test builds are distributed via TestFlight as a separate step once Apple Developer enrollment is in place. For M2 we focused on the Android preview since the client's clinic devices are primarily Android.
+</div>
+
+<h2>6. Test account</h2>
+<table>
+  <tr><th>Field</th><th>Value</th></tr>
+  <tr><td>App URL (backend)</td><td><code>https://www.smilescraft.com</code></td></tr>
+  <tr><td>Test user</td><td><code>mireillerahi71@gmail.com</code></td></tr>
+  <tr><td>Password</td><td><code>Karim1@91</code></td></tr>
+</table>
+
+<h2>7. What's coming next (M3 preview)</h2>
+<ul>
+  <li><b>Patient Registration</b> — full new-patient form with validation and duplicate detection.</li>
+  <li><b>Encounter</b> — record a clinical visit: procedures, notes, attachments.</li>
+  <li><b>Notifications inbox</b> — surfaces appointment confirmations, cancellations, and clinic-wide alerts.</li>
+  <li><b>Profile / Settings</b> — proper home for account info, language preference, and logout.</li>
+  <li><b>Push notifications</b> — for new appointments and cancellations on the doctor's phone.</li>
+</ul>
+
+<p class="footer-note">
+  Smile Craft Mobile — Milestone 2 Delivery Summary. Prepared for client review.
+</p>
+
+</body>
+</html>

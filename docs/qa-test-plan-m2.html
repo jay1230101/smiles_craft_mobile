@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Smile Craft Mobile — QA Test Plan (Milestone 2)</title>
+<style>
+  @page {
+    size: A4;
+    margin: 18mm 16mm;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.45;
+    color: #1E1E1E;
+    margin: 0;
+    padding: 0;
+  }
+  h1 {
+    font-size: 22pt;
+    color: #014CA9;
+    margin: 0 0 4pt 0;
+    border-bottom: 2px solid #014CA9;
+    padding-bottom: 4pt;
+  }
+  h2 {
+    font-size: 14pt;
+    color: #014CA9;
+    margin: 18pt 0 6pt 0;
+    border-bottom: 1px solid #E9E9E9;
+    padding-bottom: 3pt;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 11.5pt;
+    color: #181818;
+    margin: 12pt 0 4pt 0;
+    page-break-after: avoid;
+  }
+  h4 {
+    font-size: 10.5pt;
+    color: #4B4B4B;
+    margin: 10pt 0 2pt 0;
+    font-weight: 600;
+    page-break-after: avoid;
+  }
+  p { margin: 0 0 6pt 0; }
+  ul, ol { margin: 0 0 8pt 0; padding-left: 18pt; }
+  li { margin-bottom: 2pt; }
+  .meta {
+    background: #F4F4F8;
+    border: 1px solid #E9E9E9;
+    border-radius: 6pt;
+    padding: 8pt 12pt;
+    margin: 10pt 0 14pt 0;
+    font-size: 9.5pt;
+  }
+  .meta strong { color: #014CA9; }
+  .creds {
+    background: #FFFBEA;
+    border: 1px solid #F1D366;
+    border-radius: 6pt;
+    padding: 8pt 12pt;
+    margin: 8pt 0;
+    font-family: "Menlo", "Courier New", monospace;
+    font-size: 10pt;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 6pt 0 10pt 0;
+    font-size: 9.5pt;
+    page-break-inside: avoid;
+  }
+  th, td {
+    border: 1px solid #E9E9E9;
+    padding: 5pt 8pt;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: #EFF5FC;
+    color: #014CA9;
+    font-weight: 600;
+  }
+  code {
+    background: #F4F4F8;
+    padding: 1pt 4pt;
+    border-radius: 3pt;
+    font-family: "Menlo", "Courier New", monospace;
+    font-size: 9.5pt;
+  }
+  .note {
+    background: #EFF5FC;
+    border-left: 3px solid #014CA9;
+    padding: 6pt 10pt;
+    margin: 6pt 0 8pt 0;
+    font-size: 9.5pt;
+  }
+  .limit {
+    background: #FFF8E1;
+    border-left: 3px solid #E7B500;
+    padding: 6pt 10pt;
+    margin: 6pt 0 8pt 0;
+    font-size: 9.5pt;
+  }
+  .checklist {
+    list-style: none;
+    padding-left: 4pt;
+  }
+  .checklist li {
+    padding-left: 18pt;
+    position: relative;
+    margin-bottom: 4pt;
+  }
+  .checklist li::before {
+    content: "☐";
+    position: absolute;
+    left: 0;
+    color: #787878;
+    font-size: 11pt;
+  }
+  .pagebreak { page-break-before: always; }
+  .small { font-size: 9pt; color: #787878; }
+  .footer {
+    margin-top: 20pt;
+    border-top: 1px solid #E9E9E9;
+    padding-top: 8pt;
+    font-size: 9pt;
+    color: #787878;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<h1>Smile Craft Mobile — QA Test Plan</h1>
+<p class="small">Milestone 2 · Build v1.0.0 · 4 June 2026</p>
+
+<div class="meta">
+  <strong>Build:</strong> v1.0.0 (build 2)<br>
+  <strong>Platform:</strong> Android APK (iOS TestFlight pending Apple Developer account)<br>
+  <strong>Test environment:</strong> Live backend at <code>www.smilescraft.com</code><br>
+  <strong>Estimated test time:</strong> 60–90 minutes for a full sweep
+</div>
+
+<h2>1. How to install (Android)</h2>
+<ol>
+  <li>Download the APK file (link shared separately on WhatsApp / email).</li>
+  <li>On your Android phone, open <strong>Files</strong> → <strong>Downloads</strong> → tap the APK.</li>
+  <li>If prompted <em>"For your security, your phone isn't allowed to install unknown apps"</em>:
+    <ul>
+      <li>Tap <strong>Settings</strong> → enable <strong>Allow from this source</strong> → go back and tap <strong>Install</strong>.</li>
+    </ul>
+  </li>
+  <li>After install, find <strong>Smile Craft</strong> on your home screen and open it.</li>
+</ol>
+
+<h2>2. Login credentials</h2>
+<div class="creds">
+  Email: <strong>mireillerahi71@gmail.com</strong><br>
+  Password: <strong>Karim1@91</strong>
+</div>
+<div class="note">
+  Some screens currently display sample data (Michael Chen, Emily Rodriguez, etc.) for a consistent demo experience.
+  <strong>Login itself uses the real backend</strong> — wrong credentials show a real error message.
+</div>
+
+<h2>3. What to test</h2>
+
+<h3>3.1 Splash + Launch</h3>
+<ul class="checklist">
+  <li>App opens to a white splash screen showing the Smile Craft logo.</li>
+  <li>After 1–2 seconds, the splash transitions cleanly into the Login screen (or Dashboard if already logged in).</li>
+  <li>App icon on the home screen shows the blue Smile Craft swoosh on white background — not a generic Expo icon.</li>
+</ul>
+
+<h3>3.2 Login Screen</h3>
+<ul class="checklist">
+  <li>Page shows: Smile Craft logo, "Welcome Back!" title, subtitle, Email + Password fields, Remember me checkbox, Forgot Password? link, Login button.</li>
+  <li>Tap Login with empty fields → red error messages appear under each field ("Email is required", "Password is required").</li>
+  <li>Type an invalid email (e.g. "abc") → "Enter a valid email" appears on blur.</li>
+  <li>Type a valid email + wrong password → tap Login → "Invalid email or password" appears in red under the form.</li>
+  <li>Tap the eye icon on the password field → password becomes visible; tap again → hidden.</li>
+  <li>Tap Remember me → checkbox fills; tap again → unchecks.</li>
+  <li>Tap Forgot Password? → navigates to forgot password screen.</li>
+  <li>Enter correct credentials → tap Login → app opens to Dashboard.</li>
+</ul>
+
+<h3>3.3 Forgot Password Screen (view only — skip the full flow)</h3>
+<div class="note">
+  <strong>For this round, only verify the Forgot Password screen renders correctly.</strong>
+  Don't submit the form or test the rest of the reset flow — the end-to-end reset still
+  routes through the web app and the backend mobile endpoint isn't ready yet.
+</div>
+<ul class="checklist">
+  <li>From Login, tap <strong>Forgot Password?</strong> → navigates to the Forgot Your Password screen.</li>
+  <li>Page shows: back arrow, title "Forgot Your Password", subtitle, email input field, "Send Reset Link" button, "Didn't receive the email? Resend Link" footer.</li>
+  <li>Layout matches the designer's Figma (spacing, typography, colors).</li>
+  <li>Tap the back arrow → returns to Login screen.</li>
+</ul>
+
+<h3>3.4 Dashboard (Home tab)</h3>
+<ul class="checklist">
+  <li>Greeting shows "Good Morning / Afternoon / Evening [first name]!" based on current time.</li>
+  <li>Date below greeting shows today in long format (e.g., "Wednesday, June 4, 2026").</li>
+  <li>Bell icon top-right is tappable (currently does nothing visible — placeholder for notifications).</li>
+  <li>Logout icon (next to bell) is tappable → confirmation dialog appears ("Are you sure you want to log out?").
+    Cancel → dialog closes; Log out → returns to Login screen.</li>
+  <li>Today's Summary shows 4 cards in a 2×2 grid:
+    Confirmed (green checkmark) ·
+    Cancelled (red X, "Needs attention" caption) ·
+    Unconfirmed (blue sparkle) ·
+    Total Appointment (blue calendar).</li>
+  <li>Today's Appointments section shows 4 appointment cards.</li>
+  <li>Each card has: patient initials in blue circle, name, time with clock icon, treatment, doctor, status pill (yellow Unconfirmed / red Cancelled / green Confirmed).</li>
+  <li>Tap View All → navigates to All Appointments screen.</li>
+  <li>Scrolling: scroll down, the 4th card should be fully visible above the bottom navbar (not clipped).</li>
+</ul>
+
+<h3>3.5 All Appointments Screen</h3>
+<ul class="checklist">
+  <li>Header shows back arrow + "All Appointment's" title + "05 Total Patients" subtitle + blue + button.</li>
+  <li>Search field placeholder: "Search...".</li>
+  <li>Type "Michael" in search → list filters to only show Michael Chen.</li>
+  <li>Type "Cleaning" in search → list filters by treatment.</li>
+  <li>Type random nonsense → "No matching appointments." empty state.</li>
+  <li>Clear search → full list returns.</li>
+  <li>All 5 appointment cards visible: Michael Chen, Emily Rodriguez, Jessica Williams, David Thompson, Sarah Johnson.</li>
+  <li>Scroll: last card is fully visible above the bottom navbar.</li>
+  <li>Tap back arrow → returns to Dashboard.</li>
+</ul>
+
+<h3>3.6 Calendar Tab</h3>
+
+<h4>General</h4>
+<ul class="checklist">
+  <li>Date navigator at top shows current date with &lt; and &gt; chevrons.</li>
+  <li>Day / Week / Month segmented control below.</li>
+  <li>Selected view's tab is highlighted (white background with shadow inside the gray pill container).</li>
+</ul>
+
+<h4>Day view</h4>
+<ul class="checklist">
+  <li>Default view when first opening Calendar.</li>
+  <li>Chevrons step ±1 day (date in header updates).</li>
+  <li>Time slots from 8:00 AM down to 8:00 PM.</li>
+  <li>Today shows 4 appointments slotted into their times: 9 AM (Emily — green), 10 AM (Sarah Wilson — orange), 11 AM (Johny Achkar — green), 2 PM (Michael Chen — green).</li>
+  <li>Empty time slots show dashed outline cards.</li>
+  <li>Booked slots show colored left border + status dot top-right + name + time range + treatment + doctor.</li>
+  <li>Navigate to a different day → most days are empty (no appointments).</li>
+</ul>
+
+<h4>Week view</h4>
+<ul class="checklist">
+  <li>Tap Week → strip of 7 day chips appears (Mon–Sun).</li>
+  <li>Today's chip is highlighted blue with white text; others are gray.</li>
+  <li>Below the strip: list of today's appointments as compact cards.</li>
+  <li>Tap a different day chip → highlight moves, appointment list updates (or shows "No appointments on this day.").</li>
+  <li>Chevrons step ±1 week (entire strip changes to the next/previous week).</li>
+</ul>
+
+<h4>Month view</h4>
+<ul class="checklist">
+  <li>Tap Month → calendar grid appears with weekday headers (M T W T F S S).</li>
+  <li>Selected date has a blue filled circle around the number, with white text.</li>
+  <li>Today shows colored dots below the date (indicating appointments exist).</li>
+  <li>Tap any other date → blue circle moves to that date.</li>
+  <li>Chevrons step ±1 month.</li>
+  <li>Days outside the displayed month are blank.</li>
+</ul>
+
+<h3>3.7 Bottom Navigation</h3>
+<ul class="checklist">
+  <li>All 5 tabs visible: Home / Register / Calendar / Billing / Reports.</li>
+  <li>Each tab has a brand icon.</li>
+  <li>Active tab: icon and label in blue, label in semi-bold.</li>
+  <li>Inactive tabs: icon and label in gray, label in regular weight.</li>
+  <li>Tap each tab → screen switches, tab highlight updates.</li>
+  <li>Register / Billing / Reports show "coming soon" placeholder screens with an icon + title + subtitle.</li>
+  <li>Home tab → returns to Dashboard.</li>
+  <li>Calendar tab → returns to Calendar (preserves last selected view and date).</li>
+  <li>On the device's gesture indicator at the very bottom: it should appear below the tab bar labels (not overlapping them).</li>
+  <li>From Dashboard → tap View All → bottom nav is still visible and Home is still highlighted.</li>
+</ul>
+
+<h3>3.8 Logout Flow</h3>
+<ul class="checklist">
+  <li>On Dashboard, tap the logout icon (top-right, next to bell).</li>
+  <li>Native confirmation dialog appears with "Log out" as title and "Are you sure you want to log out?" as message.</li>
+  <li>Tap Cancel → dialog dismisses, stays on Dashboard.</li>
+  <li>Tap the logout icon again, then Log out (in red on iOS, default on Android) → returns to Login screen.</li>
+  <li>Try to navigate away from login (back button on Android) → should stay on login (no access without auth).</li>
+  <li>Log in again with correct credentials → lands back on Dashboard.</li>
+</ul>
+
+<h3>3.9 Responsive Layout</h3>
+<p>Test on different physical phones if possible:</p>
+<ul class="checklist">
+  <li>No content cut off on any phone size.</li>
+  <li>Status bar and bottom gesture indicator don't overlap content.</li>
+  <li>Tab bar labels readable on narrow phones (not wrapping or truncating awkwardly).</li>
+  <li>All buttons easily tappable.</li>
+</ul>
+
+<h2>4. Known limitations (please don't report these)</h2>
+<div class="limit">
+The following are planned but <strong>not yet built</strong> — these are expected behaviors, not bugs:
+</div>
+<ul>
+  <li><strong>Bell icon</strong> on Dashboard doesn't open notifications (UI placeholder, full notifications come in a later milestone).</li>
+  <li><strong>+ button</strong> on All Appointments doesn't open a "new appointment" form (Calendar M3 work).</li>
+  <li><strong>Tapping an appointment card</strong> doesn't open a detail view (M3).</li>
+  <li><strong>Calendar live sync</strong> — when the web app changes an appointment, the mobile won't visibly update until you exit and re-enter the screen.</li>
+  <li><strong>Update Password screen</strong> is currently reachable only by manual navigation — the email reset link still goes to the web. End-to-end mobile password reset needs a backend endpoint not yet built.</li>
+  <li><strong>Register / Billing / Reports tabs</strong> are placeholders ("coming soon" screens) — to be built in M3 and M4.</li>
+  <li><strong>Resend Link</strong> on Check Email screen does its job silently — no toast / confirmation appears yet.</li>
+  <li><strong>App name</strong> in some places shows "smilescraft-mobile (Dev)" or similar — this is normal for non-production builds and will say just "Smile Craft" in store builds.</li>
+  <li>Dashboard, All Appointments, and Calendar currently show <strong>sample data</strong> (Michael Chen, Emily Rodriguez, etc.) — this is intentional for a consistent demo experience and will be swapped to live data before final release.</li>
+</ul>
+
+<h2>5. What to report</h2>
+<p>Please report anything you observe that:</p>
+<ul>
+  <li>Causes the app to crash, freeze, or restart.</li>
+  <li>Shows text or images cut off, overlapping, or going off-screen.</li>
+  <li>Has buttons that don't respond when tapped.</li>
+  <li>Looks visibly different from the designer's Figma (not matching colors / spacing / typography).</li>
+  <li>Contains typos or grammar mistakes.</li>
+  <li>Behaves inconsistently between two test runs (e.g., worked once, didn't work next time).</li>
+  <li>Is confusing or unclear from a user perspective.</li>
+</ul>
+
+<h3>Bug report format</h3>
+<table>
+  <tr><th style="width: 25%;">Field</th><th>Example</th></tr>
+  <tr><td><strong>Title</strong></td><td>Dashboard: 4th appointment card clipped by tab bar on Samsung S22</td></tr>
+  <tr><td><strong>Device</strong></td><td>Samsung Galaxy S22, Android 13</td></tr>
+  <tr><td><strong>Steps to reproduce</strong></td><td>1. Log in 2. Land on Dashboard 3. Observe bottom of appointment list</td></tr>
+  <tr><td><strong>Expected</strong></td><td>All 4 cards visible above the tab bar</td></tr>
+  <tr><td><strong>Actual</strong></td><td>4th card cut off behind the tab bar</td></tr>
+  <tr><td><strong>Screenshot / Video</strong></td><td>Attached</td></tr>
+</table>
+<p class="small">Send reports to Umer (WhatsApp / email).</p>
+
+<h2>6. Out of scope for this build</h2>
+<table>
+  <tr><th style="width: 50%;">Feature</th><th>Coming in</th></tr>
+  <tr><td>Patient Registration screens</td><td>M3</td></tr>
+  <tr><td>Appointment detail view + edit</td><td>M3</td></tr>
+  <tr><td>Create new appointment</td><td>M3</td></tr>
+  <tr><td>Treatment &amp; Orders, Plan of Care</td><td>M3</td></tr>
+  <tr><td>WhatsApp Reminders from mobile</td><td>M3</td></tr>
+  <tr><td>Billing / Cashier flows</td><td>M4</td></tr>
+  <tr><td>Reports and analytics</td><td>M4</td></tr>
+  <tr><td>Push notifications</td><td>M5</td></tr>
+  <tr><td>Offline mode</td><td>M5</td></tr>
+  <tr><td>Proper Profile / Settings screen</td><td>M3</td></tr>
+  <tr><td>iOS TestFlight build</td><td>After Apple Dev account</td></tr>
+</table>
+
+<h2>7. Test sweep priorities</h2>
+
+<h3>If you only have 15 minutes — focus on:</h3>
+<ol>
+  <li>Login (correct credentials)</li>
+  <li>Dashboard layout and summary cards</li>
+  <li>Calendar Day view</li>
+  <li>Bottom navigation</li>
+  <li>Logout flow</li>
+</ol>
+
+<h3>If you have 30 minutes — add:</h3>
+<ol start="6">
+  <li>Forgot Password screen — view only (don't submit)</li>
+  <li>All Appointments search</li>
+  <li>Calendar Week + Month views</li>
+  <li>Tab switching between Home / Calendar / placeholder tabs</li>
+</ol>
+
+<h3>If you have 60+ minutes — add:</h3>
+<ol start="10">
+  <li>Error and validation cases (wrong password, invalid email, empty fields)</li>
+  <li>Edge cases (very long names, dates in the past / future, navigation across views)</li>
+  <li>Multi-device testing on different phone sizes</li>
+</ol>
+
+<div class="footer">
+  Smile Craft Mobile · Milestone 2 QA Test Plan · Confidential — for internal QA use only
+</div>
+
+</body>
+</html>
