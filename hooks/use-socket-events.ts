@@ -13,6 +13,11 @@ const APPOINTMENT_EVENTS: ServerEvent[] = [
   'bookingDeleted',
 ];
 
+// The backend assigns each connection to the right Socket.IO room based on the
+// JWT it sees on connect (`socket_events.py` server-side):
+//   - Owner Doctors + Assistants + Admins -> `clinic_<clinic_id>` (whole clinic)
+//   - Non-owner Doctors                   -> `doctor_<user_id>` (own only)
+// So this hook just connects with the user's token; scope is enforced server-side.
 export function useSocketEvents() {
   const token = useAuthStore((s) => s.token);
   const status = useAuthStore((s) => s.status);
