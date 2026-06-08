@@ -7,6 +7,9 @@ export const endpoints = {
   calendar: {
     list: '/getAllEvents',
   },
+  doctors: {
+    list: '/get_doctors',
+  },
   patients: {
     list: '/getAllPatients',
     search: '/searchPatient',

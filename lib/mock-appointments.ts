@@ -1,12 +1,21 @@
 import type { AppointmentStatus } from '@/components/status-pill';
 import type { BackendEvent } from '@/types/appointments';
+import type { Doctor } from '@/types/doctors';
 import { todayYMD, type SummaryCounts } from './appointments';
+
+export const MOCK_DOCTORS: Doctor[] = [
+  { id: 1, name: 'Sarah', family: 'Mitchell' },
+  { id: 2, name: 'Charbel', family: 'Diab' },
+  { id: 3, name: 'James', family: 'Parker' },
+  { id: 4, name: 'Eli', family: 'Shamlos' },
+];
 
 // Flip to `false` to use live backend data on Dashboard + All Appointments + Calendar.
 export const DEMO_MODE = true;
 
 function mockEvent(opts: {
   mainId: number;
+  doctorId: number;
   name: string;
   family: string;
   doctor: string;
@@ -33,7 +42,7 @@ function mockEvent(opts: {
     family: opts.family,
     doctor: opts.doctor,
     visit_date: today,
-    resourceId: 1,
+    resourceId: opts.doctorId,
     patientId: opts.mainId,
     extendedProps: {
       procedure: opts.procedure,
@@ -50,6 +59,7 @@ export function getMockCalendarEvents(): BackendEvent[] {
   return [
     mockEvent({
       mainId: 101,
+      doctorId: 1,
       name: 'Emily',
       family: 'Rodriguez',
       doctor: 'Sarah Mitchell',
@@ -60,6 +70,7 @@ export function getMockCalendarEvents(): BackendEvent[] {
     }),
     mockEvent({
       mainId: 102,
+      doctorId: 1,
       name: 'Sarah',
       family: 'Wilson',
       doctor: 'Sarah Mitchell',
@@ -70,6 +81,7 @@ export function getMockCalendarEvents(): BackendEvent[] {
     }),
     mockEvent({
       mainId: 103,
+      doctorId: 2,
       name: 'Johny',
       family: 'Achkar',
       doctor: 'Charbel Diab',
@@ -80,6 +92,7 @@ export function getMockCalendarEvents(): BackendEvent[] {
     }),
     mockEvent({
       mainId: 104,
+      doctorId: 3,
       name: 'Michael',
       family: 'Chen',
       doctor: 'James Parker',

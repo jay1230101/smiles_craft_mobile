@@ -4,12 +4,14 @@ import { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { AppointmentCard } from '@/components/appointment-card';
+import { DoctorPicker } from '@/components/doctor-picker';
 import { LinkText } from '@/components/link-text';
 import { LogoutButton } from '@/components/logout-button';
 import { NotificationButton } from '@/components/notification-button';
 import { Screen } from '@/components/screen';
 import { SummaryCard } from '@/components/summary-card';
 import { useAllEvents } from '@/hooks/use-appointments';
+import { useDoctors } from '@/hooks/use-doctors';
 import {
   eventToAppointmentItem,
   eventsForDate,
@@ -18,8 +20,14 @@ import {
   todayYMD,
 } from '@/lib/appointments';
 import { firstNameOf, formatLongDate, greetingForHour } from '@/lib/greeting';
-import { DEMO_MODE, MOCK_APPOINTMENTS, MOCK_SUMMARY } from '@/lib/mock-appointments';
+import {
+  DEMO_MODE,
+  MOCK_APPOINTMENTS,
+  MOCK_SUMMARY,
+  getMockCalendarEvents,
+} from '@/lib/mock-appointments';
 import { useAuthStore } from '@/store/auth';
+import { useDoctorFilterStore } from '@/store/doctor-filter';
 import { colors, spacing, typography } from '@/theme';
 
 const DASHBOARD_VISIBLE = 4;
@@ -30,6 +38,13 @@ export default function HomeScreen() {
   const bottomTabHeight = useBottomTabBarHeight();
   const safeBottomPadding = Math.max(bottomTabHeight, 80) + spacing.xxl;
   const { data: events, isLoading, isError, refetch, isRefetching } = useAllEvents();
+  const { data: doctors } = useDoctors();
+  const selectedDoctorId = useDoctorFilterStore((s) => s.selectedDoctorId);
+  const setSelectedDoctorId = useDoctorFilterStore((s) => s.setSelectedDoctorId);
+
+  // Same rule as the Calendar: non-owner doctors don't get the picker — they
+  // only ever see their own appointments and any filter would be a no-op.
+  const showDoctorPicker = !(user?.role === 'DOCTOR' && !user.is_owner);
 
   const { greeting, dateLabel, today } = useMemo(() => {
     const now = new Date();
@@ -40,14 +55,44 @@ export default function HomeScreen() {
     };
   }, []);
 
-  const liveSummary = useMemo(() => summarize(events ?? [], today), [events, today]);
+  // Live data — filter source events by selected doctor before deriving summary
+  // and today's list, so all three pieces (counts, list, calendar) stay in sync.
+  const liveFilteredEvents = useMemo(() => {
+    const all = events ?? [];
+    if (!showDoctorPicker || selectedDoctorId === null) return all;
+    return all.filter((e) => e.resourceId === selectedDoctorId);
+  }, [events, selectedDoctorId, showDoctorPicker]);
+  const liveSummary = useMemo(
+    () => summarize(liveFilteredEvents, today),
+    [liveFilteredEvents, today],
+  );
   const liveAppointments = useMemo(() => {
-    const todays = eventsForDate(events ?? [], today).map(eventToAppointmentItem);
+    const todays = eventsForDate(liveFilteredEvents, today).map(eventToAppointmentItem);
     return sortAppointmentsByTime(todays).slice(0, DASHBOARD_VISIBLE);
-  }, [events, today]);
+  }, [liveFilteredEvents, today]);
 
-  const summary = DEMO_MODE ? MOCK_SUMMARY : liveSummary;
-  const appointments = DEMO_MODE ? MOCK_APPOINTMENTS.slice(0, DASHBOARD_VISIBLE) : liveAppointments;
+  // Demo data — when a specific doctor is picked, derive counts + list from
+  // the same mock calendar events so the picker actually changes the display.
+  // With "All Doctors" selected we keep the richer curated MOCK_SUMMARY +
+  // MOCK_APPOINTMENTS so the default demo view still looks populated.
+  const demoData = useMemo(() => {
+    if (selectedDoctorId === null) {
+      return {
+        summary: MOCK_SUMMARY,
+        appointments: MOCK_APPOINTMENTS.slice(0, DASHBOARD_VISIBLE),
+      };
+    }
+    const filtered = getMockCalendarEvents().filter((e) => e.resourceId === selectedDoctorId);
+    return {
+      summary: summarize(filtered, today),
+      appointments: sortAppointmentsByTime(
+        eventsForDate(filtered, today).map(eventToAppointmentItem),
+      ).slice(0, DASHBOARD_VISIBLE),
+    };
+  }, [selectedDoctorId, today]);
+
+  const summary = DEMO_MODE ? demoData.summary : liveSummary;
+  const appointments = DEMO_MODE ? demoData.appointments : liveAppointments;
 
   const firstName = firstNameOf(user?.user_name) || 'there';
   const showLoading = !DEMO_MODE && isLoading && !events;
@@ -69,6 +114,14 @@ export default function HomeScreen() {
           <LogoutButton />
         </View>
       </View>
+
+      {showDoctorPicker && doctors && doctors.length > 0 ? (
+        <DoctorPicker
+          doctors={doctors}
+          selectedDoctorId={selectedDoctorId}
+          onSelect={setSelectedDoctorId}
+        />
+      ) : null}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Today’s Summary</Text>

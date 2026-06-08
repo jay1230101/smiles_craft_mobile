@@ -3,9 +3,11 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { DoctorPicker } from '@/components/doctor-picker';
 import { Screen } from '@/components/screen';
 import { type AppointmentStatus } from '@/components/status-pill';
 import { useAllEvents } from '@/hooks/use-appointments';
+import { useDoctors } from '@/hooks/use-doctors';
 import {
   deriveStatus,
   eventsForDate,
@@ -14,6 +16,8 @@ import {
 } from '@/lib/appointments';
 import { DEMO_MODE, getMockCalendarEvents } from '@/lib/mock-appointments';
 import { ms, s } from '@/lib/responsive';
+import { useAuthStore } from '@/store/auth';
+import { useDoctorFilterStore } from '@/store/doctor-filter';
 import { colors, radius, spacing, typography } from '@/theme';
 import type { BackendEvent } from '@/types/appointments';
 
@@ -26,14 +30,29 @@ const DAY_END_HOUR = 20;
 export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [view, setView] = useState<CalendarView>('Day');
+  const selectedDoctorId = useDoctorFilterStore((s) => s.selectedDoctorId);
+  const setSelectedDoctorId = useDoctorFilterStore((s) => s.setSelectedDoctorId);
   const bottomTabHeight = useBottomTabBarHeight();
   const safeBottomPadding = Math.max(bottomTabHeight, 80) + spacing.xxl;
   const { data: liveEvents } = useAllEvents();
+  const { data: doctors } = useDoctors();
+  const user = useAuthStore((s) => s.user);
 
-  const events = useMemo<BackendEvent[]>(() => {
+  // Non-owner doctors only ever see their own appointments (backend enforced).
+  // The picker is irrelevant for them, so it's hidden and no client-side filter
+  // is applied. Everyone else (owner doctors, assistants, admins) gets the
+  // picker with "All Doctors" as the default.
+  const showDoctorPicker = !(user?.role === 'DOCTOR' && !user.is_owner);
+
+  const allEvents = useMemo<BackendEvent[]>(() => {
     if (DEMO_MODE) return getMockCalendarEvents();
     return liveEvents ?? [];
   }, [liveEvents]);
+
+  const events = useMemo<BackendEvent[]>(() => {
+    if (!showDoctorPicker || selectedDoctorId === null) return allEvents;
+    return allEvents.filter((e) => e.resourceId === selectedDoctorId);
+  }, [allEvents, selectedDoctorId, showDoctorPicker]);
 
   const ymd = useMemo(() => todayYMD(selectedDate), [selectedDate]);
   const dayEvents = useMemo(() => eventsForDate(events, ymd), [events, ymd]);
@@ -86,6 +105,14 @@ export default function CalendarScreen() {
           <Ionicons name="chevron-forward" size={s(20)} color={colors.neutral[500]} />
         </Pressable>
       </View>
+
+      {showDoctorPicker && doctors && doctors.length > 0 ? (
+        <DoctorPicker
+          doctors={doctors}
+          selectedDoctorId={selectedDoctorId}
+          onSelect={setSelectedDoctorId}
+        />
+      ) : null}
 
       <View style={styles.tabBar}>
         {VIEWS.map((v) => {
