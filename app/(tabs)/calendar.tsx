@@ -27,6 +27,7 @@ export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [view, setView] = useState<CalendarView>('Day');
   const bottomTabHeight = useBottomTabBarHeight();
+  const safeBottomPadding = Math.max(bottomTabHeight, 80) + spacing.xxl;
   const { data: liveEvents } = useAllEvents();
 
   const events = useMemo<BackendEvent[]>(() => {
@@ -64,7 +65,7 @@ export default function CalendarScreen() {
 
   return (
     <Screen
-      contentContainerStyle={[styles.container, { paddingBottom: bottomTabHeight + spacing.lg }]}
+      contentContainerStyle={[styles.container, { paddingBottom: safeBottomPadding }]}
       edges={['top']}>
       <View style={styles.dateNav}>
         <Pressable
@@ -276,7 +277,7 @@ function MonthView({
                           key={status}
                           style={[
                             styles.monthDot,
-                            { backgroundColor: slotPalette(status).dot },
+                            { backgroundColor: statusPalette(status).dot },
                           ]}
                         />
                       ))}
@@ -352,11 +353,10 @@ function EmptySlot() {
 }
 
 function SlotCard({ event }: { event: BackendEvent }) {
-  const status = deriveStatus(event);
-  const palette = slotPalette(status);
+  const treatment = event.extendedProps?.procedure ?? '';
+  const palette = procedurePalette(treatment);
   const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
   const timeRange = `${formatEventTime(event.start)} - ${formatEventTime(event.end)}`;
-  const treatment = event.extendedProps?.procedure ?? '';
   const doctor = event.doctor ? `Dr. ${event.doctor}` : '';
 
   return (
@@ -377,10 +377,9 @@ function SlotCard({ event }: { event: BackendEvent }) {
 }
 
 function WeekCard({ event }: { event: BackendEvent }) {
-  const status = deriveStatus(event);
-  const palette = slotPalette(status);
-  const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
   const procedure = event.extendedProps?.procedure ?? '';
+  const palette = procedurePalette(procedure);
+  const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
   const subtitle = procedure
     ? `${formatEventTime(event.start)} - ${procedure}`
     : formatEventTime(event.start);
@@ -400,11 +399,22 @@ function WeekCard({ event }: { event: BackendEvent }) {
   );
 }
 
-function slotPalette(status: AppointmentStatus): {
-  border: string;
-  bg: string;
-  dot: string;
-} {
+// Designer color system: cards/dots are colored by PROCEDURE type, not status.
+//   green  → cleaning
+//   yellow → consultation / first check-up
+//   blue   → production work (root canal, crown, filling, extraction, implant, etc.)
+function procedurePalette(procedure: string): { border: string; bg: string; dot: string } {
+  const p = procedure.toLowerCase();
+  if (/clean/.test(p)) {
+    return { border: colors.success[500], bg: colors.success[0], dot: colors.success[500] };
+  }
+  if (/consult|check[- ]?up|first visit|first check/.test(p)) {
+    return { border: colors.warning[400], bg: colors.warning[10], dot: colors.warning[400] };
+  }
+  return { border: colors.primary[500], bg: colors.primary[0], dot: colors.primary[500] };
+}
+
+function statusPalette(status: AppointmentStatus): { border: string; bg: string; dot: string } {
   switch (status) {
     case 'confirmed':
       return { border: colors.success[500], bg: colors.success[0], dot: colors.success[500] };
