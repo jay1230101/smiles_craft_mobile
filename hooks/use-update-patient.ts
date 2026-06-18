@@ -18,7 +18,6 @@ export function useUpdatePatient() {
           dob: payload.dob,
           phone: payload.phone,
           gender: payload.gender,
-          email: payload.email,
           allergy: payload.allergy,
           doctor_id: payload.doctor,
         });

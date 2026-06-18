@@ -1,11 +1,10 @@
 export type UpdatePatientRequest = {
   id: number;
   name: string;
-  family?: string;
+  family: string;
   dob?: string;
   phone: string;
   gender?: string;
-  email?: string;
   allergy?: string;
   doctor: number;
 };
@@ -30,16 +29,14 @@ export type PatientListItem = {
   doctor_id?: number;
   doctor_name?: string;
   allergy?: string;
-  email?: string;
 };
 
 export type RegisterPatientRequest = {
   name: string;
-  family?: string;
+  family: string;
   dob?: string;
   phone: string;
   gender?: string;
-  email?: string;
   allergy?: string;
   doctor: number;
   force_create?: boolean;

@@ -25,10 +25,10 @@ const SUBTITLE_COLOR = '#64748B';
 const DOB_REGEX = /^(\d{2})-(\d{2})-(\d{4})$/;
 const DIGITS_ONLY = /^[0-9]+$/;
 
-// Per design: Name, Phone, Clinician are required; everything else is optional.
+// Per design: Name, Family, Phone, Clinician are required; rest is optional.
 const schema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
-  family: z.string().trim().optional(),
+  family: z.string().trim().min(1, 'Family name is required'),
   dob: z
     .string()
     .trim()
@@ -55,12 +55,6 @@ const schema = z.object({
     .regex(DIGITS_ONLY, 'Digits only, no spaces or symbols'),
   gender: z.string().trim().optional(),
   doctor: z.number().int().positive('Clinician is required'),
-  email: z
-    .string()
-    .trim()
-    .email('Enter a valid email')
-    .optional()
-    .or(z.literal('')),
   allergy: z.string().trim().optional(),
 });
 
@@ -94,7 +88,6 @@ export default function PatientRegisterScreen() {
       phone: '',
       gender: '',
       doctor: lockedDoctorId ?? 0,
-      email: '',
       allergy: '',
     }),
     [lockedDoctorId],
@@ -133,12 +126,11 @@ export default function PatientRegisterScreen() {
 
     const payload: RegisterPatientRequest = {
       name: values.name.trim(),
-      family: values.family?.trim() || undefined,
+      family: values.family.trim(),
       dob: values.dob?.trim() ? dobToBackend(values.dob.trim()) : undefined,
       phone: values.phone.trim(),
       gender: values.gender || undefined,
       doctor: values.doctor,
-      email: values.email?.trim() || undefined,
       allergy: values.allergy?.trim() || undefined,
       ...(force ? { force_create: true } : {}),
     };
@@ -219,8 +211,8 @@ export default function PatientRegisterScreen() {
           name="family"
           render={({ field, fieldState }) => (
             <TextInput
-              label="Family (Optional)"
-              placeholder=""
+              label="Family"
+              placeholder="Enter family name"
               autoCapitalize="words"
               maxLength={50}
               value={field.value ?? ''}
@@ -294,26 +286,6 @@ export default function PatientRegisterScreen() {
               value={field.value || null}
               options={genderOptions}
               onChange={(v) => field.onChange(v ?? '')}
-              error={fieldState.error?.message}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="email"
-          render={({ field, fieldState }) => (
-            <TextInput
-              label="Email (Optional)"
-              placeholder=""
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="email"
-              maxLength={50}
-              value={field.value ?? ''}
-              onChangeText={field.onChange}
-              onBlur={field.onBlur}
               error={fieldState.error?.message}
             />
           )}

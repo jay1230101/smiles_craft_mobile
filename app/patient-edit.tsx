@@ -27,7 +27,7 @@ const DIGITS_ONLY = /^[0-9]+$/;
 
 const schema = z.object({
   name: z.string().trim().min(1, 'Name is required'),
-  family: z.string().trim().optional(),
+  family: z.string().trim().min(1, 'Family name is required'),
   dob: z
     .string()
     .trim()
@@ -54,12 +54,6 @@ const schema = z.object({
     .regex(DIGITS_ONLY, 'Digits only, no spaces or symbols'),
   gender: z.string().trim().optional(),
   doctor: z.number().int().positive('Clinician is required'),
-  email: z
-    .string()
-    .trim()
-    .email('Enter a valid email')
-    .optional()
-    .or(z.literal('')),
   allergy: z.string().trim().optional(),
 });
 
@@ -100,7 +94,6 @@ function EditForm({
       phone: stripPhone(patient.phone ?? ''),
       gender: patient.gender ?? '',
       doctor: patient.doctor_id ?? 0,
-      email: patient.email ?? '',
       allergy: patient.allergy ?? '',
     }),
     [patient],
@@ -145,12 +138,11 @@ function EditForm({
     const payload: UpdatePatientRequest = {
       id: patient.id,
       name: values.name.trim(),
-      family: values.family?.trim() || undefined,
+      family: values.family.trim(),
       dob: values.dob?.trim() ? dobToBackend(values.dob.trim()) : undefined,
       phone: values.phone.trim(),
       gender: values.gender || undefined,
       doctor: values.doctor,
-      email: values.email?.trim() || undefined,
       allergy: values.allergy?.trim() || undefined,
     };
 
@@ -207,8 +199,8 @@ function EditForm({
           name="family"
           render={({ field, fieldState }) => (
             <TextInput
-              label="Family (Optional)"
-              placeholder=""
+              label="Family"
+              placeholder="Enter family name"
               autoCapitalize="words"
               maxLength={50}
               value={field.value ?? ''}
@@ -282,26 +274,6 @@ function EditForm({
               value={field.value || null}
               options={genderOptions}
               onChange={(v) => field.onChange(v ?? '')}
-              error={fieldState.error?.message}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="email"
-          render={({ field, fieldState }) => (
-            <TextInput
-              label="Email (Optional)"
-              placeholder=""
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="email"
-              maxLength={50}
-              value={field.value ?? ''}
-              onChangeText={field.onChange}
-              onBlur={field.onBlur}
               error={fieldState.error?.message}
             />
           )}
