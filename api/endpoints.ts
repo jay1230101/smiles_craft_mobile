@@ -17,8 +17,10 @@ export const endpoints = {
   },
   patients: {
     list: '/getAllPatients',
-    search: '/searchPatient',
+    search: '/search-patient',
     register: '/register-patient',
+    update: '/update-patient',
+    delete: '/delete-patient',
   },
   genders: {
     list: '/getGender',
@@ -26,5 +28,19 @@ export const endpoints = {
   bills: {
     pending: '/getPendingBills',
     all: '/getAllBills',
+  },
+  orders: {
+    init: '/init-procedure-screen',
+    pending: '/getPendingProcedures',
+    submit: '/treatment-plan',
+    visits: '/getVisitsHistory',
+  },
+  planOfCare: {
+    save: '/planOfCare',
+    list: '/get-plan-care',
+  },
+  reminders: {
+    templates: '/getActiveTemplates',
+    store: '/store_reminders',
   },
 } as const;
