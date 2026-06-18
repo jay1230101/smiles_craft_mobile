@@ -417,7 +417,7 @@ function EmptySlot() {
 
 function SlotCard({ event, onPress }: { event: BackendEvent; onPress: () => void }) {
   const treatment = event.extendedProps?.procedure ?? '';
-  const palette = doctorPalette(event.doctor);
+  const palette = paletteForEvent(event);
   const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
   const timeRange = `${formatEventTime(event.start)} - ${formatEventTime(event.end)}`;
   const doctor = event.doctor ? `Dr. ${event.doctor}` : '';
@@ -445,7 +445,7 @@ function SlotCard({ event, onPress }: { event: BackendEvent; onPress: () => void
 
 function WeekCard({ event, onPress }: { event: BackendEvent; onPress: () => void }) {
   const procedure = event.extendedProps?.procedure ?? '';
-  const palette = doctorPalette(event.doctor);
+  const palette = paletteForEvent(event);
   const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
   const subtitle = procedure
     ? `${formatEventTime(event.start)} - ${procedure}`
@@ -505,6 +505,17 @@ function statusPalette(status: AppointmentStatus): { border: string; bg: string;
     default:
       return { border: colors.warning[400], bg: colors.warning[10], dot: colors.warning[400] };
   }
+}
+
+// Confirmed = green, Cancelled = red — matches the web app's
+// .app-confirmed / .app_cancelled rules. Anything not explicitly
+// confirmed or cancelled falls back to the per-doctor palette.
+function paletteForEvent(event: BackendEvent): { border: string; bg: string; dot: string } {
+  const status = deriveStatus(event);
+  if (status === 'confirmed' || status === 'cancelled') {
+    return statusPalette(status);
+  }
+  return doctorPalette(event.doctor);
 }
 
 function formatHour(hour: number): string {
