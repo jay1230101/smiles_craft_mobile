@@ -1,5 +1,5 @@
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MAX_CONTENT_WIDTH } from '@/lib/responsive';
 import { colors, spacing } from '@/theme';
 
@@ -18,8 +18,22 @@ export function Screen({
   style,
   edges = ['top', 'bottom', 'left', 'right'],
 }: ScreenProps) {
+  // When a screen opts out of the bottom safe-area edge (modal screens with
+  // their own action rows), the SafeAreaView won't add bottom padding — so
+  // on Android phones with a gesture bar (e.g. Samsung Galaxy S25) the
+  // primary actions sit flush against the system inset and become hard to
+  // tap. Always reserve at least the bottom inset + a comfortable buffer.
+  const insets = useSafeAreaInsets();
+  const bottomEdgeIncluded = edges.includes('bottom');
+  const extraBottom = bottomEdgeIncluded
+    ? spacing.xl
+    : Math.max(insets.bottom, spacing.sm) + spacing.xl;
+
   const inner = (
-    <View style={[styles.inner, contentContainerStyle]}>{children}</View>
+    <View
+      style={[styles.inner, { paddingBottom: extraBottom }, contentContainerStyle]}>
+      {children}
+    </View>
   );
 
   return (
@@ -64,6 +78,5 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
   },
 });
