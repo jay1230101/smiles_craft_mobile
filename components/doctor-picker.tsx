@@ -12,28 +12,31 @@ type Props = {
 
 export function DoctorPicker({ doctors, selectedDoctorId, onSelect }: Props) {
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.strip}>
-      <Chip
-        label="All Doctors"
-        active={selectedDoctorId === null}
-        onPress={() => onSelect(null)}
-      />
-      {doctors.map((d) => {
-        const name = `${(d.name ?? '').trim()} ${(d.family ?? '').trim()}`.trim();
-        const label = name ? `Dr. ${name}` : 'Doctor';
-        return (
-          <Chip
-            key={d.id}
-            label={label}
-            active={selectedDoctorId === d.id}
-            onPress={() => onSelect(d.id)}
-          />
-        );
-      })}
-    </ScrollView>
+    <View style={styles.wrapper}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.scroll}
+        contentContainerStyle={styles.strip}>
+        <Chip
+          label="All Doctors"
+          active={selectedDoctorId === null}
+          onPress={() => onSelect(null)}
+        />
+        {doctors.map((d) => {
+          const name = `${(d.name ?? '').trim()} ${(d.family ?? '').trim()}`.trim();
+          const label = name ? `Dr. ${name}` : 'Doctor';
+          return (
+            <Chip
+              key={d.id}
+              label={label}
+              active={selectedDoctorId === d.id}
+              onPress={() => onSelect(d.id)}
+            />
+          );
+        })}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -57,7 +60,20 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
   );
 }
 
+const CHIP_HEIGHT = s(40);
+
 const styles = StyleSheet.create({
+  // Wrapper pins the picker's vertical footprint so the surrounding column
+  // layout doesn't shift as chips swap between regular / semibold weights or
+  // the ScrollView's intrinsic height resolves differently between scroll
+  // positions.
+  wrapper: {
+    height: CHIP_HEIGHT,
+  },
+  scroll: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
   strip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -65,8 +81,9 @@ const styles = StyleSheet.create({
     paddingRight: spacing.lg,
   },
   chip: {
+    height: CHIP_HEIGHT,
     paddingHorizontal: spacing.md,
-    paddingVertical: s(8),
+    justifyContent: 'center',
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.border.subtle,

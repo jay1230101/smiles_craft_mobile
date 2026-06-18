@@ -1,7 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import { colors, radius, spacing, typography } from '@/theme';
 
-type Variant = 'primary' | 'secondary';
+type Variant = 'primary' | 'secondary' | 'danger';
 
 export type ButtonProps = Omit<PressableProps, 'children' | 'style'> & {
   label: string;
@@ -66,6 +66,10 @@ const VARIANTS: Record<Variant, { background: string; color: string }> = {
   secondary: {
     background: colors.background.surface,
     color: colors.text.primary,
+  },
+  danger: {
+    background: colors.danger[500],
+    color: colors.text.inverse,
   },
 };
 

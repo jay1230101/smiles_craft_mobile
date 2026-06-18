@@ -10,6 +10,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ms, s } from '@/lib/responsive';
 import { colors, radius, spacing, typography } from '@/theme';
@@ -43,6 +44,7 @@ export function Select<T extends string | number>({
   containerStyle,
 }: Props<T>) {
   const [open, setOpen] = useState(false);
+  const insets = useSafeAreaInsets();
   const showError = !!error;
   const selected = options.find((o) => o.value === value);
 
@@ -75,9 +77,13 @@ export function Select<T extends string | number>({
         transparent
         visible={open}
         animationType="fade"
-        onRequestClose={() => setOpen(false)}>
+        onRequestClose={() => setOpen(false)}
+        statusBarTranslucent
+        presentationStyle="overFullScreen">
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <Pressable style={styles.sheet} onPress={() => {}}>
+          <Pressable
+            style={[styles.sheet, { paddingBottom: spacing.xxl + insets.bottom }]}
+            onPress={() => {}}>
             {label ? <Text style={styles.sheetTitle}>{label}</Text> : null}
             <ScrollView
               style={styles.sheetList}
