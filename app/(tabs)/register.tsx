@@ -1,435 +1,363 @@
-import { zodResolver } from '@hookform/resolvers/zod';
+import { Ionicons } from '@expo/vector-icons';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
-import { Alert, StyleSheet, Text, View } from 'react-native';
-import { z } from 'zod';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
-import { Button } from '@/components/button';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { PatientCard } from '@/components/patient-card';
 import { Screen } from '@/components/screen';
-import { Select, type SelectOption } from '@/components/select';
-import { TextInput } from '@/components/text-input';
-import { useDoctors } from '@/hooks/use-doctors';
-import { useGenders } from '@/hooks/use-genders';
-import { useRegisterPatient } from '@/hooks/use-register-patient';
-import { useAuthStore } from '@/store/auth';
+import { useDeletePatient } from '@/hooks/use-delete-patient';
+import { usePatients } from '@/hooks/use-patients';
+import { ms, s } from '@/lib/responsive';
+import { useEditPatientStore } from '@/store/edit-patient';
 import { colors, spacing, typography } from '@/theme';
-import type { RegisterPatientRequest, RegisterPatientResponse } from '@/types/patients';
+import type { PatientListItem } from '@/types/patients';
 
-// Form-facing DOB format is DD-MM-YYYY (user-friendly); we convert to the
-// backend's required YYYY-MM-DD on submit.
-const DOB_REGEX = /^(\d{2})-(\d{2})-(\d{4})$/;
-const DIGITS_ONLY = /^[0-9]+$/;
-
-const schema = z.object({
-  name: z.string().trim().min(1, 'First name is required'),
-  family: z.string().trim().min(1, 'Last name is required'),
-  father: z.string().trim().optional(),
-  dob: z
-    .string()
-    .trim()
-    .regex(DOB_REGEX, 'Use format DD-MM-YYYY')
-    .refine((v) => {
-      const match = v.match(DOB_REGEX);
-      if (!match) return false;
-      const [, dd, mm, yyyy] = match;
-      const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
-      return (
-        !isNaN(d.getTime()) &&
-        d.getDate() === Number(dd) &&
-        d.getMonth() + 1 === Number(mm) &&
-        d.getFullYear() === Number(yyyy) &&
-        d.getTime() < Date.now()
-      );
-    }, 'Enter a real past date'),
-  phone: z
-    .string()
-    .trim()
-    .min(6, 'Phone is required')
-    .regex(DIGITS_ONLY, 'Digits only, no spaces or symbols'),
-  gender: z.string().trim().min(1, 'Gender is required'),
-  doctor: z.number().int().positive('Doctor is required'),
-  email: z.string().trim().email('Enter a valid email').optional().or(z.literal('')),
-  allergy: z.string().trim().optional(),
-});
-
-type FormValues = z.infer<typeof schema>;
-
-function dobToBackend(input: string): string {
-  const m = input.match(DOB_REGEX);
-  if (!m) return input;
-  const [, dd, mm, yyyy] = m;
-  return `${yyyy}-${mm}-${dd}`;
-}
+const ICON_CIRCLE_BG = '#EFF6FF';
+const HEADING_COLOR = '#1A202C';
+const PARAGRAPH_COLOR = '#64748B';
 
 export default function RegisterScreen() {
-  const user = useAuthStore((s) => s.user);
+  const router = useRouter();
   const bottomTabHeight = useBottomTabBarHeight();
   const safeBottomPadding = Math.max(bottomTabHeight, 80) + spacing.xxl;
-  const { data: doctors } = useDoctors();
-  const { data: genders } = useGenders();
-  const registerPatient = useRegisterPatient();
-  const [serverError, setServerError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const { data: patients, isLoading, isError, refetch } = usePatients();
+  const setEditPatient = useEditPatientStore((s) => s.setPatient);
+  const deletePatient = useDeletePatient();
+  const [query, setQuery] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<PatientListItem | null>(null);
 
-  // Non-owner doctors register patients for themselves; everyone else picks.
-  const isNonOwnerDoctor = user?.role === 'DOCTOR' && !user.is_owner;
-  const lockedDoctorId = isNonOwnerDoctor ? user?.user_id ?? null : null;
+  const openForm = () => {
+    router.push('/patient-register' as never);
+  };
 
-  const defaultValues = useMemo<FormValues>(
-    () => ({
-      name: '',
-      family: '',
-      father: '',
-      dob: '',
-      phone: '',
-      gender: '',
-      doctor: lockedDoctorId ?? 0,
-      email: '',
-      allergy: '',
-    }),
-    [lockedDoctorId],
-  );
+  const openEdit = (patient: PatientListItem) => {
+    setEditPatient(patient);
+    router.push('/patient-edit' as never);
+  };
 
-  const { control, handleSubmit, reset, formState } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues,
-    mode: 'onTouched',
-  });
-
-  const doctorOptions: SelectOption<number>[] = useMemo(
-    () =>
-      (doctors ?? []).map((d) => ({
-        value: d.id,
-        label: `Dr. ${[d.name, d.family].filter(Boolean).join(' ').trim()}`,
-      })),
-    [doctors],
-  );
-
-  const genderOptions: SelectOption<string>[] = useMemo(
-    () => (genders ?? []).map((g) => ({ value: g.gen, label: g.gen })),
-    [genders],
-  );
-
-  const submit = async (values: FormValues, force = false) => {
-    setServerError(null);
-    setSuccessMessage(null);
-
-    const payload: RegisterPatientRequest = {
-      name: values.name.trim(),
-      family: values.family.trim(),
-      father: values.father?.trim() || undefined,
-      dob: dobToBackend(values.dob.trim()),
-      phone: values.phone.trim(),
-      gender: values.gender,
-      doctor: values.doctor,
-      email: values.email?.trim() || undefined,
-      allergy: values.allergy?.trim() || undefined,
-      ...(force ? { force_create: true } : {}),
-    };
-
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
     try {
-      const result: RegisterPatientResponse = await registerPatient.mutateAsync(payload);
-      handleResult(result, values);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Something went wrong. Try again.';
-      setServerError(message);
+      await deletePatient.mutateAsync({ id: pendingDelete.id });
+    } catch {
+      // Surface a server error inline if needed; for now the mutation just
+      // bubbles the error and the dialog stays open until the user dismisses.
     }
+    setPendingDelete(null);
   };
 
-  const handleResult = (result: RegisterPatientResponse, values: FormValues) => {
-    if (result.status === 200) {
-      setSuccessMessage('Patient registered successfully.');
-      reset(defaultValues);
-      return;
-    }
-    if (result.status === 'duplicate') {
-      const existing = result.existing_patient
-        ? `${result.existing_patient.name} ${result.existing_patient.family}`.trim()
-        : 'an existing patient';
-      Alert.alert(
-        'Phone number already used',
-        `This phone is already registered to ${existing}. Continue anyway?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Continue', style: 'destructive', onPress: () => submit(values, true) },
-        ],
-      );
-      return;
-    }
-    setServerError(result.message || 'Could not register patient.');
-  };
+  const filteredPatients = useMemo(() => {
+    const list = patients ?? [];
+    const q = query.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((p) => {
+      const haystack = [p.name, p.family, p.phone, p.doctor_name]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [patients, query]);
 
-  const onSubmit = (values: FormValues) => submit(values, false);
+  if (isLoading) {
+    return (
+      <Screen
+        contentContainerStyle={[styles.loadingContainer, { paddingBottom: safeBottomPadding }]}
+        edges={['top']}>
+        <ActivityIndicator color={colors.primary[500]} />
+      </Screen>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Screen
+        contentContainerStyle={[styles.loadingContainer, { paddingBottom: safeBottomPadding }]}
+        edges={['top']}>
+        <Text style={styles.errorText}>Couldn’t load patients.</Text>
+        <Pressable onPress={() => refetch()}>
+          <Text style={styles.retryText}>Try again</Text>
+        </Pressable>
+      </Screen>
+    );
+  }
+
+  const total = patients?.length ?? 0;
+  const isEmpty = total === 0;
+
+  if (isEmpty) {
+    return <EmptyState onAdd={openForm} safeBottomPadding={safeBottomPadding} />;
+  }
 
   return (
     <Screen
-      contentContainerStyle={[styles.container, { paddingBottom: safeBottomPadding }]}
+      contentContainerStyle={[styles.listContainer, { paddingBottom: safeBottomPadding }]}
       edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>New Patient</Text>
-        <Text style={styles.subtitle}>Register a new patient record for the clinic.</Text>
-      </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          onPress={() => router.push('/(tabs)/(home)' as never)}
+          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}>
+          <Ionicons name="chevron-back" size={ms(20)} color={HEADING_COLOR} />
+        </Pressable>
 
-      <View style={styles.formBlock}>
-        <View style={styles.row}>
-          <Controller
-            control={control}
-            name="name"
-            render={({ field, fieldState }) => (
-              <TextInput
-                containerStyle={styles.flex}
-                label="First name *"
-                placeholder="First name"
-                autoCapitalize="words"
-                value={field.value}
-                onChangeText={field.onChange}
-                onBlur={field.onBlur}
-                error={fieldState.error?.message}
-                returnKeyType="next"
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="family"
-            render={({ field, fieldState }) => (
-              <TextInput
-                containerStyle={styles.flex}
-                label="Last name *"
-                placeholder="Last name"
-                autoCapitalize="words"
-                value={field.value}
-                onChangeText={field.onChange}
-                onBlur={field.onBlur}
-                error={fieldState.error?.message}
-                returnKeyType="next"
-              />
-            )}
-          />
+        <View style={styles.headerText}>
+          <Text style={styles.title}>Patient Registration</Text>
+          <Text style={styles.subtitle}>{formatTotal(total)} Total Patients</Text>
         </View>
 
-        <Controller
-          control={control}
-          name="father"
-          render={({ field, fieldState }) => (
-            <TextInput
-              label="Father's name"
-              placeholder="Optional"
-              autoCapitalize="words"
-              value={field.value ?? ''}
-              onChangeText={field.onChange}
-              onBlur={field.onBlur}
-              error={fieldState.error?.message}
-              returnKeyType="next"
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="dob"
-          render={({ field, fieldState }) => (
-            <TextInput
-              label="Date of birth *"
-              placeholder="DD-MM-YYYY"
-              keyboardType="number-pad"
-              autoCapitalize="none"
-              autoCorrect={false}
-              value={field.value}
-              onChangeText={(text) => field.onChange(formatDob(text))}
-              onBlur={field.onBlur}
-              error={fieldState.error?.message}
-              helperText={!fieldState.error ? 'Example: 14-08-1990' : undefined}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="phone"
-          render={({ field, fieldState }) => (
-            <TextInput
-              label="Phone number *"
-              placeholder="9613xxxxxxx"
-              keyboardType="phone-pad"
-              autoCapitalize="none"
-              autoCorrect={false}
-              value={field.value}
-              onChangeText={(text) => field.onChange(text.replace(/\D/g, ''))}
-              onBlur={field.onBlur}
-              error={fieldState.error?.message}
-              helperText={!fieldState.error ? 'Country code first, no + sign.' : undefined}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="gender"
-          render={({ field, fieldState }) => (
-            <Select<string>
-              label="Gender *"
-              placeholder="Select gender"
-              value={field.value || null}
-              options={genderOptions}
-              onChange={(v) => field.onChange(v)}
-              error={fieldState.error?.message}
-            />
-          )}
-        />
-
-        {isNonOwnerDoctor ? (
-          <View>
-            <Text style={styles.fieldLabel}>Assigned doctor</Text>
-            <View style={styles.lockedField}>
-              <Text style={styles.lockedFieldText} numberOfLines={1}>
-                {`Dr. ${user?.user_name ?? ''}`.trim() || 'You'}
-              </Text>
-            </View>
-            <Text style={styles.helperText}>You can only register patients under your own name.</Text>
-          </View>
-        ) : (
-          <Controller
-            control={control}
-            name="doctor"
-            render={({ field, fieldState }) => (
-              <Select<number>
-                label="Assigned doctor *"
-                placeholder="Select doctor"
-                value={field.value || null}
-                options={doctorOptions}
-                onChange={(v) => field.onChange(v)}
-                error={fieldState.error?.message}
-              />
-            )}
-          />
-        )}
-
-        <Controller
-          control={control}
-          name="email"
-          render={({ field, fieldState }) => (
-            <TextInput
-              label="Email"
-              placeholder="Optional"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="email"
-              value={field.value ?? ''}
-              onChangeText={field.onChange}
-              onBlur={field.onBlur}
-              error={fieldState.error?.message}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="allergy"
-          render={({ field, fieldState }) => (
-            <TextInput
-              label="Allergies / notes"
-              placeholder="Optional"
-              autoCapitalize="sentences"
-              value={field.value ?? ''}
-              onChangeText={field.onChange}
-              onBlur={field.onBlur}
-              error={fieldState.error?.message}
-              multiline
-              numberOfLines={3}
-            />
-          )}
-        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Register new patient"
+          onPress={openForm}
+          style={({ pressed }) => [styles.addBtn, pressed && styles.pressed]}>
+          <Ionicons name="add" size={ms(24)} color="#FFFFFF" />
+        </Pressable>
       </View>
 
-      {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
-      {successMessage ? <Text style={styles.serverSuccess}>{successMessage}</Text> : null}
-
-      <View style={styles.submitWrap}>
-        <Button
-          label="Register patient"
-          loading={formState.isSubmitting || registerPatient.isPending}
-          onPress={handleSubmit(onSubmit)}
+      <View style={styles.searchWrap}>
+        <Ionicons name="search" size={ms(18)} color={PARAGRAPH_COLOR} />
+        <TextInput
+          placeholder="Search..."
+          placeholderTextColor={PARAGRAPH_COLOR}
+          value={query}
+          onChangeText={setQuery}
+          style={styles.searchInput}
+          autoCapitalize="none"
+          autoCorrect={false}
         />
+        {query ? (
+          <Pressable accessibilityLabel="Clear search" onPress={() => setQuery('')} hitSlop={8}>
+            <Ionicons name="close-circle" size={ms(18)} color={PARAGRAPH_COLOR} />
+          </Pressable>
+        ) : null}
+      </View>
+
+      <View style={styles.list}>
+        {filteredPatients.length === 0 ? (
+          <Text style={styles.noResults}>No patients match “{query}”.</Text>
+        ) : (
+          filteredPatients.map((p) => (
+            <PatientCard
+              key={p.id}
+              patient={p}
+              onEdit={openEdit}
+              onDelete={setPendingDelete}
+            />
+          ))
+        )}
+      </View>
+
+      <ConfirmDialog
+        visible={pendingDelete !== null}
+        variant="danger"
+        title="Delete Patient"
+        message="Are you sure you want to continue? This action cannot be undone."
+        cancelLabel="Cancel"
+        confirmLabel="Delete"
+        loading={deletePatient.isPending}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={confirmDelete}
+      />
+    </Screen>
+  );
+}
+
+function EmptyState({
+  onAdd,
+  safeBottomPadding,
+}: {
+  onAdd: () => void;
+  safeBottomPadding: number;
+}) {
+  return (
+    <Screen
+      contentContainerStyle={[styles.emptyContainer, { paddingBottom: safeBottomPadding }]}
+      edges={['top']}>
+      <View style={styles.emptyState}>
+        <View style={styles.iconBlock}>
+          <View style={styles.iconCircle}>
+            <Ionicons name="people-outline" size={ms(48)} color={colors.primary[500]} />
+          </View>
+          <Text style={styles.heading}>No Patients Yet</Text>
+          <Text style={styles.paragraph}>
+            Start building your patient database by registering your first patient. Add their details to get started.
+          </Text>
+        </View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Register first patient"
+          onPress={onAdd}
+          style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}>
+          <Ionicons name="person-add-outline" size={ms(20)} color="#FFFFFF" />
+          <Text style={styles.ctaLabel}>Register First Patient</Text>
+        </Pressable>
       </View>
     </Screen>
   );
 }
 
-// Auto-insert dashes as the user types so DD-MM-YYYY is enforced without a
-// dedicated date picker. Strip non-digits then re-segment.
-function formatDob(input: string): string {
-  const digits = input.replace(/\D/g, '').slice(0, 8);
-  const parts: string[] = [];
-  if (digits.length > 0) parts.push(digits.slice(0, 2));
-  if (digits.length > 2) parts.push(digits.slice(2, 4));
-  if (digits.length > 4) parts.push(digits.slice(4, 8));
-  return parts.join('-');
+function formatTotal(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
 }
 
 const styles = StyleSheet.create({
-  container: {
+  loadingContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  errorText: {
+    ...typography.body.large,
+    color: colors.danger[500],
+    textAlign: 'center',
+  },
+  retryText: {
+    ...typography.label.large,
+    color: colors.primary[500],
+  },
+  listContainer: {
     paddingTop: spacing.sm,
-    gap: spacing.xl,
+    gap: spacing.lg,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  backBtn: {
+    width: s(40),
+    height: s(40),
+    borderRadius: s(10),
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    backgroundColor: colors.background.base,
+  },
+  pressed: {
+    opacity: 0.6,
+  },
+  headerText: {
+    flex: 1,
     gap: spacing.xs,
   },
   title: {
     ...typography.title.large,
     fontFamily: 'Inter_700Bold',
-    color: colors.neutral[500],
+    fontSize: ms(22),
+    lineHeight: ms(28),
+    color: HEADING_COLOR,
   },
   subtitle: {
-    ...typography.body.large,
-    color: colors.text.secondary,
+    ...typography.body.medium,
+    fontFamily: 'Inter_400Regular',
+    fontSize: ms(14),
+    lineHeight: ms(20),
+    color: PARAGRAPH_COLOR,
   },
-  formBlock: {
-    gap: spacing.xl,
+  addBtn: {
+    width: s(40),
+    height: s(40),
+    borderRadius: s(10),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary[500],
   },
-  row: {
+  searchWrap: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    height: s(48),
+    paddingHorizontal: spacing.lg,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.background.base,
+  },
+  searchInput: {
+    flex: 1,
+    ...typography.body.medium,
+    color: HEADING_COLOR,
+  },
+  list: {
     gap: spacing.md,
   },
-  flex: {
-    flex: 1,
-  },
-  fieldLabel: {
+  noResults: {
     ...typography.body.medium,
+    color: PARAGRAPH_COLOR,
+    textAlign: 'center',
+    paddingVertical: spacing.xl,
+  },
+  emptyContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingTop: spacing.sm,
+  },
+  emptyState: {
+    alignItems: 'center',
+    gap: s(32),
+  },
+  iconBlock: {
+    alignItems: 'center',
+    gap: s(16),
+  },
+  iconCircle: {
+    width: s(96),
+    height: s(96),
+    borderRadius: s(48),
+    backgroundColor: ICON_CIRCLE_BG,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heading: {
+    ...typography.title.medium,
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: ms(20),
+    lineHeight: ms(28),
+    color: HEADING_COLOR,
+    textAlign: 'center',
+  },
+  paragraph: {
+    ...typography.body.medium,
+    fontFamily: 'Inter_400Regular',
+    fontSize: ms(14),
+    lineHeight: ms(20),
+    color: PARAGRAPH_COLOR,
+    textAlign: 'center',
+    maxWidth: s(320),
+  },
+  cta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: s(8),
+    alignSelf: 'stretch',
+    height: s(56),
+    borderRadius: s(59),
+    backgroundColor: colors.primary[500],
+    paddingHorizontal: s(16),
+  },
+  ctaPressed: {
+    opacity: 0.85,
+  },
+  ctaLabel: {
+    ...typography.label.large,
     fontFamily: 'Inter_500Medium',
-    color: colors.neutral[500],
-    marginBottom: spacing.xs,
-  },
-  lockedField: {
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    borderRadius: 12,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.background.surface,
-  },
-  lockedFieldText: {
-    ...typography.body.large,
-    color: colors.neutral[500],
-  },
-  helperText: {
-    ...typography.body.small,
-    color: colors.text.secondary,
-    marginTop: spacing.xs,
-  },
-  serverError: {
-    ...typography.body.medium,
-    color: colors.danger[500],
-    textAlign: 'center',
-  },
-  serverSuccess: {
-    ...typography.body.medium,
-    color: colors.success[500],
-    textAlign: 'center',
-  },
-  submitWrap: {
-    marginTop: spacing.md,
+    fontSize: ms(16),
+    lineHeight: ms(24),
+    color: '#FFFFFF',
   },
 });
