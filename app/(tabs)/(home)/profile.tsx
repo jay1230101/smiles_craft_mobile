@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Screen } from '@/components/screen';
 import { s } from '@/lib/responsive';
 import { useAuthStore } from '@/store/auth';
@@ -14,6 +16,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const appVersion = (Constants.expoConfig as { version?: string } | null)?.version ?? '1.0.0';
   const buildNumber =
@@ -24,12 +27,7 @@ export default function ProfileScreen() {
     else router.replace('/(tabs)/(home)' as never);
   };
 
-  const handleLogout = () => {
-    Alert.alert('Log out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Log out', style: 'destructive', onPress: () => logout() },
-    ]);
-  };
+  const handleLogout = () => setLogoutOpen(true);
 
   return (
     <Screen contentContainerStyle={styles.container} edges={['top']}>
@@ -91,11 +89,26 @@ export default function ProfileScreen() {
         <Button
           label="Log out"
           variant="secondary"
+          fullWidth={false}
           onPress={handleLogout}
           leftIcon={<Ionicons name="log-out-outline" size={s(18)} color={colors.danger[500]} />}
           style={styles.logoutBtn}
         />
       </View>
+
+      <ConfirmDialog
+        visible={logoutOpen}
+        variant="danger"
+        title="Log out?"
+        message="You'll need to sign in again to access your account."
+        confirmLabel="Log out"
+        cancelLabel="Cancel"
+        onConfirm={() => {
+          setLogoutOpen(false);
+          logout();
+        }}
+        onCancel={() => setLogoutOpen(false)}
+      />
     </Screen>
   );
 }
@@ -279,8 +292,12 @@ const styles = StyleSheet.create({
   },
   logoutBlock: {
     marginTop: spacing.lg,
+    alignItems: 'center',
   },
   logoutBtn: {
+    minHeight: s(44),
+    minWidth: s(160),
+    paddingHorizontal: spacing.xl,
     borderColor: colors.danger[500],
   },
 });
