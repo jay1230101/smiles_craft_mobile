@@ -18,6 +18,10 @@ module.exports = {
   expo: {
     ...baseConfig.expo,
     name: `${baseConfig.expo.name}${suffix}`,
+    plugins: [
+      ...(baseConfig.expo.plugins ?? []),
+      '@react-native-community/datetimepicker',
+    ],
     extra: {
       ...baseConfig.expo.extra,
       appEnv: APP_ENV,

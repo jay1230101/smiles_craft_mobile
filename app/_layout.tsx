@@ -61,6 +61,30 @@ export default function RootLayout() {
             name="appointment-edit"
             options={{ headerShown: false, presentation: 'modal' }}
           />
+          <Stack.Screen
+            name="patient-register"
+            options={{ headerShown: false, presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="patient-edit"
+            options={{ headerShown: false, presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="orders"
+            options={{ headerShown: false, presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="plan-of-care"
+            options={{ headerShown: false, presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="schedule-whatsapp"
+            options={{ headerShown: false, presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="clinical-history"
+            options={{ headerShown: false, presentation: 'modal' }}
+          />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
         <StatusBar style="auto" />
