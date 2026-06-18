@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Smile Craft Mobile — QA Test Plan (Milestone 3)</title>
+<style>
+  @page {
+    size: A4;
+    margin: 18mm 16mm;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.45;
+    color: #1E1E1E;
+    margin: 0;
+    padding: 0;
+  }
+  h1 {
+    font-size: 22pt;
+    color: #014CA9;
+    margin: 0 0 4pt 0;
+    border-bottom: 2px solid #014CA9;
+    padding-bottom: 4pt;
+  }
+  h2 {
+    font-size: 14pt;
+    color: #014CA9;
+    margin: 18pt 0 6pt 0;
+    border-bottom: 1px solid #E9E9E9;
+    padding-bottom: 3pt;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 11.5pt;
+    color: #181818;
+    margin: 12pt 0 4pt 0;
+    page-break-after: avoid;
+  }
+  h4 {
+    font-size: 10.5pt;
+    color: #4B4B4B;
+    margin: 10pt 0 2pt 0;
+    font-weight: 600;
+    page-break-after: avoid;
+  }
+  p { margin: 0 0 6pt 0; }
+  ul, ol { margin: 0 0 8pt 0; padding-left: 18pt; }
+  li { margin-bottom: 2pt; }
+  .meta {
+    background: #F4F4F8;
+    border: 1px solid #E9E9E9;
+    border-radius: 6pt;
+    padding: 8pt 12pt;
+    margin: 10pt 0 14pt 0;
+    font-size: 9.5pt;
+  }
+  .meta strong { color: #014CA9; }
+  .creds {
+    background: #FFFBEA;
+    border: 1px solid #F1D366;
+    border-radius: 6pt;
+    padding: 8pt 12pt;
+    margin: 8pt 0;
+    font-family: "Menlo", "Courier New", monospace;
+    font-size: 10pt;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 6pt 0 10pt 0;
+    font-size: 9.5pt;
+    page-break-inside: avoid;
+  }
+  th, td {
+    border: 1px solid #E9E9E9;
+    padding: 5pt 8pt;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: #EFF5FC;
+    color: #014CA9;
+    font-weight: 600;
+  }
+  code {
+    background: #F4F4F8;
+    padding: 1pt 4pt;
+    border-radius: 3pt;
+    font-family: "Menlo", "Courier New", monospace;
+    font-size: 9.5pt;
+  }
+  .note {
+    background: #EFF5FC;
+    border-left: 3px solid #014CA9;
+    padding: 6pt 10pt;
+    margin: 6pt 0 8pt 0;
+    font-size: 9.5pt;
+  }
+  .limit {
+    background: #FFF8E1;
+    border-left: 3px solid #E7B500;
+    padding: 6pt 10pt;
+    margin: 6pt 0 8pt 0;
+    font-size: 9.5pt;
+  }
+  .new {
+    display: inline-block;
+    background: #1D7926;
+    color: #FFFFFF;
+    border-radius: 99pt;
+    padding: 0 6pt;
+    font-size: 8pt;
+    font-weight: 600;
+    margin-left: 6pt;
+    vertical-align: middle;
+  }
+  .checklist {
+    list-style: none;
+    padding-left: 4pt;
+  }
+  .checklist li {
+    padding-left: 18pt;
+    position: relative;
+    margin-bottom: 4pt;
+  }
+  .checklist li::before {
+    content: "☐";
+    position: absolute;
+    left: 0;
+    color: #787878;
+    font-size: 11pt;
+  }
+  .pagebreak { page-break-before: always; }
+  .small { font-size: 9pt; color: #787878; }
+  .footer {
+    margin-top: 20pt;
+    border-top: 1px solid #E9E9E9;
+    padding-top: 8pt;
+    font-size: 9pt;
+    color: #787878;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<h1>Smile Craft Mobile — QA Test Plan</h1>
+<p class="small">Milestone 3 + M3 Amendment · Build v1.2.0 · 15 June 2026</p>
+
+<div class="meta">
+  <strong>Build:</strong> v1.2.0 (build 4)<br>
+  <strong>Platform:</strong> Android APK (iOS TestFlight pending Apple Developer account)<br>
+  <strong>Test environment:</strong> Demo mode by default. Login itself hits the live backend at <code>www.smilescraft.com</code>; in-app data (patients, calendar, summary cards, orders, plan of care, history) is sample data for a consistent QA experience.<br>
+  <strong>Estimated test time:</strong> 120–150 minutes for a full sweep
+</div>
+
+<div class="note">
+  <strong>What's new since the last QA round (v1.1.0 → v1.2.0):</strong> Treatment &amp; Orders modal (procedure picker with auto-fill price, staged procedures, pending procedures with status updates), New Plan of Care modal (Quick Templates + 1000-char counter), Schedule Future WhatsApp modal (template + future date picker), Clinical History (Visits / Plan of Care tabs), and a rebuilt Edit / Reschedule screen with Search Patients (patient swap), Notes textarea, and Delete Appointment. The popover now lists all seven actions from the web.
+</div>
+
+<h2>1. How to install (Android)</h2>
+<ol>
+  <li>Download the new APK file (link shared separately on WhatsApp / email). If you still have the previous build installed, the new one will install over it — your login is preserved.</li>
+  <li>On your Android phone, open <strong>Files</strong> → <strong>Downloads</strong> → tap the APK.</li>
+  <li>If prompted <em>"For your security, your phone isn't allowed to install unknown apps"</em>:
+    <ul>
+      <li>Tap <strong>Settings</strong> → enable <strong>Allow from this source</strong> → go back and tap <strong>Install</strong>.</li>
+    </ul>
+  </li>
+  <li>After install, find <strong>Smile Craft</strong> on your home screen and open it.</li>
+</ol>
+
+<h2>2. Login credentials</h2>
+<div class="creds">
+  Email: <strong>mireillerahi71@gmail.com</strong><br>
+  Password: <strong>Karim1@91</strong>
+</div>
+<div class="note">
+  Demo-mode is on for this QA build — most screens display sample data (Johny Achkar, Mark Eli, Marina Elon, Michael Chen, etc.) for consistent testing.
+  <strong>Login itself uses the real backend</strong> — wrong credentials will show a real error.
+</div>
+
+<h2>3. What to test</h2>
+
+<h3>3.1 Splash + Launch</h3>
+<ul class="checklist">
+  <li>App opens to a white splash screen with the Smile Craft logo.</li>
+  <li>Splash transitions cleanly into Login (or Dashboard if already signed in).</li>
+  <li>App icon on the home screen shows the blue Smile Craft swoosh on white background.</li>
+</ul>
+
+<h3>3.2 Login Screen</h3>
+<ul class="checklist">
+  <li>Layout matches M2: logo, "Welcome Back!" title, Email + Password fields, Remember me, Forgot Password?, Login button.</li>
+  <li>Empty submit → "Email is required" / "Password is required" inline errors.</li>
+  <li>Invalid email format → "Enter a valid email" on blur.</li>
+  <li>Wrong credentials → "Invalid email or password" under the form.</li>
+  <li>Password eye toggle reveals / hides the value.</li>
+  <li>Correct credentials → Dashboard opens.</li>
+</ul>
+
+<h3>3.3 Dashboard (Home tab) <span class="new">UPDATED</span></h3>
+<ul class="checklist">
+  <li>Greeting shows "Good Morning / Afternoon / Evening [first name]!" based on time.</li>
+  <li>Long-format date below greeting (e.g., "Tuesday, June 9, 2026").</li>
+  <li>Top-right header now shows a <strong>bell button</strong> + a <strong>profile (avatar) button</strong> (replaces the old logout icon from M2).</li>
+  <li>Bell shows a <strong>red dot</strong> when there are unread notifications; the dot clears after you mark all as read in the Notifications inbox.</li>
+  <li><strong>Doctor switcher chip strip</strong> appears under the greeting for Owner / Assistant / Admin / SystemAdmin accounts (it is correctly hidden for non-owner doctors).
+    <ul>
+      <li>Default selection is "All Doctors".</li>
+      <li>Tap a doctor chip → Today's Summary counts and Today's Appointments list filter to that doctor.</li>
+      <li>Tap "All Doctors" → back to clinic-wide totals.</li>
+      <li>Layout stays stable as you tap between chips — content below should not jump up/down.</li>
+    </ul>
+  </li>
+  <li>Today's Summary shows 4 cards in a 2×2 grid with <strong>outlined</strong> (not filled) icons:
+    Confirmed · Cancelled · Unconfirmed · Total Appointment.</li>
+  <li><strong>Math check:</strong> Total Appointment = Confirmed + Unconfirmed (Cancelled is NOT added).
+    Example default state: Confirmed 3 + Unconfirmed 18 = Total 21. Cancelled is its own card.</li>
+  <li>Today's Appointments shows 4 appointment cards. Same card style as M2.</li>
+  <li>Tap "View All" → All Appointments screen opens.</li>
+  <li>Scroll: last appointment card sits fully above the bottom navbar (not clipped).</li>
+</ul>
+
+<h3>3.4 Notifications Inbox <span class="new">NEW</span></h3>
+<ul class="checklist">
+  <li>From the Dashboard, tap the <strong>bell icon</strong> top-right → Notifications screen opens.</li>
+  <li>Header has a back arrow and "Notifications" title.</li>
+  <li>First open seeds 4 sample notifications (new booking, confirmed, cancelled, patient registered).</li>
+  <li>Each row shows: kind-aware icon + tint, headline, who it relates to, relative timestamp ("Just now", "5m ago", "3h ago").</li>
+  <li>Tap "Mark all as read" → red dot on the dashboard bell clears.</li>
+  <li>Tap "Clear all" → the list empties; the "no notifications" empty state appears.</li>
+  <li>Back arrow returns to the Dashboard.</li>
+  <li>Pull-to-refresh works without crashing.</li>
+</ul>
+
+<h3>3.5 Profile &amp; Settings <span class="new">NEW</span></h3>
+<ul class="checklist">
+  <li>From the Dashboard, tap the <strong>profile avatar</strong> top-right → Profile screen opens.</li>
+  <li>Header has a back arrow and "Profile" title.</li>
+  <li><strong>User card</strong> shows: circular avatar with auto-initials, full name, role pretty-printed ("Owner Doctor", "Assistant", "Admin", etc.), email.</li>
+  <li><strong>Preferences</strong> section shows Language and Push Notifications listed as upcoming items (no toggle yet — that's intentional).</li>
+  <li><strong>About</strong> section shows app version, build number, and clinic ID.</li>
+  <li><strong>Log out</strong> button at the bottom → native confirmation dialog → Cancel keeps you on Profile, Log out returns you to Login.</li>
+</ul>
+
+<h3>3.6 Register Tab — Empty State <span class="new">NEW</span></h3>
+<p class="small">If the patient list is empty (or has never been populated), the Register tab shows an empty-state landing screen.</p>
+<ul class="checklist">
+  <li>Tab opens with: centered light-blue circle containing a people icon, "No Patients Yet" heading, descriptive paragraph, and a big blue "Register First Patient" button at the bottom.</li>
+  <li>Layout is vertically centered on the screen.</li>
+  <li>Tap "Register First Patient" → New Registration modal opens.</li>
+</ul>
+
+<h3>3.7 Register Tab — Patient List <span class="new">NEW</span></h3>
+<ul class="checklist">
+  <li>Once there is at least one patient, the tab shows the list view (the demo build has 3 sample patients).</li>
+  <li>Header: outlined back-arrow button + "Patient Registration" title + "<strong>03</strong> Total Patients" subtitle (zero-padded count) + blue "+" button on the right.</li>
+  <li>Search bar: full-width pill, magnifier icon left, "Search..." placeholder. Typing filters cards live by name / family / phone / clinician (case-insensitive). An "x" appears when there's text — tap to clear.</li>
+  <li>Empty search result shows "No patients match …".</li>
+  <li>Each patient card has: light-blue avatar circle with initials (e.g., "JA" for Johny Achkar), name, family below, 3-dots menu top-right, then a 2-column grid (Age / Gender / Phone / Clinician), and a red "Allergies: …" line at the bottom when present.</li>
+  <li>The 3 sample patients are Johny Achkar, Mark Eli, Marina Elon — all under Dr. Emily Chen with Perfume allergy.</li>
+  <li>Back button (top-left) navigates to the Home tab.</li>
+  <li>"+" button (top-right) opens the New Registration modal.</li>
+  <li>Tap the 3-dots menu on any card → modal popover with Edit (blue, pencil icon) and Delete (red, trash icon), separated by a thin divider. Tap outside the popover to dismiss.</li>
+</ul>
+
+<h3>3.8 New Registration (Add Patient) <span class="new">NEW</span></h3>
+<ul class="checklist">
+  <li>Reached from the empty-state CTA OR the "+" button on the patient list.</li>
+  <li>Modal slides up. Header: outlined back-arrow + "New Registration" + subtitle.</li>
+  <li>Fields, in order:
+    <ul>
+      <li><strong>Name</strong> (required) — placeholder "Enter your name".</li>
+      <li><strong>Family</strong> (Optional).</li>
+      <li><strong>DOB</strong> (Optional) — types auto-mask as <code>DD-MM-YYYY</code> (e.g., 14081990 → "14-08-1990"). Future dates and invalid dates are rejected with an inline error.</li>
+      <li><strong>Phone Number</strong> (required) — country code pill on the left showing the Lebanon flag 🇱🇧 + chevron, number input on the right with placeholder "+961". Only digits accepted.</li>
+      <li><strong>Gender</strong> (Optional) — dropdown opens a modal bottom-sheet picker. List loads from the live backend.</li>
+      <li><strong>Email</strong> (Optional) — email-format validation if provided.</li>
+      <li><strong>Allergies</strong> (Optional) — multi-line.</li>
+      <li><strong>Clinician</strong> (required) — doctor dropdown. For non-owner doctors, the field is locked to themselves with a helper line "You can only register patients under your own name."</li>
+    </ul>
+  </li>
+  <li>Empty submit → required-field errors in red under each affected field.</li>
+  <li>Bottom row: Cancel (light grey pill, dismisses the modal) and Register (blue pill, submits).</li>
+  <li>Submit while submitting → button shows "Saving…" and is disabled.</li>
+  <li><strong>Duplicate phone:</strong> in live mode, if the phone is already registered to another patient, a confirm dialog appears: "Phone number already used — already registered to [name]. Continue anyway?" with Cancel and Continue.</li>
+  <li>Successful save (demo) closes the modal and returns to the patient list.</li>
+</ul>
+
+<h3>3.9 Edit Patient <span class="new">NEW</span></h3>
+<ul class="checklist">
+  <li>From a card's 3-dots menu, tap <strong>Edit</strong> → Edit Patient modal opens, pre-filled with that patient's details.</li>
+  <li>Header: outlined back arrow + "Edit Patient" + "Edit and update the details of the patients." subtitle.</li>
+  <li>Same field set as New Registration (Name required, others optional; Phone required; Clinician required).</li>
+  <li>DOB pre-fills in <code>DD-MM-YYYY</code> format from the backend's <code>YYYY-MM-DD</code>.</li>
+  <li>Bottom row: Cancel + <strong>Update</strong> (blue pill). Update shows "Saving…" while submitting.</li>
+  <li>On success, a <strong>success popup</strong> appears with a green check icon, "Patient Updated" title, and a message ending in "details have been saved successfully." Single <strong>Done</strong> button — tap it to close the popup and return to the list.</li>
+  <li>The list shows the patient with updated values after Done.</li>
+</ul>
+
+<h3>3.10 Delete Patient <span class="new">NEW</span></h3>
+<ul class="checklist">
+  <li>From a card's 3-dots menu, tap <strong>Delete</strong> → a confirmation dialog opens.</li>
+  <li>Dialog has: red-bordered icon ring with an alert icon, "Delete Patient" title, "Are you sure you want to continue? This action cannot be undone." message, and Cancel (grey) + Delete (red) buttons side-by-side.</li>
+  <li>Tap Cancel or the backdrop → dialog dismisses, patient remains.</li>
+  <li>Tap Delete → button shows "Working…", patient is removed from the list when the call returns (instant in demo mode).</li>
+</ul>
+
+<h3>3.11 Calendar Tab — Day / Week / Month <span class="new">UPDATED</span></h3>
+
+<h4>General</h4>
+<ul class="checklist">
+  <li>Date navigator at top with &lt; and &gt; chevrons. Today's date shown in the middle.</li>
+  <li>Day / Week / Month segmented control. Active segment is highlighted white inside the grey pill.</li>
+  <li><strong>Doctor switcher</strong> chip strip appears for Owner / Assistant / Admin / SystemAdmin (hidden for non-owner doctors). Same chip control as the Dashboard. Selection is shared — picking a doctor here also filters the Dashboard, and vice versa.</li>
+  <li><strong>Per-doctor coloring</strong>: each doctor's appointments use a consistent color across Day / Week / Month views. Picking the same doctor on the web and mobile yields the same color.</li>
+</ul>
+
+<h4>Day view</h4>
+<ul class="checklist">
+  <li>Default view when first opening Calendar.</li>
+  <li>Chevrons step ±1 day; date in header updates.</li>
+  <li>Time slots from 8:00 AM down to 8:00 PM.</li>
+  <li>Booked slots show colored left border + status dot + name + time range + treatment + doctor.</li>
+  <li>Empty time slots show dashed-outline placeholder cards.</li>
+  <li>With "All Doctors" selected the day shows all 4 sample appointments; switching to a specific doctor shows only their bookings.</li>
+</ul>
+
+<h4>Week view</h4>
+<ul class="checklist">
+  <li>Strip of 7 day chips (Mon–Sun). Today's chip highlighted blue.</li>
+  <li>Tap any day chip → highlighted day moves, appointment list updates (or shows "No appointments on this day.").</li>
+  <li>Chevrons step ±1 week — entire strip changes.</li>
+</ul>
+
+<h4>Month view</h4>
+<ul class="checklist">
+  <li>Calendar grid with weekday headers.</li>
+  <li>Selected date has a blue filled circle. Today shows colored dots below the date when appointments exist.</li>
+  <li>Tap any other date → blue circle moves.</li>
+  <li>Chevrons step ±1 month. Days outside the displayed month are blank.</li>
+</ul>
+
+<h3>3.12 Appointment Popover <span class="new">UPDATED</span></h3>
+<ul class="checklist">
+  <li>On the Calendar (Day or Week view), tap any <strong>booked appointment card</strong> → bottom-sheet popover opens.</li>
+  <li>Popover header shows: patient name, status pill, date + time range, treatment, doctor.</li>
+  <li>Seven action rows (matches the web app exactly):
+    <ul>
+      <li><strong>Orders</strong> — opens the Treatment &amp; Orders modal (see 3.13).</li>
+      <li><strong>New Plan of Care</strong> — opens the Plan of Care modal (see 3.14).</li>
+      <li><strong>Schedule Future WhatsApp</strong> — opens the WhatsApp scheduler modal (see 3.15).</li>
+      <li><strong>Edit / Reschedule</strong> — opens the Edit Appointment modal (see 3.16).</li>
+      <li><strong>Clinical history</strong> — opens the Clinical History screen (see 3.17).</li>
+      <li><strong>Cancel appointment</strong> — opens a reason picker (sheet style), pick a reason, tap Cancel → in demo mode the popover closes and the card updates to Cancelled. Already-cancelled appointments show this action greyed out with helper text.</li>
+      <li><strong>Confirm appointment</strong> — currently <em>greyed out / disabled</em> with helper text noting the backend endpoint is pending. This is intentional for this build.</li>
+    </ul>
+  </li>
+  <li>Tap outside the popover → it dismisses without changing anything.</li>
+</ul>
+
+<h3>3.13 Treatment &amp; Orders <span class="new">NEW</span></h3>
+<ul class="checklist">
+  <li>Reached from the popover's <strong>Orders</strong> action — modal screen with a header showing the patient name and "Treatment &amp; Orders" title.</li>
+  <li><strong>Add Procedure</strong> form:
+    <ul>
+      <li><strong>Procedure</strong> picker — opens a bottom-sheet list of the clinic's procedure catalog (demo build shows ~6 sample procedures like Cleaning, Filling, RCT, etc.).</li>
+      <li><strong>Auto-fill price:</strong> picking a procedure populates the Price field automatically with that procedure's default price (matches web behavior). Price can still be edited manually if needed.</li>
+      <li><strong>Tooth</strong> picker — shown only when the clinic has tooth-tracking enabled (the demo build has it enabled, so this field appears).</li>
+      <li><strong>Status</strong> picker — defaults to In Process; also lets you pick Completed or Not Done.</li>
+      <li>Empty submit → required-field errors under the missing fields.</li>
+    </ul>
+  </li>
+  <li><strong>Staged Procedures table</strong> ("waiting validation") — after tapping "Add" on the form above, the procedure appears as a row with columns Procedure · Tooth · Price · Status · ✕ (remove). Multiple procedures can be staged before submitting.</li>
+  <li><strong>Pending Procedures table</strong> — separate table below, listing any in-process procedures already saved for this patient + doctor. Horizontally scrollable; each row has a status-update dropdown for moving items to Completed or Not Done.</li>
+  <li><strong>Submit</strong> — Save button at the bottom posts the staged procedures + any per-row status updates together. In demo mode the modal closes immediately and the calendar refreshes; in live mode you'll see a brief "Saving…" state.</li>
+  <li>Back arrow / close → dismisses without saving.</li>
+</ul>
+
+<h3>3.14 New Plan of Care <span class="new">NEW</span></h3>
+<ul class="checklist">
+  <li>Reached from the popover's <strong>New Plan of Care</strong> action.</li>
+  <li><strong>Treatment Notes</strong> heading + multi-line text area.</li>
+  <li><strong>Quick Templates</strong> pill row (horizontally scrollable): <em>Crown</em> · <em>RCT</em> · <em>Implant</em> · <em>Cleaning</em> — tapping a pill inserts the corresponding template text into the textarea. Tapping a second pill replaces the text.</li>
+  <li><strong>Live character counter</strong> below the textarea shows <code>xxx / 1000</code>. Hard cap at 1000 — typing past the limit is blocked. Counter turns red as you approach the cap.</li>
+  <li>Empty submit → "Notes cannot be empty" inline error.</li>
+  <li>Save → modal closes; the new entry appears in this patient's Clinical History → Plan of Care tab.</li>
+</ul>
+
+<h3>3.15 Schedule Future WhatsApp <span class="new">NEW</span></h3>
+<ul class="checklist">
+  <li>Reached from the popover's <strong>Schedule Future WhatsApp</strong> action.</li>
+  <li><strong>Template</strong> picker — opens a list of the clinic's active WhatsApp templates (demo build shows a few sample templates like "Follow-up reminder", "Recall checkup").</li>
+  <li><strong>Date</strong> picker — opens the native date picker. Minimum date is tomorrow; maximum is +3 years from today. Picking today or a past date is blocked.</li>
+  <li>Empty submit → required-field errors for template and/or date.</li>
+  <li>Save → modal closes. In demo mode no real WhatsApp is sent; in live mode the message will fire on the chosen date via the existing reminder pipeline.</li>
+</ul>
+
+<h3>3.16 Edit / Reschedule Appointment <span class="new">REBUILT</span></h3>
+<ul class="checklist">
+  <li>Reached from the popover's <strong>Edit / Reschedule</strong> action. Modal-style screen.</li>
+  <li><strong>Top row</strong>: "+ Register Patient" link on the left (opens the New Registration modal inline) + a <strong>Search Patients</strong> input on the right.</li>
+  <li><strong>Search Patients</strong> behavior:
+    <ul>
+      <li>Type fewer than 2 characters → no results shown.</li>
+      <li>Type 2+ characters → after a 400ms pause, the API is hit (in demo mode the local sample list is filtered the same way). A loading spinner appears briefly.</li>
+      <li>Up to 6 results render in a dropdown — each row shows person icon + Name Family + phone.</li>
+      <li>Empty results → "No matches" placeholder.</li>
+      <li>Tap a result → the patient block updates to the swapped patient and a small <strong>"Swapped — undo"</strong> pill appears next to the Patient section header.</li>
+      <li>Tap "undo" → reverts to the original event patient.</li>
+    </ul>
+  </li>
+  <li><strong>Patient block</strong> shows Name, Family, and DOB <em>read-only</em> (from the active patient — swap or original).</li>
+  <li><strong>Schedule block</strong> — editable: <strong>Date</strong> (DD-MM-YYYY mask), <strong>Start</strong> + <strong>End</strong> (HH:MM mask). End before Start → inline error. Invalid date / time format → inline error as you type.</li>
+  <li><strong>Notes</strong> textarea (replaces the old single-line Treatment field). Multi-line, free text.</li>
+  <li><strong>Doctor</strong> shown read-only as "Dr. &lt;name&gt;" — assigned at booking time; not editable here.</li>
+  <li><strong>WhatsApp reminder</strong> toggle preserved.</li>
+  <li><strong>Close / Save row</strong> at the bottom. Save: in demo mode the modal closes and the calendar refreshes; in live mode you'll see "Saving…" briefly.</li>
+  <li><strong>Delete appointment</strong> — full-width red button below Save row. Tapping it opens a confirmation dialog ("Delete this appointment? — Keep it / Delete"). Confirming the delete removes the appointment from the calendar and dashboard.</li>
+  <li>If a patient was swapped, saving updates the booking to point at the swapped patient (verify the calendar now shows the swapped patient's name on that slot).</li>
+</ul>
+
+<h3>3.17 Clinical History <span class="new">NEW</span></h3>
+<ul class="checklist">
+  <li>Reached from the popover's <strong>Clinical history</strong> action.</li>
+  <li>Header: back arrow + "Clinical History" + patient name as subtitle.</li>
+  <li>Two pill tabs at the top: <strong>Visits</strong> (default) and <strong>Plan of Care</strong>.</li>
+  <li><strong>Visits</strong> tab — card list. Each card shows date, doctor, procedure name, tooth (if present), status pill, and price.</li>
+  <li><strong>Plan of Care</strong> tab — card list. Each card shows date, author (doctor name), and the full note text.</li>
+  <li>Both tabs show an empty state when there's no history for that section.</li>
+  <li>Read-only — there's no edit / delete action on these cards (editing happens in the Orders / New Plan of Care modals).</li>
+  <li>Pull-to-refresh works without crashing.</li>
+</ul>
+
+<h3>3.18 Role Gating — Bottom Navigation <span class="new">UPDATED</span></h3>
+<p class="small">Tab visibility per role. The QA tester logs in as the Owner account by default, so all 5 tabs are visible. If a non-owner test account becomes available, re-test against this matrix.</p>
+<table>
+  <tr><th>Role</th><th>Tabs visible</th></tr>
+  <tr><td>Owner Doctor (default test account)</td><td>Home · Register · Calendar · Billing · Reports</td></tr>
+  <tr><td>Non-owner Doctor</td><td>Home · Register · Calendar · Billing (Reports HIDDEN)</td></tr>
+  <tr><td>Assistant</td><td>All 5 tabs</td></tr>
+  <tr><td>Admin / SystemAdmin</td><td>All 5 tabs</td></tr>
+</table>
+<ul class="checklist">
+  <li>Active tab: icon and label in blue (label semi-bold).</li>
+  <li>Inactive tabs: grey icon + label.</li>
+  <li>Bottom navbar sits cleanly above the device's gesture indicator (not overlapping).</li>
+  <li>Tap each visible tab → screen switches, highlight updates.</li>
+</ul>
+
+<h3>3.19 Responsive Layout <span class="new">VERIFIED</span></h3>
+<p class="small">All new screens use scaled dimensions for sizes and fonts, with a tablet width cap. Please verify on multiple devices:</p>
+<ul class="checklist">
+  <li>No content cut off on any phone size.</li>
+  <li>Status bar and gesture indicator do not overlap content.</li>
+  <li>Form fields, buttons, and avatars look proportionate on small phones (e.g., older Androids ~360px wide), standard phones (~390px), and large phones (~430px+).</li>
+  <li>Bottom-tab clearance: scroll Home / Register / Calendar to the bottom and confirm the last item is not hidden behind the nav.</li>
+  <li>On a tablet (if available), the form is centered with a max content width (does not stretch edge-to-edge).</li>
+</ul>
+
+<h3>3.20 Logout Flow</h3>
+<ul class="checklist">
+  <li>From the Profile screen, tap Log out → native confirmation dialog (Log out, Are you sure?).</li>
+  <li>Cancel → stays on Profile.</li>
+  <li>Log out → returns to Login screen.</li>
+  <li>Trying to back-navigate after logout stays on Login.</li>
+  <li>Logging back in with correct credentials returns to Dashboard.</li>
+</ul>
+
+<h2>4. Known limitations (please don't report these)</h2>
+<div class="limit">
+The following are <strong>expected behaviors</strong> for this build, not bugs:
+</div>
+<ul>
+  <li><strong>Confirm appointment</strong> in the popover is intentionally greyed out — backend endpoint <code>/confirm-appt</code> hasn't been added yet. Once the backend ships it, the mobile UI will activate automatically.</li>
+  <li><strong>Push notifications</strong> — Profile → Preferences lists "Push Notifications" as upcoming; the device-token endpoint isn't on the backend yet, so no system push toasts will appear.</li>
+  <li><strong>Notifications inbox</strong> is client-side only. If the user reinstalls the app or signs into a new device, the inbox starts empty. Server-backed persistence is a later enhancement, not part of M3.</li>
+  <li><strong>Demo mode</strong> — patient list, appointment list, summary counts, orders catalog, plan of care entries, visit history, and WhatsApp templates are all sample data. Login itself is live. Switching to live data is a one-line flag (not in scope for QA).</li>
+  <li><strong>Tooth field on Orders</strong> only appears when the clinic's <code>show_tooth</code> flag is on. The demo clinic has it on, so QA should see this field — if it's missing on a different live clinic, that's expected.</li>
+  <li><strong>Procedure price auto-fill on Orders</strong> uses the price stored on the procedure record in the catalog. If a procedure has no default price, the Price field stays empty after picking it — that's expected and the clinician can type the price manually.</li>
+  <li><strong>Future WhatsApp</strong> minimum date is tomorrow — same-day reminders are blocked by design (the web has the same rule).</li>
+  <li><strong>Patient swap on Edit</strong> — when you swap a patient and save, the calendar should now show the swapped patient on that slot. The original patient is not deleted; the booking just points at someone else.</li>
+  <li><strong>Reports tab</strong> is still a "coming soon" placeholder — M4 scope.</li>
+  <li><strong>Billing tab</strong> is still a "coming soon" placeholder — M4 scope.</li>
+  <li><strong>App name</strong> may show "smilescraft-mobile (Dev)" or similar — normal for non-production builds.</li>
+</ul>
+
+<h2>5. What to report</h2>
+<p>Please report anything that:</p>
+<ul>
+  <li>Causes the app to crash, freeze, or restart.</li>
+  <li>Shows text or images cut off, overlapping, or going off-screen.</li>
+  <li>Has buttons that don't respond when tapped.</li>
+  <li>Visibly diverges from the designer's Figma (colors, spacing, typography).</li>
+  <li>Contains typos or grammar mistakes.</li>
+  <li>Behaves inconsistently between two runs (worked once, didn't work next time).</li>
+  <li>Is confusing or unclear from a user perspective.</li>
+</ul>
+
+<h3>Bug report format</h3>
+<table>
+  <tr><th style="width: 25%;">Field</th><th>Example</th></tr>
+  <tr><td><strong>Title</strong></td><td>Patient list: 3-dots menu doesn't dismiss on backdrop tap (Android)</td></tr>
+  <tr><td><strong>Device</strong></td><td>Samsung Galaxy A52, Android 13</td></tr>
+  <tr><td><strong>Steps to reproduce</strong></td><td>1. Log in 2. Go to Register tab 3. Tap a patient's 3-dots menu 4. Tap outside the popover</td></tr>
+  <tr><td><strong>Expected</strong></td><td>Popover dismisses</td></tr>
+  <tr><td><strong>Actual</strong></td><td>Popover stays open until I tap the back button</td></tr>
+  <tr><td><strong>Screenshot / Video</strong></td><td>Attached</td></tr>
+</table>
+<p class="small">Send reports to Umer (WhatsApp / email).</p>
+
+<h2>6. Out of scope for this build</h2>
+<table>
+  <tr><th style="width: 55%;">Feature</th><th>Coming in</th></tr>
+  <tr><td>Confirm appointment (popover action wired to live)</td><td>As soon as backend ships <code>/confirm-appt</code></td></tr>
+  <tr><td>Push notifications (device-token + system toasts)</td><td>As soon as backend ships <code>/register-device-token</code></td></tr>
+  <tr><td>Cashier / Billing tab (pending bills, payments, receipts)</td><td>M4</td></tr>
+  <tr><td>Reports tab</td><td>M4</td></tr>
+  <tr><td>Server-backed notifications inbox (persists across devices)</td><td>Later enhancement</td></tr>
+  <tr><td>iOS TestFlight build</td><td>After Apple Dev account</td></tr>
+</table>
+
+<h2>7. Test sweep priorities</h2>
+
+<h3>If you only have 30 minutes — focus on:</h3>
+<ol>
+  <li>Login (correct credentials)</li>
+  <li>Dashboard (greeting, summary cards, Total math = Confirmed + Unconfirmed, doctor switcher chips)</li>
+  <li>Register tab → "+" button opens the New Registration modal; fill it out and submit (demo)</li>
+  <li>Calendar Day view + tap an appointment → popover opens with all 7 actions</li>
+  <li><strong>Orders</strong> → pick a procedure → verify Price auto-fills → stage one row → Save</li>
+  <li><strong>New Plan of Care</strong> → tap a Quick Template pill → verify text inserts → counter updates → Save</li>
+</ol>
+
+<h3>If you have 60 minutes — add:</h3>
+<ol start="7">
+  <li><strong>Schedule Future WhatsApp</strong> → pick template + tomorrow's date → Save (verify today's date is blocked)</li>
+  <li><strong>Clinical history</strong> → switch between Visits and Plan of Care tabs</li>
+  <li><strong>Edit / Reschedule</strong> → change date / start / end / notes → Save</li>
+  <li><strong>Search Patients</strong> on Edit: type 2+ chars → tap a result → verify "Swapped — undo" badge appears → tap undo → original patient returns</li>
+  <li><strong>Delete appointment</strong> from Edit screen → confirmation dialog → confirm → calendar slot clears</li>
+  <li>Patient list search + filter; Edit patient flow → success popup; Delete patient flow</li>
+  <li>Appointment popover → Cancel flow with reason picker</li>
+  <li>Profile screen + Notifications inbox</li>
+</ol>
+
+<h3>If you have 120+ minutes — add:</h3>
+<ol start="15">
+  <li>Calendar Week + Month views</li>
+  <li>Orders: stage 2+ procedures before submitting; verify Pending Procedures table renders + status-update dropdown changes a row's status</li>
+  <li>Plan of Care: hit the 1000-char cap; verify counter turns red and typing is blocked</li>
+  <li>Edit / Reschedule: end time before start time → inline error; invalid date / time mask → inline error</li>
+  <li>Search Patients: swap to a different patient → Save → verify calendar slot now shows the swapped patient's name</li>
+  <li>Doctor switcher: verify Dashboard summary counts and Calendar both react to chip selection</li>
+  <li>Verify per-doctor coloring on the calendar matches between Day / Week views for the same doctor</li>
+  <li>Form edge cases: duplicate phone confirm, future DOB, invalid email</li>
+  <li>Multi-device testing — small / standard / large phones; tablet if available</li>
+  <li>Layout sanity: scroll every screen (including new modals) to the bottom; nothing should hide behind the nav or gesture indicator</li>
+</ol>
+
+<div class="footer">
+  Smile Craft Mobile · Milestone 3 + M2 Polish QA Test Plan · Confidential — for internal QA use only
+</div>
+
+</body>
+</html>

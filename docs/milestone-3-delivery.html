@@ -67,12 +67,13 @@
 <body>
 
 <h1>Smile Craft Mobile</h1>
-<p class="lead">Milestone 3 — Delivery Summary</p>
+<p class="lead">Milestone 3 — Delivery Summary (revised 15 June 2026)</p>
 
 <div class="meta">
   <div><b>Project:</b> Smile Craft mobile app</div>
   <div><b>Platforms:</b> iOS &amp; Android</div>
-  <div><b>Milestone:</b> M3 — Patient Records, Appointment Actions &amp; Profile</div>
+  <div><b>Milestone:</b> M3 — Patient Records, Appointment Actions &amp; Clinical Workflow</div>
+  <div><b>Build:</b> v1.2.0</div>
   <div><b>Status:</b> <span class="ok">Delivered</span></div>
 </div>
 
@@ -84,13 +85,23 @@
   from a proper profile screen, and review a live notifications feed of
   everything happening in the clinic.
 </p>
+<p>
+  Following the 11 June process-flow review, three additional actions from the
+  appointment popover were brought into M3: <b>Treatment &amp; Orders</b>,
+  <b>New Plan of Care</b>, and <b>Schedule Future WhatsApp</b>. The
+  <b>Edit / Reschedule</b> screen was also rebuilt to match the web behavior —
+  including Search Patients (patient swap on an existing booking), a Notes
+  field, and Delete Appointment. A dedicated <b>Clinical History</b> screen
+  was added so a clinician can review past visits and prior plans of care for
+  the patient in one tap from the popover.
+</p>
 
 <h2>2. Features delivered</h2>
 
 <div class="card">
   <div class="title">2.1 Patient Registration <span class="pill">Live</span></div>
   <ul>
-    <li><b>New-patient form</b> on the Register tab with first name, last name, father's name, date of birth, phone, gender, assigned doctor, email, and allergies/notes.</li>
+    <li><b>New-patient form</b> on the Register tab with first name, family name, date of birth, phone, gender, assigned doctor, email, and allergies/notes. (Father's Name field removed in v1.2.0 per client request — the backend still accepts the column, it's just not collected from mobile.)</li>
     <li><b>Built-in validation:</b> required-field checks, date-of-birth is auto-masked to <code>DD-MM-YYYY</code> and rejected if not a real past date, phone is digits-only, email is checked for the right format.</li>
     <li><b>Duplicate detection:</b> if the phone is already registered to another patient, the app surfaces a confirm dialog showing the existing patient's name and gives the user the choice to continue anyway or cancel.</li>
     <li><b>Role-aware doctor selection:</b> non-owner doctors can only register patients under their own name (the field is locked); owners, assistants, and admins pick from a doctor list.</li>
@@ -100,29 +111,80 @@
 
 <div class="card">
   <div class="title">2.2 Calendar Appointment Popover <span class="pill">Live</span></div>
-  <p>Tapping a booked appointment on the Day or Week view opens a popover modal with patient name, status, time range, treatment, and doctor.</p>
+  <p>Tapping a booked appointment on the Day or Week view opens a popover with patient name, status, time range, treatment, and doctor. The action set mirrors the web app:</p>
   <ul>
-    <li><b>Cancel appointment</b> — reason picker (loaded live from <code>GET /cancellation-reasons</code>), submits to <code>POST /cancel-appt</code>, and the calendar updates immediately when the server confirms.</li>
-    <li><b>Edit / Reschedule</b> — opens a full-screen edit form pre-filled with the appointment's current date, start &amp; end time, doctor, treatment, and a WhatsApp-reminder toggle. Saves through <code>POST /encounter</code> (the backend's update path).</li>
+    <li><b>Orders</b> — opens the Treatment &amp; Orders screen (see 2.3).</li>
+    <li><b>New Plan of Care</b> — opens the Plan of Care screen (see 2.4).</li>
+    <li><b>Schedule Future WhatsApp</b> — opens the WhatsApp scheduler (see 2.5).</li>
+    <li><b>Edit / Reschedule</b> — opens the rebuilt edit form (see 2.6).</li>
+    <li><b>Clinical history</b> — opens the patient's Visits + Plan of Care history (see 2.7).</li>
+    <li><b>Cancel appointment</b> — reason picker loaded live from <code>GET /cancellation-reasons</code>; submits to <code>POST /cancel-appt</code>. Already-cancelled appointments show this action greyed out with helper text.</li>
     <li><b>Confirm appointment</b> — shown as a placeholder action. Needs a small backend addition (see Section 4) before it can be wired.</li>
-    <li><b>Charge / Take payment</b> — shown as a placeholder. Ships with the Billing module in M4 (the backend endpoint, <code>/treatment-plan</code>, handles both the encounter recording and the billing in one call).</li>
-    <li>Already-cancelled appointments show the Cancel action greyed out with explanatory helper text.</li>
   </ul>
 </div>
 
 <div class="card">
-  <div class="title">2.3 Edit / Reschedule Appointment <span class="pill">Live</span></div>
+  <div class="title">2.3 Treatment &amp; Orders <span class="pill">Live</span></div>
+  <p>Reached from the popover's "Orders" action — the mobile equivalent of the web Orders modal.</p>
   <ul>
-    <li>Modal-style screen reached from the appointment popover's "Edit / Reschedule" action.</li>
-    <li>Editable: <b>date</b> (DD-MM-YYYY mask), <b>start &amp; end time</b> (HH:MM mask), <b>doctor</b> (picker), <b>treatment</b>, and a <b>WhatsApp-reminder</b> toggle.</li>
-    <li>End time must be after start time; date and time fields are validated as the user types.</li>
-    <li>Patient identity (name, family, DOB, phone) is carried over from the selected appointment so the backend's patient lookup matches.</li>
-    <li>On save, the calendar and dashboard refresh automatically to show the new schedule.</li>
+    <li><b>Procedure picker</b> with auto-fill price — selecting a procedure populates the Price field from the clinic's procedure catalog, matching the web behavior.</li>
+    <li><b>Tooth number</b> field shown only when the clinic has tooth tracking enabled (driven by the same flag the web uses).</li>
+    <li><b>Status</b> picker (e.g. In&nbsp;Process / Completed / Not Done) — defaults to the clinic's default status.</li>
+    <li><b>Staged procedures table</b> — lets the clinician add multiple procedures before submitting, identical to the "waiting validation" table on web.</li>
+    <li><b>Pending procedures table</b> — horizontally scrollable list of in-process procedures for this patient + doctor, with a per-row status-update selector for moving items to Completed or Not Done.</li>
+    <li>One Save call posts new procedures and any per-row status updates together through the existing <code>POST /treatment-plan</code> route (same backend the web uses).</li>
   </ul>
 </div>
 
 <div class="card">
-  <div class="title">2.4 Profile &amp; Settings <span class="pill">Live</span></div>
+  <div class="title">2.4 New Plan of Care <span class="pill">Live</span></div>
+  <ul>
+    <li>Reached from the popover's "New Plan of Care" action.</li>
+    <li><b>Treatment Notes</b> multi-line text area with a live <code>xxx / 1000</code> character counter (1000-char cap matches the web).</li>
+    <li><b>Quick Templates</b> pill row — Crown · RCT · Implant · Cleaning — tapping a template inserts the same standardized note text the web uses, so a clinician can drop in a baseline plan and edit on top.</li>
+    <li>Save posts to <code>POST /planOfCare</code>; the note then appears in this patient's Clinical History (Plan of Care tab).</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="title">2.5 Schedule Future WhatsApp <span class="pill">Live</span></div>
+  <ul>
+    <li>Reached from the popover's "Schedule Future WhatsApp" action.</li>
+    <li><b>Template picker</b> loaded live from <code>GET /getActiveTemplates</code> (only the clinic's active WhatsApp templates show up).</li>
+    <li><b>Date picker</b> bounded between tomorrow and +3 years out, so a clinician cannot accidentally schedule a same-day or far-future reminder.</li>
+    <li>Save posts to <code>POST /store_reminders</code> with the chosen template + date for that patient. The patient will receive the WhatsApp message on the scheduled date via the existing Celery + WhatsApp pipeline.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="title">2.6 Edit / Reschedule Appointment <span class="pill">Live</span></div>
+  <p>Rebuilt to match the web "Booking Appointment" dialog. Reached from the popover's "Edit / Reschedule" action.</p>
+  <ul>
+    <li><b>Register Patient</b> shortcut at the top opens the New Registration modal, so a clinician who realizes the booking is for a brand-new patient can register them inline without losing the edit context.</li>
+    <li><b>Search Patients</b> input at the top — typing two or more characters triggers a debounced fuzzy search against <code>POST /search-patient</code> (name / family / phone). Tapping a result <b>swaps the patient</b> on this booking; a "Swapped — undo" badge appears next to the patient block until the user reverts. Useful when the wrong patient was originally selected.</li>
+    <li><b>Patient block</b> shows Name, Family, and DOB read-only (from the active patient — the swap or the original) so the clinician always sees who they are saving against.</li>
+    <li><b>Schedule block</b> — editable Date (DD-MM-YYYY), Start, and End (HH:MM). End must be after Start; validated as the user types.</li>
+    <li><b>Notes</b> textarea — replaces the old single-line "Treatment" field. Saves to the same <code>proc</code> field the web uses.</li>
+    <li><b>Doctor</b> displayed read-only as "Dr. &lt;name&gt;" — the assigned doctor is fixed at booking time, same as the web.</li>
+    <li><b>WhatsApp reminder</b> checkbox preserved.</li>
+    <li><b>Delete appointment</b> — full-width red button at the bottom opens a confirmation dialog ("Delete this appointment? Keep it / Delete"). On confirm, posts <code>{ eventToDelete }</code> to <code>POST /encounter</code> — the same dual-purpose route the web uses for cancel-and-delete.</li>
+    <li>Save and Delete both refresh the calendar, dashboard, and notifications feed automatically.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="title">2.7 Clinical History <span class="pill">Live</span></div>
+  <ul>
+    <li>Reached from the popover's "Clinical history" action.</li>
+    <li>Two-tab pill control at the top: <b>Visits</b> and <b>Plan of Care</b>.</li>
+    <li><b>Visits</b> tab lists past visits for this patient (date, doctor, procedure, status), backed by <code>GET /getVisitsHistory</code>.</li>
+    <li><b>Plan of Care</b> tab lists prior plan-of-care entries with date, author, and the full note text, backed by <code>GET /get-plan-care</code>.</li>
+    <li>Both lists are read-only — editing is done in their respective modals (Orders and New Plan of Care).</li>
+  </ul>
+</div>
+
+<div class="card">
+  <div class="title">2.8 Profile &amp; Settings <span class="pill">Live</span></div>
   <ul>
     <li>New <b>profile</b> screen reached from the avatar button in the Dashboard header (replaces the interim Logout button that was sitting on the dashboard since M2).</li>
     <li><b>User card</b> with avatar (auto-initials), name, role (pretty-printed: "Owner Doctor", "Assistant", etc.), and email.</li>
@@ -133,7 +195,7 @@
 </div>
 
 <div class="card">
-  <div class="title">2.5 Notifications Inbox <span class="pill">Live</span></div>
+  <div class="title">2.9 Notifications Inbox <span class="pill">Live</span></div>
   <ul>
     <li>New <b>Notifications</b> screen reached from the bell button on the Dashboard.</li>
     <li>Captures every appointment and patient change that arrives in real time over the existing socket connection (new bookings, updates, confirmations, cancellations, deletions, patient registrations, edits, removals).</li>
@@ -146,14 +208,15 @@
 
 <h2>3. Technical notes</h2>
 <ul>
-  <li>All M3 screens are <b>fully wired to the existing live backend</b> — no new backend services were stood up. The mobile app uses the same APIs the web app already uses.</li>
+  <li>All M3 screens — including the four amendment additions (Orders, Plan of Care, Future WhatsApp, Clinical History) — are <b>fully wired to the existing live backend</b>. No new backend services were stood up; the mobile app uses the same APIs the web app already uses.</li>
+  <li><b>One unified backend route per concern:</b> <code>/treatment-plan</code> handles new procedures + status updates in a single call; <code>/encounter</code> handles edit and delete via its payload; <code>/search-patient</code> drives both the Edit screen's patient swap and the patient list search. The mobile app maps 1-to-1 to these routes, so there is no second source of truth to maintain.</li>
   <li>Demo mode (which the QA tester uses by default) returns realistic fake responses so every flow can be exercised without hitting the live system. Switching from demo to live is a one-line flag.</li>
   <li>Forms use <b>React Hook Form + Zod</b> (same stack as the M2 login and forgot-password forms) for consistent validation and a single way to maintain forms going forward.</li>
   <li>The doctor picker added in the M2 polish round is reused throughout M3 — same selection control on Calendar, Dashboard, Registration, and Edit screens.</li>
 </ul>
 
 <h2>4. Backend updates needed for the next milestone</h2>
-<p>Two small backend additions would close the placeholders shown in M3:</p>
+<p>Two small backend additions would close the remaining placeholders shown in the popover:</p>
 <ul>
   <li><b>Manual confirm appointment endpoint</b> — today the only way an appointment moves to "confirmed" is through the WhatsApp webhook (patient taps Confirm in WhatsApp). The mobile app needs:<br/>
     <code>POST /confirm-appt&nbsp; { bookingId }</code> &nbsp;→&nbsp; sets <code>patient_confirmed = True</code> and emits <code>confirmedAppointment</code> on the same rooms the existing flow uses.</li>
@@ -165,9 +228,9 @@
 <table>
   <tr><th>Module</th><th>Where it lands</th><th>Why</th></tr>
   <tr>
-    <td><b>Encounter recording</b> (in-visit treatment, tooth numbers, notes, attachments)</td>
-    <td>M4, alongside Billing</td>
-    <td>The backend endpoint that records a clinical encounter, <code>/treatment-plan</code>, also handles billing, payments, and outstanding balances in one call. Splitting them in the mobile UI would mean two competing flows for the same endpoint, so they ship together.</td>
+    <td><b>Cashier &amp; Billing</b> (pending bills, payments, outstanding balances, receipts)</td>
+    <td>M4</td>
+    <td>Full billing UI surface is its own module — separate from the clinical-workflow scope of M3.</td>
   </tr>
   <tr>
     <td><b>Confirm appointment</b></td>
@@ -188,10 +251,10 @@
 
 <h2>6. What's coming next (M4 preview)</h2>
 <ul>
-  <li><b>Cashier &amp; Billing</b> — pending bills, payments, outstanding balances, bill receipts. Wires the "Charge / Take payment" action in the calendar popover.</li>
-  <li><b>Encounter recording</b> — record what happened during a visit (procedures, tooth numbers, notes, status changes), backed by <code>/treatment-plan</code>.</li>
+  <li><b>Cashier &amp; Billing</b> — pending bills, payments, outstanding balances, bill receipts.</li>
   <li><b>Confirm appointment</b> — wired the moment the backend endpoint lands.</li>
   <li><b>Push notifications</b> — same.</li>
+  <li><b>Reports</b> — clinic-wide reporting screens that mirror the web Reports tab.</li>
 </ul>
 
 <p class="footer-note">
