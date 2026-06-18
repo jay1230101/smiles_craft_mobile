@@ -3,20 +3,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { Redirect, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 
 import { Button } from '@/components/button';
 import { Checkbox } from '@/components/checkbox';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Screen } from '@/components/screen';
-import { Select, type SelectOption } from '@/components/select';
 import { TextInput } from '@/components/text-input';
-import { useDoctors } from '@/hooks/use-doctors';
+import { useDeleteAppointment } from '@/hooks/use-delete-appointment';
+import { useSearchPatients } from '@/hooks/use-search-patients';
 import { useUpdateAppointment } from '@/hooks/use-update-appointment';
-import { s } from '@/lib/responsive';
+import { ms, s } from '@/lib/responsive';
 import { useEditEventStore } from '@/store/edit-event';
 import { colors, radius, spacing, typography } from '@/theme';
 import type { UpdateAppointmentRequest } from '@/types/appointments';
+import type { PatientListItem } from '@/types/patients';
+
+const HEADING_COLOR = '#1A202C';
+const SUBTITLE_COLOR = '#64748B';
 
 const DATE_REGEX = /^(\d{2})-(\d{2})-(\d{4})$/;
 const TIME_REGEX = /^(\d{2}):(\d{2})$/;
@@ -26,8 +31,7 @@ const schema = z
     date: z.string().trim().regex(DATE_REGEX, 'Use format DD-MM-YYYY'),
     startTime: z.string().trim().regex(TIME_REGEX, 'Use 24h format HH:MM'),
     endTime: z.string().trim().regex(TIME_REGEX, 'Use 24h format HH:MM'),
-    doctor: z.number().int().positive('Doctor is required'),
-    procedure: z.string().trim().min(1, 'Treatment is required'),
+    notes: z.string().trim(),
     bookingReminder: z.boolean(),
   })
   .refine(
@@ -46,13 +50,13 @@ export default function AppointmentEditScreen() {
   const router = useRouter();
   const event = useEditEventStore((s) => s.event);
   const clearEvent = useEditEventStore((s) => s.clear);
-  const { data: doctors } = useDoctors();
   const updateAppointment = useUpdateAppointment();
+  const deleteAppointment = useDeleteAppointment();
   const [serverError, setServerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [swappedPatient, setSwappedPatient] = useState<PatientListItem | null>(null);
 
-  // Defensive: if the user lands here directly (e.g. deep link / restart) with
-  // no event in the store, bounce back to the calendar.
   if (!event) {
     return <Redirect href="/(tabs)/calendar" />;
   }
@@ -60,38 +64,50 @@ export default function AppointmentEditScreen() {
   return (
     <EditForm
       event={event}
-      doctors={doctors}
       router={router}
       clearEvent={clearEvent}
       updateAppointment={updateAppointment}
+      deleteAppointment={deleteAppointment}
       serverError={serverError}
       setServerError={setServerError}
       successMessage={successMessage}
       setSuccessMessage={setSuccessMessage}
+      deleteOpen={deleteOpen}
+      setDeleteOpen={setDeleteOpen}
+      swappedPatient={swappedPatient}
+      setSwappedPatient={setSwappedPatient}
     />
   );
 }
 
 function EditForm({
   event,
-  doctors,
   router,
   clearEvent,
   updateAppointment,
+  deleteAppointment,
   serverError,
   setServerError,
   successMessage,
   setSuccessMessage,
+  deleteOpen,
+  setDeleteOpen,
+  swappedPatient,
+  setSwappedPatient,
 }: {
   event: NonNullable<ReturnType<typeof useEditEventStore.getState>['event']>;
-  doctors: ReturnType<typeof useDoctors>['data'];
   router: ReturnType<typeof useRouter>;
   clearEvent: () => void;
   updateAppointment: ReturnType<typeof useUpdateAppointment>;
+  deleteAppointment: ReturnType<typeof useDeleteAppointment>;
   serverError: string | null;
   setServerError: (s: string | null) => void;
   successMessage: string | null;
   setSuccessMessage: (s: string | null) => void;
+  deleteOpen: boolean;
+  setDeleteOpen: (b: boolean) => void;
+  swappedPatient: PatientListItem | null;
+  setSwappedPatient: (p: PatientListItem | null) => void;
 }) {
   const initialDefaults = useMemo<FormValues>(() => {
     const start = parseIsoSafe(event.start);
@@ -100,8 +116,7 @@ function EditForm({
       date: start ? formatDdMmYyyy(start) : '',
       startTime: start ? formatHhMm(start) : '',
       endTime: end ? formatHhMm(end) : '',
-      doctor: event.resourceId,
-      procedure: event.extendedProps?.procedure ?? '',
+      notes: event.extendedProps?.procedure ?? '',
       bookingReminder: false,
     };
   }, [event]);
@@ -116,22 +131,51 @@ function EditForm({
     reset(initialDefaults);
   }, [initialDefaults, reset]);
 
-  const doctorOptions: SelectOption<number>[] = useMemo(
-    () =>
-      (doctors ?? []).map((d) => ({
-        value: d.id,
-        label: `Dr. ${[d.name, d.family].filter(Boolean).join(' ').trim()}`,
-      })),
-    [doctors],
+  // Active patient = the swap target if one was picked, otherwise the event's
+  // original patient. Display + submit pull from this single source.
+  const activePatient = useMemo(
+    () => ({
+      name: swappedPatient?.name ?? event.name,
+      family: swappedPatient?.family ?? event.family,
+      dob: swappedPatient?.dob ?? event.dob ?? '',
+      phone: swappedPatient?.phone ?? event.phone ?? '',
+    }),
+    [swappedPatient, event],
   );
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedTerm, setDebouncedTerm] = useState('');
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedTerm(searchTerm), 400);
+    return () => clearTimeout(id);
+  }, [searchTerm]);
+
+  const { data: searchResults, isFetching: searchLoading } = useSearchPatients(debouncedTerm);
 
   const goBack = () => {
     clearEvent();
+    setSwappedPatient(null);
     if (router.canGoBack()) {
       router.back();
     } else {
       router.replace('/(tabs)/calendar');
     }
+  };
+
+  const goToRegister = () => {
+    clearEvent();
+    setSwappedPatient(null);
+    router.replace('/patient-register' as never);
+  };
+
+  const handleSelectPatient = (p: PatientListItem) => {
+    setSwappedPatient(p);
+    setSearchTerm('');
+    setDebouncedTerm('');
+  };
+
+  const handleClearSwap = () => {
+    setSwappedPatient(null);
   };
 
   const onSubmit = async (values: FormValues) => {
@@ -150,23 +194,18 @@ function EditForm({
       return;
     }
 
-    const selectedDoctor = (doctors ?? []).find((d) => d.id === values.doctor);
-    const doctorName = selectedDoctor
-      ? `${selectedDoctor.name} ${selectedDoctor.family}`.trim()
-      : event.doctor;
-
     const payload: UpdateAppointmentRequest = {
       eventId: event.id,
-      name: event.name,
-      family: event.family,
-      dob: normalizeDob(event.dob ?? ''),
-      phone: stripPlus(event.phone ?? ''),
+      name: activePatient.name,
+      family: activePatient.family,
+      dob: normalizeDob(activePatient.dob),
+      phone: stripPlus(activePatient.phone),
       date: dateIso,
       start_iso: startIso,
       end_iso: endIso,
-      proc: values.procedure.trim(),
-      resourceId: values.doctor,
-      doctor_name: doctorName,
+      proc: values.notes.trim(),
+      resourceId: event.resourceId,
+      doctor_name: event.doctor,
       booking_reminder: values.bookingReminder,
     };
 
@@ -184,7 +223,28 @@ function EditForm({
     }
   };
 
-  const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
+  const onConfirmDelete = async () => {
+    setServerError(null);
+    setSuccessMessage(null);
+    try {
+      const res = await deleteAppointment.mutateAsync({ eventToDelete: event.id });
+      setDeleteOpen(false);
+      if (res.status === 'deleted') {
+        setSuccessMessage('Appointment deleted.');
+        setTimeout(() => goBack(), 700);
+      } else {
+        setServerError(res.message || 'Could not delete appointment.');
+      }
+    } catch (err) {
+      setDeleteOpen(false);
+      const message = err instanceof Error ? err.message : 'Could not delete appointment.';
+      setServerError(message);
+    }
+  };
+
+  const fullName = `${(activePatient.name ?? '').trim()} ${(activePatient.family ?? '').trim()}`.trim();
+  const dobDisplay = formatDobDisplay(activePatient.dob);
+  const showResults = debouncedTerm.trim().length >= 2;
 
   return (
     <Screen contentContainerStyle={styles.container} edges={['top']}>
@@ -194,7 +254,7 @@ function EditForm({
           accessibilityLabel="Back"
           onPress={goBack}
           style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}>
-          <Ionicons name="chevron-back" size={s(22)} color={colors.neutral[500]} />
+          <Ionicons name="chevron-back" size={s(20)} color={HEADING_COLOR} />
         </Pressable>
         <View style={styles.headerText}>
           <Text style={styles.title}>Edit appointment</Text>
@@ -202,7 +262,82 @@ function EditForm({
         </View>
       </View>
 
+      <View style={styles.topActions}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Register a new patient"
+          onPress={goToRegister}
+          style={({ pressed }) => [styles.registerLink, pressed && styles.pressed]}>
+          <Ionicons name="add-circle-outline" size={ms(18)} color={colors.primary[500]} />
+          <Text style={styles.registerLinkText}>Register Patient</Text>
+        </Pressable>
+        <TextInput
+          containerStyle={styles.searchInput}
+          placeholder="Search Patients ..."
+          value={searchTerm}
+          onChangeText={setSearchTerm}
+          autoCorrect={false}
+          autoCapitalize="none"
+        />
+      </View>
+
+      {showResults ? (
+        <View style={styles.resultsBox}>
+          {searchLoading ? (
+            <View style={styles.resultsLoading}>
+              <ActivityIndicator color={colors.primary[500]} />
+            </View>
+          ) : (searchResults ?? []).length === 0 ? (
+            <Text style={styles.resultsEmpty}>No patients matched.</Text>
+          ) : (
+            (searchResults ?? []).slice(0, 6).map((p) => (
+              <Pressable
+                key={p.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Use ${p.name} ${p.family ?? ''}`}
+                onPress={() => handleSelectPatient(p)}
+                style={({ pressed }) => [styles.resultRow, pressed && styles.resultPressed]}>
+                <Ionicons name="person-circle-outline" size={ms(22)} color={colors.text.secondary} />
+                <View style={styles.resultText}>
+                  <Text style={styles.resultName} numberOfLines={1}>
+                    {p.name} {p.family ?? ''}
+                  </Text>
+                  <Text style={styles.resultMeta} numberOfLines={1}>
+                    {p.phone || '—'}
+                  </Text>
+                </View>
+              </Pressable>
+            ))
+          )}
+        </View>
+      ) : null}
+
+      <View style={styles.divider} />
+
+      <View style={styles.patientBlock}>
+        <View style={styles.patientHeadRow}>
+          <Text style={styles.sectionLabel}>Patient</Text>
+          {swappedPatient ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Undo patient swap"
+              onPress={handleClearSwap}
+              style={({ pressed }) => [styles.swapBadge, pressed && styles.pressed]}>
+              <Ionicons name="swap-horizontal" size={ms(14)} color={colors.primary[500]} />
+              <Text style={styles.swapBadgeText}>Swapped — undo</Text>
+            </Pressable>
+          ) : null}
+        </View>
+        <View style={styles.row}>
+          <ReadOnlyField label="Name" value={activePatient.name || '—'} style={styles.flex} />
+          <ReadOnlyField label="Family" value={activePatient.family || '—'} style={styles.flex} />
+        </View>
+        <ReadOnlyField label="Date of birth" value={dobDisplay || '—'} />
+      </View>
+
       <View style={styles.formBlock}>
+        <Text style={styles.sectionLabel}>Schedule</Text>
+
         <Controller
           control={control}
           name="date"
@@ -256,34 +391,24 @@ function EditForm({
 
         <Controller
           control={control}
-          name="doctor"
+          name="notes"
           render={({ field, fieldState }) => (
-            <Select<number>
-              label="Doctor *"
-              placeholder="Select doctor"
-              value={field.value || null}
-              options={doctorOptions}
-              onChange={(v) => field.onChange(v)}
+            <TextInput
+              label="Notes"
+              placeholder="Add notes for this visit"
+              autoCapitalize="sentences"
+              multiline
+              numberOfLines={3}
+              value={field.value}
+              onChangeText={field.onChange}
+              onBlur={field.onBlur}
+              maxLength={500}
               error={fieldState.error?.message}
             />
           )}
         />
 
-        <Controller
-          control={control}
-          name="procedure"
-          render={({ field, fieldState }) => (
-            <TextInput
-              label="Treatment *"
-              placeholder="e.g. Dental Cleaning"
-              autoCapitalize="words"
-              value={field.value}
-              onChangeText={field.onChange}
-              onBlur={field.onBlur}
-              error={fieldState.error?.message}
-            />
-          )}
-        />
+        <ReadOnlyField label="Doctor" value={event.doctor ? `Dr. ${event.doctor}` : '—'} />
 
         <Controller
           control={control}
@@ -305,21 +430,64 @@ function EditForm({
 
       <View style={styles.actions}>
         <Button
-          label="Cancel"
+          label="Close"
           variant="secondary"
           onPress={goBack}
           fullWidth={false}
           style={styles.flex}
         />
         <Button
-          label="Save changes"
+          label="Save"
           loading={formState.isSubmitting || updateAppointment.isPending}
           onPress={handleSubmit(onSubmit)}
           fullWidth={false}
           style={styles.flex}
         />
       </View>
+
+      <Button
+        label="Delete appointment"
+        variant="danger"
+        onPress={() => setDeleteOpen(true)}
+        leftIcon={
+          <Ionicons name="trash-outline" size={ms(18)} color={colors.text.inverse} />
+        }
+        style={styles.deleteBtn}
+      />
+
+      <ConfirmDialog
+        visible={deleteOpen}
+        variant="danger"
+        title="Delete this appointment?"
+        message="This will remove the appointment from the calendar. This action can't be undone."
+        confirmLabel="Delete"
+        cancelLabel="Keep it"
+        loading={deleteAppointment.isPending}
+        onConfirm={onConfirmDelete}
+        onCancel={() => setDeleteOpen(false)}
+      />
     </Screen>
+  );
+}
+
+function ReadOnlyField({
+  label,
+  value,
+  style,
+}: {
+  label: string;
+  value: string;
+  style?: object;
+}) {
+  return (
+    <View style={[styles.readOnlyField, style]}>
+      <Text style={styles.readOnlyLabel}>{label}</Text>
+      <View style={styles.readOnlyValueWrap}>
+        <Text style={styles.readOnlyValue} numberOfLines={1}>
+          {value}
+        </Text>
+      </View>
+    </View>
   );
 }
 
@@ -396,6 +564,17 @@ function normalizeDob(dob: string): string {
   return `${yyyy}-${String(idx + 1).padStart(2, '0')}-${dd.padStart(2, '0')}`;
 }
 
+// Display DOB nicely — accept either "DD-Month-YYYY" or "YYYY-MM-DD".
+function formatDobDisplay(dob: string): string {
+  if (!dob) return '';
+  const iso = normalizeDob(dob);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    const [yyyy, mm, dd] = iso.split('-');
+    return `${dd}-${mm}-${yyyy}`;
+  }
+  return dob;
+}
+
 function stripPlus(phone: string): string {
   return phone.replace(/^\+/, '');
 }
@@ -407,35 +586,134 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.md,
   },
   backBtn: {
     width: s(40),
     height: s(40),
-    borderRadius: radius.pill,
+    borderRadius: s(10),
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background.surface,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    backgroundColor: colors.background.base,
   },
   pressed: {
     opacity: 0.6,
   },
   headerText: {
     flex: 1,
-    gap: 2,
+    gap: spacing.xs,
   },
   title: {
     ...typography.title.large,
     fontFamily: 'Inter_700Bold',
-    color: colors.neutral[500],
+    color: HEADING_COLOR,
+    fontSize: ms(22),
+    lineHeight: ms(28),
   },
   subtitle: {
     ...typography.body.large,
+    fontFamily: 'Inter_400Regular',
+    color: SUBTITLE_COLOR,
+    fontSize: ms(14),
+    lineHeight: ms(20),
+  },
+  topActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  registerLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  registerLinkText: {
+    ...typography.label.large,
+    color: colors.primary[500],
+    fontFamily: 'Inter_600SemiBold',
+  },
+  searchInput: {
+    flex: 1,
+  },
+  resultsBox: {
+    backgroundColor: colors.background.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    paddingVertical: spacing.xs,
+  },
+  resultsLoading: {
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+  },
+  resultsEmpty: {
+    ...typography.body.medium,
+    color: colors.text.secondary,
+    paddingVertical: spacing.md,
+    textAlign: 'center',
+  },
+  resultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  resultPressed: {
+    opacity: 0.7,
+  },
+  resultText: {
+    flex: 1,
+    gap: 2,
+  },
+  resultName: {
+    ...typography.body.large,
+    fontFamily: 'Inter_500Medium',
+    color: colors.neutral[500],
+  },
+  resultMeta: {
+    ...typography.body.small,
     color: colors.text.secondary,
   },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border.subtle,
+    marginVertical: spacing.xs,
+  },
+  patientBlock: {
+    gap: spacing.md,
+  },
+  patientHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  swapBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: s(6),
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary[0],
+  },
+  swapBadgeText: {
+    ...typography.body.small,
+    color: colors.primary[500],
+    fontFamily: 'Inter_600SemiBold',
+  },
   formBlock: {
-    gap: spacing.xl,
+    gap: spacing.lg,
+  },
+  sectionLabel: {
+    ...typography.body.medium,
+    fontFamily: 'Inter_600SemiBold',
+    color: colors.neutral[500],
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   row: {
     flexDirection: 'row',
@@ -443,6 +721,26 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
+  },
+  readOnlyField: {
+    gap: spacing.xs,
+  },
+  readOnlyLabel: {
+    ...typography.body.medium,
+    fontFamily: 'Inter_500Medium',
+    color: colors.neutral[500],
+  },
+  readOnlyValueWrap: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: s(14),
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.background.surface,
+  },
+  readOnlyValue: {
+    ...typography.body.large,
+    color: colors.neutral[500],
   },
   reminderRow: {
     paddingVertical: spacing.xs,
@@ -460,5 +758,9 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: spacing.md,
+  },
+  deleteBtn: {
+    backgroundColor: colors.danger[500],
+    borderColor: colors.danger[500],
   },
 });

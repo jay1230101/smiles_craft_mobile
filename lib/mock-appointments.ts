@@ -16,6 +16,45 @@ export const MOCK_GENDERS: Gender[] = [
   { id: 2, gen: 'Female' },
 ];
 
+export const MOCK_PATIENTS = [
+  {
+    id: 101,
+    name: 'Johny',
+    family: 'Achkar',
+    dob: '1982-04-12',
+    phone: '917 555 7263',
+    gender: 'Male',
+    doctor_id: 1,
+    doctor_name: 'Dr Emily Chen',
+    allergy: 'Perfume',
+    email: 'johny.achkar@example.com',
+  },
+  {
+    id: 102,
+    name: 'Mark',
+    family: 'Eli',
+    dob: '1985-08-22',
+    phone: '912 675 765',
+    gender: 'Male',
+    doctor_id: 1,
+    doctor_name: 'Dr Emily Chen',
+    allergy: 'Perfume',
+    email: 'mark.eli@example.com',
+  },
+  {
+    id: 103,
+    name: 'Marina',
+    family: 'Elon',
+    dob: '1993-02-09',
+    phone: '917 876 7263',
+    gender: 'Female',
+    doctor_id: 1,
+    doctor_name: 'Dr Emily Chen',
+    allergy: 'Perfume',
+    email: 'marina.elon@example.com',
+  },
+];
+
 export const MOCK_CANCELLATION_REASONS = [
   { id: 1, reason: 'Patient requested cancellation' },
   { id: 2, reason: 'Patient no-show' },

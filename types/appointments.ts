@@ -48,3 +48,15 @@ export type UpdateAppointmentResponse = {
   status: 'success' | 'unavailable' | 'error';
   message: string;
 };
+
+// POST /encounter doubles as delete when given { eventToDelete: <bookingId> }.
+// The web modal sends `data.eventId` (the mainId) as the value. Mobile follows
+// the same shape so the backend takes its existing delete branch.
+export type DeleteAppointmentRequest = {
+  eventToDelete: number | string;
+};
+
+export type DeleteAppointmentResponse = {
+  status: 'deleted' | 'error';
+  message: string;
+};
