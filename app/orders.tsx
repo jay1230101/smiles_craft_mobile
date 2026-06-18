@@ -98,6 +98,14 @@ export default function OrdersScreen() {
   const showTooth = init?.show_tooth ?? true;
   const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
   const today = todayYmd();
+  const selectedProcedure = init?.procedures.find((p) => p.procedure_id === procedureId);
+  const currency = selectedProcedure?.currency ?? init?.procedures[0]?.currency ?? '';
+  const numericPrice = Number(price);
+  const numericDiscount = Number(discount) || 0;
+  const netPrice = Math.max(
+    0,
+    Number.isFinite(numericPrice) ? numericPrice - numericDiscount : 0,
+  );
 
   const goBack = () => {
     clearEvent();
@@ -117,12 +125,10 @@ export default function OrdersScreen() {
 
   const addStaged = () => {
     setFormError(null);
-    const selectedProcedure = init?.procedures.find((p) => p.procedure_id === procedureId);
     if (!selectedProcedure) {
       setFormError('Please select a procedure');
       return;
     }
-    const numericPrice = Number(price);
     if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
       setFormError('Price must be a positive number');
       return;
@@ -135,7 +141,6 @@ export default function OrdersScreen() {
       setFormError('Please select a tooth');
       return;
     }
-    const numericDiscount = Number(discount) || 0;
     const selectedTooth = init?.toothlist.find((t) => t.code === toothCode);
 
     const row: StagedProcedure = {
@@ -315,6 +320,13 @@ export default function OrdersScreen() {
           </View>
         </View>
 
+        <View style={styles.netPriceRow}>
+          <Text style={styles.netPriceLabel}>Net Price</Text>
+          <Text style={styles.netPriceValue}>
+            {selectedProcedure ? `${formatAmount(netPrice)} ${currency}`.trim() : '—'}
+          </Text>
+        </View>
+
         <Select<string>
           label="Select Status"
           placeholder="Select status…"
@@ -347,36 +359,44 @@ export default function OrdersScreen() {
       {staged.length > 0 ? (
         <View style={styles.tableBlock}>
           <Text style={styles.sectionTitle}>Waiting validation</Text>
-          {staged.map((row) => (
-            <View key={row.key} style={styles.stagedRow}>
-              <View style={styles.stagedTextBlock}>
-                <Text style={styles.stagedProc} numberOfLines={1}>
-                  {row.procDescription}
-                </Text>
-                <Text style={styles.stagedMeta} numberOfLines={1}>
-                  {row.selectedTooth || '—'} · {row.status.replace(/_/g, ' ')} · {row.procPrice}{' '}
-                  {row.currency}
-                </Text>
+          {staged.map((row) => {
+            const rowNet = Math.max(0, row.procPrice - (row.discount || 0));
+            return (
+              <View key={row.key} style={styles.stagedRow}>
+                <View style={styles.stagedTextBlock}>
+                  <Text style={styles.stagedProc} numberOfLines={1}>
+                    {row.procDescription}
+                  </Text>
+                  <Text style={styles.stagedMeta} numberOfLines={1}>
+                    {row.selectedTooth || '—'} · {row.status.replace(/_/g, ' ')}
+                  </Text>
+                  <Text style={styles.stagedMeta} numberOfLines={1}>
+                    Price {formatAmount(row.procPrice)} · Disc {formatAmount(row.discount)} ·{' '}
+                    <Text style={styles.stagedNet}>
+                      Net {formatAmount(rowNet)} {row.currency}
+                    </Text>
+                  </Text>
+                </View>
+                <View style={styles.stagedDiscount}>
+                  <Text style={styles.miniLabel}>Discount</Text>
+                  <TextInput
+                    containerStyle={styles.miniInput}
+                    value={String(row.discount)}
+                    onChangeText={(v) => updateStagedDiscount(row.key, v)}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove"
+                  hitSlop={10}
+                  onPress={() => removeStaged(row.key)}
+                  style={({ pressed }) => [styles.removeBtn, pressed && styles.pressed]}>
+                  <Ionicons name="trash-outline" size={ms(20)} color={colors.danger[500]} />
+                </Pressable>
               </View>
-              <View style={styles.stagedDiscount}>
-                <Text style={styles.miniLabel}>Discount</Text>
-                <TextInput
-                  containerStyle={styles.miniInput}
-                  value={String(row.discount)}
-                  onChangeText={(v) => updateStagedDiscount(row.key, v)}
-                  keyboardType="decimal-pad"
-                />
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Remove"
-                hitSlop={10}
-                onPress={() => removeStaged(row.key)}
-                style={({ pressed }) => [styles.removeBtn, pressed && styles.pressed]}>
-                <Ionicons name="trash-outline" size={ms(20)} color={colors.danger[500]} />
-              </Pressable>
-            </View>
-          ))}
+            );
+          })}
         </View>
       ) : null}
 
@@ -515,6 +535,11 @@ function todayYmd(): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function formatAmount(value: number): string {
+  if (!Number.isFinite(value)) return '0';
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
 const styles = StyleSheet.create({
   container: {
     paddingTop: spacing.sm,
@@ -602,6 +627,36 @@ const styles = StyleSheet.create({
   addBtn: {
     alignSelf: 'flex-start',
     minWidth: s(140),
+  },
+  netPriceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.background.surface,
+  },
+  netPriceLabel: {
+    ...typography.body.medium,
+    fontFamily: 'Inter_500Medium',
+    color: colors.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  netPriceValue: {
+    ...typography.title.large,
+    fontFamily: 'Inter_700Bold',
+    color: HEADING_COLOR,
+    fontSize: ms(18),
+    lineHeight: ms(24),
+  },
+  stagedNet: {
+    ...typography.body.small,
+    fontFamily: 'Inter_600SemiBold',
+    color: HEADING_COLOR,
   },
   tableBlock: {
     gap: spacing.sm,
