@@ -417,7 +417,7 @@ function EmptySlot() {
 
 function SlotCard({ event, onPress }: { event: BackendEvent; onPress: () => void }) {
   const treatment = event.extendedProps?.procedure ?? '';
-  const palette = procedurePalette(treatment);
+  const palette = doctorPalette(event.doctor);
   const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
   const timeRange = `${formatEventTime(event.start)} - ${formatEventTime(event.end)}`;
   const doctor = event.doctor ? `Dr. ${event.doctor}` : '';
@@ -445,7 +445,7 @@ function SlotCard({ event, onPress }: { event: BackendEvent; onPress: () => void
 
 function WeekCard({ event, onPress }: { event: BackendEvent; onPress: () => void }) {
   const procedure = event.extendedProps?.procedure ?? '';
-  const palette = procedurePalette(procedure);
+  const palette = doctorPalette(event.doctor);
   const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
   const subtitle = procedure
     ? `${formatEventTime(event.start)} - ${procedure}`
@@ -470,19 +470,29 @@ function WeekCard({ event, onPress }: { event: BackendEvent; onPress: () => void
   );
 }
 
-// Designer color system: cards/dots are colored by PROCEDURE type, not status.
-//   green  → cleaning
-//   yellow → consultation / first check-up
-//   blue   → production work (root canal, crown, filling, extraction, implant, etc.)
-function procedurePalette(procedure: string): { border: string; bg: string; dot: string } {
-  const p = procedure.toLowerCase();
-  if (/clean/.test(p)) {
-    return { border: colors.success[500], bg: colors.success[0], dot: colors.success[500] };
+// Calendar cards are colour-coded by DOCTOR so multi-doctor schedules are
+// easy to scan at a glance. We mirror the web app's exact hash function
+// (`colorForDoctor` in pages/Calendar/Calendar.jsx) so a given doctor's
+// colour stays identical across web and mobile. The card background is the
+// same colour at 12% opacity to keep the text readable.
+function doctorPalette(doctorName: string | null | undefined): {
+  border: string;
+  bg: string;
+  dot: string;
+} {
+  const name = (doctorName ?? '').trim() || 'Doctor';
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
-  if (/consult|check[- ]?up|first visit|first check/.test(p)) {
-    return { border: colors.warning[400], bg: colors.warning[10], dot: colors.warning[400] };
-  }
-  return { border: colors.primary[500], bg: colors.primary[0], dot: colors.primary[500] };
+  const r = (hash >> 0) & 0xff;
+  const g = (hash >> 8) & 0xff;
+  const b = (hash >> 16) & 0xff;
+  return {
+    border: `rgb(${r}, ${g}, ${b})`,
+    dot: `rgb(${r}, ${g}, ${b})`,
+    bg: `rgba(${r}, ${g}, ${b}, 0.12)`,
+  };
 }
 
 function statusPalette(status: AppointmentStatus): { border: string; bg: string; dot: string } {
