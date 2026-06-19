@@ -22,12 +22,15 @@ export function Screen({
   // their own action rows), the SafeAreaView won't add bottom padding — so
   // on Android phones with a gesture bar (e.g. Samsung Galaxy S25) the
   // primary actions sit flush against the system inset and become hard to
-  // tap. Always reserve at least the bottom inset + a comfortable buffer.
+  // tap. Always reserve a generous bottom buffer: bottom inset + spacing,
+  // floored at ~80px (button height + clearance) so the action row stays
+  // visible even when useSafeAreaInsets reports zero (some modal stacks on
+  // Android don't propagate the inset).
   const insets = useSafeAreaInsets();
   const bottomEdgeIncluded = edges.includes('bottom');
   const extraBottom = bottomEdgeIncluded
     ? spacing.xl
-    : Math.max(insets.bottom, spacing.sm) + spacing.xl;
+    : Math.max(insets.bottom + spacing.xl, spacing.xxxl + spacing.xl);
 
   const inner = (
     <View
