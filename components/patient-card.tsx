@@ -177,10 +177,37 @@ function getInitials(name?: string, family?: string): string {
   return '?';
 }
 
+// Backend stores DOB as "DD-Month-YYYY" (e.g. "14-August-1990") via
+// strftime("%d-%B-%Y") in /register-patient. `new Date("14-August-1990")`
+// returns Invalid Date on iOS/Android — parse both formats explicitly so
+// the age cell isn't permanently "—" for every live-build patient.
+function parseDob(dob: string): Date | null {
+  // ISO YYYY-MM-DD
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dob);
+  if (iso) {
+    const d = new Date(`${iso[1]}-${iso[2]}-${iso[3]}T00:00:00`);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // Legacy DD-Month-YYYY
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+  const legacy = /^(\d{1,2})-([A-Za-z]+)-(\d{4})$/.exec(dob);
+  if (legacy) {
+    const monthIdx = months.findIndex((m) => m.toLowerCase() === legacy[2].toLowerCase());
+    if (monthIdx < 0) return null;
+    const d = new Date(Number(legacy[3]), monthIdx, Number(legacy[1]));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const fallback = new Date(dob);
+  return isNaN(fallback.getTime()) ? null : fallback;
+}
+
 function ageFromDob(dob?: string): number | null {
   if (!dob) return null;
-  const date = new Date(dob);
-  if (isNaN(date.getTime())) return null;
+  const date = parseDob(dob);
+  if (!date) return null;
   const now = new Date();
   let years = now.getFullYear() - date.getFullYear();
   const monthDiff = now.getMonth() - date.getMonth();
