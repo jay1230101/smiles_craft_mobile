@@ -167,6 +167,15 @@ function DraggableEventCard({
   const treatment = event.extendedProps?.procedure ?? '';
   const doctor = event.doctor ? `Dr. ${event.doctor}` : '';
 
+  // Card heights are duration-driven, so a 30-min appointment is only ~34dp
+  // tall — not enough vertical space for 4 lines of text. Without these
+  // thresholds the bottom lines used to overflow past the card's painted
+  // background and visually collide with the next hour's "Tap to book"
+  // hint. Show progressively more detail as the card grows.
+  const showTime = height >= s(34);
+  const showTreatment = height >= s(54) && !!treatment;
+  const showDoctor = height >= s(70) && !!doctor;
+
   const panGesture = Gesture.Pan()
     .activateAfterLongPress(LONG_PRESS_MS)
     .onStart(() => {
@@ -224,15 +233,17 @@ function DraggableEventCard({
         <Text style={styles.eventName} numberOfLines={1}>
           {fullName || 'Unknown'}
         </Text>
-        <Text style={styles.eventTime} numberOfLines={1}>
-          {timeRange}
-        </Text>
-        {treatment ? (
+        {showTime ? (
+          <Text style={styles.eventTime} numberOfLines={1}>
+            {timeRange}
+          </Text>
+        ) : null}
+        {showTreatment ? (
           <Text style={styles.eventTreatment} numberOfLines={1}>
             {treatment}
           </Text>
         ) : null}
-        {doctor ? (
+        {showDoctor ? (
           <Text style={styles.eventDoctor} numberOfLines={1}>
             {doctor}
           </Text>
@@ -333,10 +344,11 @@ const styles = StyleSheet.create({
     right: spacing.sm,
     borderLeftWidth: 4,
     borderRadius: radius.lg,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingRight: spacing.lg,
-    gap: 2,
+    gap: 0,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
