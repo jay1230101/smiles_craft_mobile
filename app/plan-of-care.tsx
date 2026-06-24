@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Screen } from '@/components/screen';
 import { TextInput } from '@/components/text-input';
 import { useSavePlanOfCare } from '@/hooks/use-plan-of-care';
@@ -50,7 +51,7 @@ export default function PlanOfCareScreen() {
   const [text, setText] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [successOpen, setSuccessOpen] = useState(false);
 
   if (!event) {
     return <Redirect href="/(tabs)/calendar" />;
@@ -76,7 +77,6 @@ export default function PlanOfCareScreen() {
   const onSubmit = async () => {
     setFormError(null);
     setServerError(null);
-    setSuccessMessage(null);
     if (!text.trim()) {
       setFormError('Plan of care cannot be empty');
       return;
@@ -88,8 +88,7 @@ export default function PlanOfCareScreen() {
         patientId: event.patientId,
       });
       if (res.status === 'success') {
-        setSuccessMessage('Plan of care saved.');
-        setTimeout(() => goBack(), 700);
+        setSuccessOpen(true);
       } else {
         setServerError(res.message || 'Could not save plan of care.');
       }
@@ -159,7 +158,6 @@ export default function PlanOfCareScreen() {
       </View>
 
       {serverError ? <Text style={styles.errorText}>{serverError}</Text> : null}
-      {successMessage ? <Text style={styles.successText}>{successMessage}</Text> : null}
 
       <View style={styles.actions}>
         <Button
@@ -177,6 +175,18 @@ export default function PlanOfCareScreen() {
           style={styles.flex}
         />
       </View>
+
+      <ConfirmDialog
+        visible={successOpen}
+        variant="success"
+        title="Plan of Care Saved"
+        message={`Your plan is saved under ${fullName || 'this patient'}'s Clinical History.`}
+        confirmLabel="Done"
+        onConfirm={() => {
+          setSuccessOpen(false);
+          goBack();
+        }}
+      />
     </Screen>
   );
 }

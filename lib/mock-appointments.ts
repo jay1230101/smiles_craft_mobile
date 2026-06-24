@@ -3,6 +3,7 @@ import type { BackendEvent } from '@/types/appointments';
 import type { Doctor } from '@/types/doctors';
 import type { Gender } from '@/types/genders';
 import { todayYMD, type SummaryCounts } from './appointments';
+import { isDevelopment } from './env';
 
 export const MOCK_DOCTORS: Doctor[] = [
   { id: 1, name: 'Sarah', family: 'Mitchell' },
@@ -102,8 +103,14 @@ export function getMockNotifications() {
   ];
 }
 
-// Flip to `false` to use live backend data on Dashboard + All Appointments + Calendar.
-export const DEMO_MODE = true;
+// Demo mode seeds every screen with in-memory mock data so we can develop
+// without the backend. Real backend in staging + production (preview APK,
+// client testing) — demo only in local dev. Override per-build with
+// EXPO_PUBLIC_DEMO_MODE=true / EXPO_PUBLIC_DEMO_MODE=false in eas.json or
+// `.env` to flip the default either way.
+const __demoFlag = process.env.EXPO_PUBLIC_DEMO_MODE;
+export const DEMO_MODE =
+  __demoFlag === 'true' ? true : __demoFlag === 'false' ? false : isDevelopment;
 
 function mockEvent(opts: {
   mainId: number;

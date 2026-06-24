@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { DateField } from '@/components/date-field';
 import { Screen } from '@/components/screen';
 import { Select, type SelectOption } from '@/components/select';
@@ -28,7 +29,7 @@ export default function ScheduleWhatsAppScreen() {
   const [date, setDate] = useState<string>('');
   const [formError, setFormError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [successOpen, setSuccessOpen] = useState(false);
 
   const templateOptions: SelectOption<string>[] = useMemo(
     () =>
@@ -68,7 +69,6 @@ export default function ScheduleWhatsAppScreen() {
   const onSubmit = async () => {
     setFormError(null);
     setServerError(null);
-    setSuccessMessage(null);
     if (!templateName) {
       setFormError('Pick a WhatsApp template');
       return;
@@ -85,8 +85,7 @@ export default function ScheduleWhatsAppScreen() {
         [templateName]: { checked: true, date: iso },
       });
       if (res.status === 'success') {
-        setSuccessMessage('Reminder scheduled.');
-        setTimeout(() => goBack(), 700);
+        setSuccessOpen(true);
       } else {
         setServerError(res.message || 'Could not schedule reminder.');
       }
@@ -150,7 +149,6 @@ export default function ScheduleWhatsAppScreen() {
       </View>
 
       {serverError ? <Text style={styles.errorText}>{serverError}</Text> : null}
-      {successMessage ? <Text style={styles.successText}>{successMessage}</Text> : null}
 
       <View style={styles.actions}>
         <Button
@@ -168,6 +166,18 @@ export default function ScheduleWhatsAppScreen() {
           style={styles.flex}
         />
       </View>
+
+      <ConfirmDialog
+        visible={successOpen}
+        variant="success"
+        title="Reminder Scheduled"
+        message={`We'll send the WhatsApp reminder to ${fullName || 'this patient'} on the chosen date.`}
+        confirmLabel="Done"
+        onConfirm={() => {
+          setSuccessOpen(false);
+          goBack();
+        }}
+      />
     </Screen>
   );
 }

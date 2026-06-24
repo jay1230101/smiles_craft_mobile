@@ -60,3 +60,29 @@ export type DeleteAppointmentResponse = {
   status: 'deleted' | 'error';
   message: string;
 };
+
+// /encounter takes the SAME payload shape for create vs update. The
+// difference is `eventId`: a fresh UUID = new booking (backend takes the
+// "first time encounter" branch since no row matches), an existing
+// encounter_id = update. We MUST send a fresh UUID on create — sending
+// none means the backend matches the first row with NULL encounter_id
+// and silently overwrites it.
+export type CreateAppointmentRequest = {
+  eventId: string;
+  name: string;
+  family: string;
+  dob: string;          // YYYY-MM-DD
+  phone: string;
+  date: string;         // YYYY-MM-DD
+  start_iso: string;    // ISO datetime
+  end_iso: string;      // ISO datetime
+  proc: string;
+  resourceId: number;   // doctor_id
+  doctor_name: string;
+  booking_reminder: boolean;
+};
+
+export type CreateAppointmentResponse = {
+  status: 'success' | 'unavailable' | 'error';
+  message: string;
+};

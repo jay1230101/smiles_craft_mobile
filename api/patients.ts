@@ -22,8 +22,22 @@ export async function registerPatientRequest(
 }
 
 export async function getPatientsRequest(): Promise<PatientListItem[]> {
-  const { data } = await apiClient.get<PatientListItem[]>(endpoints.patients.list);
-  return Array.isArray(data) ? data : [];
+   
+  console.log('[patients] GET', endpoints.patients.list);
+  try {
+    const { data } = await apiClient.get<PatientListItem[]>(endpoints.patients.list);
+     
+    console.log(
+      '[patients] response',
+      Array.isArray(data) ? `array(${data.length})` : typeof data,
+      data,
+    );
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+     
+    console.log('[patients] ERROR', err);
+    throw err;
+  }
 }
 
 export async function updatePatientRequest(

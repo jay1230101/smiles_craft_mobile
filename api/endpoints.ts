@@ -13,14 +13,15 @@ export const endpoints = {
     encounter: '/encounter',
   },
   doctors: {
-    list: '/get_doctors',
+    list: '/clinic_doctors',
+    mapped: '/getc_mapped',
   },
   patients: {
-    list: '/getAllPatients',
+    list: '/registeredPatients',
     search: '/search-patient',
     register: '/register-patient',
     update: '/update-patient',
-    delete: '/delete-patient',
+    delete: '/delete_patient',
   },
   genders: {
     list: '/getGender',

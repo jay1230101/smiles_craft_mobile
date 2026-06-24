@@ -28,16 +28,49 @@ apiClient.interceptors.request.use(async (config: InternalAxiosRequestConfig) =>
   return config;
 });
 
+// Flask's `token_required` decorator returns these bodies on auth failure.
+// "Token has expired!" arrives as HTTP 401, but "Token is missing or invalid"
+// is returned without an explicit status — Flask defaults to 200. We treat
+// either body as an unauthorized response so the user is bumped to login
+// instead of seeing silently empty screens.
+const TOKEN_ERROR_MESSAGES = new Set([
+  'Token is missing or invalid',
+  'Token has expired!',
+  'Invalid token!',
+  'User not authorized',
+]);
+
+function isTokenErrorBody(data: unknown): boolean {
+  if (!data || typeof data !== 'object') return false;
+  const message = (data as { message?: unknown }).message;
+  return typeof message === 'string' && TOKEN_ERROR_MESSAGES.has(message);
+}
+
+async function handleUnauthorized() {
+  await tokenStorage.clear();
+  if (unauthorizedHandler) {
+    try {
+      await unauthorizedHandler();
+    } catch {}
+  }
+}
+
 apiClient.interceptors.response.use(
-  (response) => response,
+  async (response) => {
+    if (isTokenErrorBody(response.data)) {
+      await handleUnauthorized();
+      return Promise.reject({
+        status: 401,
+        code: 'TOKEN_INVALID',
+        message: (response.data as { message: string }).message,
+        details: response.data,
+      } as ApiError);
+    }
+    return response;
+  },
   async (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      await tokenStorage.clear();
-      if (unauthorizedHandler) {
-        try {
-          await unauthorizedHandler();
-        } catch {}
-      }
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      await handleUnauthorized();
     }
     return Promise.reject(normalizeError(error));
   },

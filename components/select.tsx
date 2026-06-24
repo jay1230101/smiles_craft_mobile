@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   Modal,
   Pressable,
   ScrollView,
@@ -29,6 +30,8 @@ type Props<T extends string | number> = {
   error?: string | null;
   helperText?: string;
   disabled?: boolean;
+  loading?: boolean;
+  emptyMessage?: string;
   containerStyle?: StyleProp<ViewStyle>;
 };
 
@@ -41,6 +44,8 @@ export function Select<T extends string | number>({
   error,
   helperText,
   disabled,
+  loading,
+  emptyMessage = 'No options available',
   containerStyle,
 }: Props<T>) {
   const [open, setOpen] = useState(false);
@@ -85,41 +90,52 @@ export function Select<T extends string | number>({
             style={[styles.sheet, { paddingBottom: spacing.xxl + insets.bottom }]}
             onPress={() => {}}>
             {label ? <Text style={styles.sheetTitle}>{label}</Text> : null}
-            <ScrollView
-              style={styles.sheetList}
-              contentContainerStyle={styles.sheetListContent}
-              showsVerticalScrollIndicator={false}>
-              {options.map((opt) => {
-                const isSelected = opt.value === value;
-                return (
-                  <Pressable
-                    key={String(opt.value)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: isSelected }}
-                    onPress={() => {
-                      onChange(opt.value);
-                      setOpen(false);
-                    }}
-                    style={({ pressed }) => [
-                      styles.option,
-                      isSelected && styles.optionSelected,
-                      pressed && styles.optionPressed,
-                    ]}>
-                    <Text
-                      style={[
-                        styles.optionLabel,
-                        isSelected && styles.optionLabelSelected,
-                      ]}
-                      numberOfLines={1}>
-                      {opt.label}
-                    </Text>
-                    {isSelected ? (
-                      <Ionicons name="checkmark" size={s(20)} color={colors.primary[500]} />
-                    ) : null}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+            {loading ? (
+              <View style={styles.sheetEmpty}>
+                <ActivityIndicator color={colors.primary[500]} />
+                <Text style={styles.sheetEmptyText}>Loading…</Text>
+              </View>
+            ) : options.length === 0 ? (
+              <View style={styles.sheetEmpty}>
+                <Text style={styles.sheetEmptyText}>{emptyMessage}</Text>
+              </View>
+            ) : (
+              <ScrollView
+                style={styles.sheetList}
+                contentContainerStyle={styles.sheetListContent}
+                showsVerticalScrollIndicator={false}>
+                {options.map((opt) => {
+                  const isSelected = opt.value === value;
+                  return (
+                    <Pressable
+                      key={String(opt.value)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
+                      onPress={() => {
+                        onChange(opt.value);
+                        setOpen(false);
+                      }}
+                      style={({ pressed }) => [
+                        styles.option,
+                        isSelected && styles.optionSelected,
+                        pressed && styles.optionPressed,
+                      ]}>
+                      <Text
+                        style={[
+                          styles.optionLabel,
+                          isSelected && styles.optionLabelSelected,
+                        ]}
+                        numberOfLines={1}>
+                        {opt.label}
+                      </Text>
+                      {isSelected ? (
+                        <Ionicons name="checkmark" size={s(20)} color={colors.primary[500]} />
+                      ) : null}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            )}
           </Pressable>
         </Pressable>
       </Modal>
@@ -226,5 +242,14 @@ const styles = StyleSheet.create({
   optionLabelSelected: {
     fontFamily: 'Inter_600SemiBold',
     color: colors.primary[500],
+  },
+  sheetEmpty: {
+    paddingVertical: spacing.xl,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  sheetEmptyText: {
+    ...typography.body.medium,
+    color: colors.text.secondary,
   },
 });

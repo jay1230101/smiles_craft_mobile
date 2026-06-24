@@ -9,6 +9,7 @@ import {
   type View as RNView,
 } from 'react-native';
 
+import { DEMO_MODE } from '@/lib/mock-appointments';
 import { ms, s, screenWidth } from '@/lib/responsive';
 import { colors, spacing, typography } from '@/theme';
 import type { PatientListItem } from '@/types/patients';
@@ -32,6 +33,10 @@ export function PatientCard({ patient, onEdit, onDelete }: Props) {
 
   const initials = getInitials(patient.name, patient.family);
   const age = ageFromDob(patient.dob);
+  // /update-patient is not wired on the backend yet — keep Edit usable in
+  // local demo iteration but disable it on live builds until the route
+  // ships so the client doesn't hit a 404.
+  const editDisabled = !DEMO_MODE;
 
   // Anchor the popover to the 3-dots button's screen position so it sits
   // directly under the trigger instead of centered on the screen.
@@ -104,13 +109,35 @@ export function PatientCard({ patient, onEdit, onDelete }: Props) {
             <View style={[styles.menu, { top: anchor.top, right: anchor.right }]}>
               <Pressable
                 accessibilityRole="button"
+                accessibilityState={{ disabled: editDisabled }}
+                disabled={editDisabled}
                 onPress={() => {
                   closeMenu();
                   onEdit?.(patient);
                 }}
-                style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}>
-                <Ionicons name="create-outline" size={ms(18)} color={colors.primary[500]} />
-                <Text style={[styles.menuLabel, { color: colors.primary[500] }]}>Edit</Text>
+                style={({ pressed }) => [
+                  styles.menuItem,
+                  pressed && !editDisabled && styles.menuItemPressed,
+                ]}>
+                <Ionicons
+                  name="create-outline"
+                  size={ms(18)}
+                  color={editDisabled ? colors.text.secondary : colors.primary[500]}
+                />
+                <View style={styles.menuTextBlock}>
+                  <Text
+                    style={[
+                      styles.menuLabel,
+                      { color: editDisabled ? colors.text.secondary : colors.primary[500] },
+                    ]}>
+                    Edit
+                  </Text>
+                  {editDisabled ? (
+                    <Text style={styles.menuHelper} numberOfLines={2}>
+                      Available with the next backend update
+                    </Text>
+                  ) : null}
+                </View>
               </Pressable>
               <View style={styles.menuDivider} />
               <Pressable
@@ -285,5 +312,14 @@ const styles = StyleSheet.create({
     ...typography.label.large,
     fontFamily: 'Inter_500Medium',
     fontSize: ms(14),
+  },
+  menuTextBlock: {
+    flex: 1,
+    gap: 2,
+  },
+  menuHelper: {
+    ...typography.body.small,
+    color: colors.text.secondary,
+    fontSize: ms(11),
   },
 });

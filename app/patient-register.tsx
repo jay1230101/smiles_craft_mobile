@@ -7,6 +7,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { CountryPicker } from '@/components/country-picker';
 import { DateField } from '@/components/date-field';
 import { Screen } from '@/components/screen';
 import { Select, type SelectOption } from '@/components/select';
@@ -14,6 +15,7 @@ import { TextInput } from '@/components/text-input';
 import { useDoctors } from '@/hooks/use-doctors';
 import { useGenders } from '@/hooks/use-genders';
 import { useRegisterPatient } from '@/hooks/use-register-patient';
+import { DEFAULT_COUNTRY, type Country } from '@/lib/countries';
 import { ms, s } from '@/lib/responsive';
 import { useAuthStore } from '@/store/auth';
 import { colors, spacing, typography } from '@/theme';
@@ -70,12 +72,13 @@ function dobToBackend(input: string): string {
 export default function PatientRegisterScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const { data: doctors } = useDoctors();
-  const { data: genders } = useGenders();
+  const { data: doctors, isLoading: doctorsLoading, isError: doctorsError } = useDoctors();
+  const { data: genders, isLoading: gendersLoading, isError: gendersError } = useGenders();
   const registerPatient = useRegisterPatient();
   const [serverError, setServerError] = useState<string | null>(null);
   const [successOpen, setSuccessOpen] = useState(false);
   const [savedName, setSavedName] = useState<string>('');
+  const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
 
   const isNonOwnerDoctor = user?.role === 'DOCTOR' && !user.is_owner;
   const lockedDoctorId = isNonOwnerDoctor ? user?.user_id ?? null : null;
@@ -124,11 +127,12 @@ export default function PatientRegisterScreen() {
   const submit = async (values: FormValues, force = false) => {
     setServerError(null);
 
+    const localPhone = values.phone.trim();
     const payload: RegisterPatientRequest = {
       name: values.name.trim(),
       family: values.family.trim(),
       dob: values.dob?.trim() ? dobToBackend(values.dob.trim()) : undefined,
-      phone: values.phone.trim(),
+      phone: `${country.dial}${localPhone}`,
       gender: values.gender || undefined,
       doctor: values.doctor,
       allergy: values.allergy?.trim() || undefined,
@@ -245,22 +249,10 @@ export default function PatientRegisterScreen() {
             <View style={styles.phoneBlock}>
               <Text style={styles.fieldLabel}>Phone Number</Text>
               <View style={styles.phoneRow}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Country code"
-                  onPress={() =>
-                    Alert.alert(
-                      'Country code',
-                      'Only Lebanon (+961) is supported right now. More countries will be added later.',
-                    )
-                  }
-                  style={({ pressed }) => [styles.countryCode, pressed && styles.pressed]}>
-                  <Text style={styles.flag}>🇱🇧</Text>
-                  <Ionicons name="chevron-down" size={ms(16)} color={SUBTITLE_COLOR} />
-                </Pressable>
+                <CountryPicker value={country} onChange={setCountry} />
                 <View style={styles.phoneInputWrap}>
                   <TextInput
-                    placeholder="+961"
+                    placeholder={`+${country.dial}`}
                     keyboardType="phone-pad"
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -287,6 +279,12 @@ export default function PatientRegisterScreen() {
               options={genderOptions}
               onChange={(v) => field.onChange(v ?? '')}
               error={fieldState.error?.message}
+              loading={gendersLoading}
+              emptyMessage={
+                gendersError
+                  ? 'Could not load genders. Please retry.'
+                  : 'No genders configured yet'
+              }
             />
           )}
         />
@@ -332,6 +330,12 @@ export default function PatientRegisterScreen() {
                 options={doctorOptions}
                 onChange={(v) => field.onChange(v)}
                 error={fieldState.error?.message}
+                loading={doctorsLoading}
+                emptyMessage={
+                  doctorsError
+                    ? 'Could not load clinicians. Please retry.'
+                    : 'No clinicians in this clinic'
+                }
               />
             )}
           />

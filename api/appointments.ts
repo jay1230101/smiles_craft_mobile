@@ -2,6 +2,8 @@ import { apiClient } from './client';
 import { endpoints } from './endpoints';
 import type {
   BackendEvent,
+  CreateAppointmentRequest,
+  CreateAppointmentResponse,
   DeleteAppointmentRequest,
   DeleteAppointmentResponse,
   GetAllEventsResponse,
@@ -28,6 +30,20 @@ export async function deleteAppointmentRequest(
   payload: DeleteAppointmentRequest,
 ): Promise<DeleteAppointmentResponse> {
   const { data } = await apiClient.post<DeleteAppointmentResponse>(
+    endpoints.appointments.encounter,
+    payload,
+  );
+  return data;
+}
+
+// New booking — same /encounter endpoint, no eventId so the backend takes
+// the create path. Patient must already exist (backend looks up
+// PatientRegistrationInfo by name+family+dob+phone, returns 'unavailable'
+// if not found).
+export async function createAppointmentRequest(
+  payload: CreateAppointmentRequest,
+): Promise<CreateAppointmentResponse> {
+  const { data } = await apiClient.post<CreateAppointmentResponse>(
     endpoints.appointments.encounter,
     payload,
   );

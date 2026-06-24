@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import { Button } from '@/components/button';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Screen } from '@/components/screen';
 import { Select, type SelectOption } from '@/components/select';
 import { TextInput } from '@/components/text-input';
@@ -55,7 +56,7 @@ export default function OrdersScreen() {
   const [statusUpdates, setStatusUpdates] = useState<Record<number, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+  const [successOpen, setSuccessOpen] = useState(false);
 
   // Auto-fill price when procedure is selected. Mirrors the web behaviour.
   useEffect(() => {
@@ -175,7 +176,6 @@ export default function OrdersScreen() {
 
   const onSubmit = async () => {
     setSubmitError(null);
-    setSubmitSuccess(null);
     if (staged.length === 0 && Object.keys(statusUpdates).length === 0) {
       setSubmitError('Add at least one procedure or change a status before submitting.');
       return;
@@ -231,8 +231,7 @@ export default function OrdersScreen() {
     try {
       const res = await submitMutation.mutateAsync(payload);
       if (res.status === 'success') {
-        setSubmitSuccess('Orders saved. Patient added to cashier.');
-        setTimeout(() => goBack(), 800);
+        setSuccessOpen(true);
       } else {
         setSubmitError(res.message || 'Could not save orders.');
       }
@@ -434,7 +433,6 @@ export default function OrdersScreen() {
       </View>
 
       {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
-      {submitSuccess ? <Text style={styles.successText}>{submitSuccess}</Text> : null}
 
       <View style={styles.actions}>
         <Button
@@ -452,6 +450,18 @@ export default function OrdersScreen() {
           style={styles.flex1}
         />
       </View>
+
+      <ConfirmDialog
+        visible={successOpen}
+        variant="success"
+        title="Orders Saved"
+        message={`${fullName || 'The patient'} has been added to the cashier queue.`}
+        confirmLabel="Done"
+        onConfirm={() => {
+          setSuccessOpen(false);
+          goBack();
+        }}
+      />
     </Screen>
   );
 }

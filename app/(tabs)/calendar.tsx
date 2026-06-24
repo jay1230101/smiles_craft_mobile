@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -8,7 +9,7 @@ import { DoctorPicker } from '@/components/doctor-picker';
 import { Screen } from '@/components/screen';
 import { type AppointmentStatus } from '@/components/status-pill';
 import { useAllEvents } from '@/hooks/use-appointments';
-import { useDoctors } from '@/hooks/use-doctors';
+import { useMappedDoctors } from '@/hooks/use-mapped-doctors';
 import {
   deriveStatus,
   eventsForDate,
@@ -19,8 +20,10 @@ import { DEMO_MODE, getMockCalendarEvents } from '@/lib/mock-appointments';
 import { ms, s } from '@/lib/responsive';
 import { useAuthStore } from '@/store/auth';
 import { useDoctorFilterStore } from '@/store/doctor-filter';
+import { useNewAppointmentStore } from '@/store/new-appointment';
 import { colors, radius, spacing, typography } from '@/theme';
 import type { BackendEvent } from '@/types/appointments';
+import type { Doctor, MappedDoctor } from '@/types/doctors';
 
 type CalendarView = 'Day' | 'Week' | 'Month';
 const VIEWS: CalendarView[] = ['Day', 'Week', 'Month'];
@@ -29,6 +32,8 @@ const DAY_START_HOUR = 8;
 const DAY_END_HOUR = 20;
 
 export default function CalendarScreen() {
+  const router = useRouter();
+  const setNewAppointmentPrefill = useNewAppointmentStore((s) => s.setPrefill);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [view, setView] = useState<CalendarView>('Day');
   const [activeEvent, setActiveEvent] = useState<BackendEvent | null>(null);
@@ -37,8 +42,39 @@ export default function CalendarScreen() {
   const bottomTabHeight = useBottomTabBarHeight();
   const safeBottomPadding = Math.max(bottomTabHeight, 80) + spacing.xxl;
   const { data: liveEvents } = useAllEvents();
-  const { data: doctors } = useDoctors();
+  const { data: mappedDoctors } = useMappedDoctors();
   const user = useAuthStore((s) => s.user);
+
+  // DoctorPicker still expects a Doctor shape. MappedDoctor has a single
+  // `name` field (the full display name) — fit it into Doctor by putting
+  // the full name in `name` and leaving `family` blank. The picker renders
+  // `Dr. ${name} ${family}` which collapses to `Dr. ${name}`.
+  const doctors: Doctor[] = useMemo(
+    () => (mappedDoctors ?? []).map((d) => ({ id: d.id, name: d.name, family: '' })),
+    [mappedDoctors],
+  );
+
+  const openNewAppointment = (hourOverride?: number) => {
+    const doctor: MappedDoctor | null =
+      selectedDoctorId != null
+        ? (mappedDoctors ?? []).find((d) => d.id === selectedDoctorId) ?? null
+        : null;
+    const now = new Date();
+    const hour = hourOverride ?? now.getHours();
+    const dd = String(selectedDate.getDate()).padStart(2, '0');
+    const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const yyyy = selectedDate.getFullYear();
+    const startHh = String(hour).padStart(2, '0');
+    const endHh = String((hour + 1) % 24).padStart(2, '0');
+    setNewAppointmentPrefill({
+      date: `${dd}-${mm}-${yyyy}`,
+      startTime: `${startHh}:00`,
+      endTime: `${endHh}:00`,
+      doctorId: doctor?.id ?? null,
+      doctorName: doctor?.name ?? null,
+    });
+    router.push('/appointment-new' as never);
+  };
 
   // Non-owner doctors only ever see their own appointments (backend enforced).
   // The picker is irrelevant for them, so it's hidden and no client-side filter
@@ -53,7 +89,19 @@ export default function CalendarScreen() {
 
   const events = useMemo<BackendEvent[]>(() => {
     if (!showDoctorPicker || selectedDoctorId === null) return allEvents;
-    return allEvents.filter((e) => e.resourceId === selectedDoctorId);
+    const filtered = allEvents.filter((e) => e.resourceId === selectedDoctorId);
+    console.log('[calendar] filter', {
+      selectedDoctorId,
+      selectedType: typeof selectedDoctorId,
+      total: allEvents.length,
+      filtered: filtered.length,
+      eventResourceIds: allEvents.slice(0, 10).map((e) => ({
+        rid: e.resourceId,
+        type: typeof e.resourceId,
+        doctor: e.doctor,
+      })),
+    });
+    return filtered;
   }, [allEvents, selectedDoctorId, showDoctorPicker]);
 
   const ymd = useMemo(() => todayYMD(selectedDate), [selectedDate]);
@@ -133,23 +181,51 @@ export default function CalendarScreen() {
       </View>
 
       {view === 'Day' ? (
-        <DayView events={dayEvents} onSelectEvent={setActiveEvent} />
+        <DayView
+          events={dayEvents}
+          onSelectEvent={setActiveEvent}
+          onSelectEmpty={openNewAppointment}
+        />
       ) : view === 'Week' ? (
         <WeekView
           events={events}
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
           onSelectEvent={setActiveEvent}
+          onAddAppointment={() => openNewAppointment(DAY_START_HOUR)}
         />
       ) : (
         <MonthView
           events={events}
           selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
+          onSelectDate={(date) => {
+            // Match the web flow: tapping a date in Month view drops the
+            // user into the Day view for that date so they can see (and
+            // act on) the appointments. Tapping an empty date lands them
+            // on Day view ready to book.
+            setSelectedDate(date);
+            setView('Day');
+          }}
+          onAddAppointment={(date) => {
+            setSelectedDate(date);
+            openNewAppointment(DAY_START_HOUR);
+          }}
         />
       )}
 
       <AppointmentPopover event={activeEvent} onClose={() => setActiveEvent(null)} />
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Book new appointment"
+        onPress={() => openNewAppointment()}
+        style={({ pressed }) => [
+          styles.fab,
+          { bottom: bottomTabHeight + spacing.lg },
+          pressed && styles.pressed,
+        ]}>
+        <Ionicons name="add" size={ms(28)} color="#FFFFFF" />
+      </Pressable>
     </Screen>
   );
 }
@@ -157,9 +233,11 @@ export default function CalendarScreen() {
 function DayView({
   events,
   onSelectEvent,
+  onSelectEmpty,
 }: {
   events: BackendEvent[];
   onSelectEvent: (event: BackendEvent) => void;
+  onSelectEmpty: (hour: number) => void;
 }) {
   const hours = useMemo(() => {
     const arr: number[] = [];
@@ -188,6 +266,7 @@ function DayView({
           hour={h}
           events={eventsByHour.get(h) ?? []}
           onSelectEvent={onSelectEvent}
+          onSelectEmpty={() => onSelectEmpty(h)}
         />
       ))}
     </View>
@@ -199,11 +278,13 @@ function WeekView({
   selectedDate,
   onSelectDate,
   onSelectEvent,
+  onAddAppointment,
 }: {
   events: BackendEvent[];
   selectedDate: Date;
   onSelectDate: (date: Date) => void;
   onSelectEvent: (event: BackendEvent) => void;
+  onAddAppointment: () => void;
 }) {
   const weekDates = useMemo(() => {
     const start = startOfWeekMonday(selectedDate);
@@ -249,9 +330,20 @@ function WeekView({
       </View>
 
       {dayEvents.length === 0 ? (
-        <View style={styles.weekEmpty}>
-          <Text style={styles.placeholderText}>No appointments on this day.</Text>
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Book an appointment on this day"
+          onPress={onAddAppointment}
+          style={({ pressed }) => [
+            styles.weekEmpty,
+            styles.weekEmptyTappable,
+            pressed && styles.emptySlotPressed,
+          ]}>
+          <Ionicons name="add-circle-outline" size={ms(22)} color={colors.primary[500]} />
+          <Text style={styles.weekEmptyTappableText}>
+            Tap to book an appointment on this day
+          </Text>
+        </Pressable>
       ) : (
         <View style={styles.weekList}>
           {dayEvents.map((e) => (
@@ -261,6 +353,14 @@ function WeekView({
               onPress={() => onSelectEvent(e)}
             />
           ))}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Book another appointment on this day"
+            onPress={onAddAppointment}
+            style={({ pressed }) => [styles.weekAddRow, pressed && styles.pressed]}>
+            <Ionicons name="add-circle-outline" size={ms(20)} color={colors.primary[500]} />
+            <Text style={styles.weekAddText}>Book another appointment</Text>
+          </Pressable>
         </View>
       )}
     </View>
@@ -274,10 +374,12 @@ function MonthView({
   events,
   selectedDate,
   onSelectDate,
+  onAddAppointment,
 }: {
   events: BackendEvent[];
   selectedDate: Date;
   onSelectDate: (date: Date) => void;
+  onAddAppointment: (date: Date) => void;
 }) {
   const grid = useMemo(() => buildMonthGrid(selectedDate), [selectedDate]);
   const eventsByYMD = useMemo(() => groupEventsByYMD(events), [events]);
@@ -303,11 +405,21 @@ function MonthView({
               const ymd = todayYMD(date);
               const isSelected = ymd === selectedYMD;
               const statuses = uniqueStatusesFor(eventsByYMD.get(ymd) ?? []);
+              const hasEvents = (eventsByYMD.get(ymd) ?? []).length > 0;
               return (
                 <Pressable
                   key={di}
                   accessibilityRole="button"
                   accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={
+                    hasEvents
+                      ? `Open appointments on ${date.toDateString()}`
+                      : `Open ${date.toDateString()} to book`
+                  }
+                  // Always switch to Day view on tap so the user can see
+                  // existing cards (tap → Actions popover) or empty slots
+                  // (tap → new appointment). Mirrors the web flow where
+                  // clicking any date drops you into a slot-level view.
                   onPress={() => onSelectDate(date)}
                   style={({ pressed }) => [styles.monthCell, pressed && styles.pressed]}>
                   <View style={[styles.monthDateWrap, isSelected && styles.monthDateSelected]}>
@@ -386,17 +498,19 @@ function TimeRow({
   hour,
   events,
   onSelectEvent,
+  onSelectEmpty,
 }: {
   hour: number;
   events: BackendEvent[];
   onSelectEvent: (event: BackendEvent) => void;
+  onSelectEmpty: () => void;
 }) {
   return (
     <View style={styles.row}>
       <Text style={styles.timeLabel}>{formatHour(hour)}</Text>
       <View style={styles.slotColumn}>
         {events.length === 0 ? (
-          <EmptySlot />
+          <EmptySlot onPress={onSelectEmpty} />
         ) : (
           events.map((e) => (
             <SlotCard
@@ -411,8 +525,17 @@ function TimeRow({
   );
 }
 
-function EmptySlot() {
-  return <View style={styles.emptySlot} />;
+function EmptySlot({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Book new appointment in this time slot"
+      onPress={onPress}
+      style={({ pressed }) => [styles.emptySlot, pressed && styles.emptySlotPressed]}>
+      <Ionicons name="add" size={ms(16)} color={colors.text.secondary} />
+      <Text style={styles.emptySlotText}>Tap to book</Text>
+    </Pressable>
+  );
 }
 
 function SlotCard({ event, onPress }: { event: BackendEvent; onPress: () => void }) {
@@ -621,6 +744,33 @@ const styles = StyleSheet.create({
     borderColor: colors.border.subtle,
     borderRadius: radius.lg,
     backgroundColor: 'transparent',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  emptySlotPressed: {
+    backgroundColor: colors.background.surface,
+    borderColor: colors.primary[500],
+  },
+  emptySlotText: {
+    ...typography.body.small,
+    color: colors.text.secondary,
+  },
+  fab: {
+    position: 'absolute',
+    right: spacing.lg,
+    width: s(56),
+    height: s(56),
+    borderRadius: s(28),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary[500],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
   slotCard: {
     borderLeftWidth: 4,
@@ -705,6 +855,38 @@ const styles = StyleSheet.create({
   weekEmpty: {
     paddingVertical: spacing.huge,
     alignItems: 'center',
+  },
+  weekEmptyTappable: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingVertical: spacing.xl,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.border.subtle,
+    borderRadius: radius.lg,
+    justifyContent: 'center',
+  },
+  weekEmptyTappableText: {
+    ...typography.body.large,
+    color: colors.primary[500],
+    fontFamily: 'Inter_500Medium',
+  },
+  weekAddRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.border.subtle,
+    borderRadius: radius.lg,
+    marginTop: spacing.xs,
+  },
+  weekAddText: {
+    ...typography.body.medium,
+    color: colors.primary[500],
+    fontFamily: 'Inter_500Medium',
   },
   placeholder: {
     paddingVertical: spacing.huge,

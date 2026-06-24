@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Smile Craft Mobile — Backend Guide: Push Notifications</title>
+<style>
+  @page { size: A4; margin: 22mm 18mm; }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; }
+  body {
+    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #1E1E1E;
+    font-size: 11.5pt;
+    line-height: 1.55;
+    margin: 0;
+  }
+  h1 { font-size: 26pt; margin: 0 0 6pt; color: #014CA9; letter-spacing: -0.3pt; }
+  h2 {
+    font-size: 16pt;
+    margin: 22pt 0 10pt;
+    padding-bottom: 6pt;
+    border-bottom: 1.5pt solid #D3E7FF;
+    color: #014CA9;
+  }
+  h3 { font-size: 13pt; margin: 16pt 0 6pt; color: #1E1E1E; }
+  h4 { font-size: 11.5pt; margin: 12pt 0 4pt; color: #014CA9; }
+  p { margin: 6pt 0; }
+  ul, ol { margin: 4pt 0 8pt 18pt; padding: 0; }
+  li { margin: 3pt 0; }
+  strong { color: #1E1E1E; }
+  code {
+    background: #F4F4F8; padding: 1pt 5pt; border-radius: 3pt;
+    font-family: "SF Mono", Consolas, Menlo, monospace; font-size: 10pt;
+  }
+  pre {
+    background: #1E1E1E; color: #F8F8F2;
+    padding: 10pt 12pt; border-radius: 6pt;
+    font-family: "SF Mono", Consolas, Menlo, monospace;
+    font-size: 9.5pt; line-height: 1.45;
+    overflow-x: auto;
+    page-break-inside: avoid;
+    margin: 6pt 0 10pt;
+  }
+  pre code { background: transparent; color: inherit; padding: 0; font-size: inherit; }
+  .lead { font-size: 12pt; color: #4B4B4B; margin: 0 0 14pt; }
+  .meta {
+    display: flex; gap: 18pt; flex-wrap: wrap;
+    background: #F4F4F8; border-radius: 6pt; padding: 10pt 14pt;
+    font-size: 10.5pt; color: #4B4B4B; margin: 8pt 0 18pt;
+  }
+  .meta b { color: #1E1E1E; }
+  .card {
+    border: 1pt solid #E9E9E9; border-radius: 8pt;
+    padding: 12pt 14pt; margin: 8pt 0;
+    background: #FFF;
+    page-break-inside: avoid;
+  }
+  .card .title { font-weight: 600; color: #014CA9; margin-bottom: 4pt; }
+  .pill {
+    display: inline-block;
+    background: #E9FAEB; color: #1D7926;
+    border-radius: 99pt; padding: 1pt 8pt; font-size: 9.5pt; font-weight: 600;
+  }
+  .pill.amber { background: #FDF8E6; color: #8B6D00; }
+  .pill.blue  { background: #E6F0FA; color: #014CA9; }
+  .pill.grey  { background: #E9E9E9; color: #4B4B4B; }
+  table { width: 100%; border-collapse: collapse; margin: 6pt 0 10pt; font-size: 10.5pt; }
+  th, td { text-align: left; border: 1pt solid #E9E9E9; padding: 6pt 8pt; vertical-align: top; }
+  th { background: #F4F4F8; font-weight: 600; }
+  .note {
+    background: #FDF8E6; border-left: 3pt solid #ECC433;
+    padding: 8pt 12pt; border-radius: 4pt; margin: 8pt 0;
+    font-size: 10.5pt;
+  }
+  .info {
+    background: #E6F0FA; border-left: 3pt solid #014CA9;
+    padding: 8pt 12pt; border-radius: 4pt; margin: 8pt 0;
+    font-size: 10.5pt;
+  }
+  .ok  { color: #1D7926; font-weight: 600; }
+  .footer-note { color: #787878; font-size: 9.5pt; margin-top: 18pt; }
+  .toc { background: #F4F4F8; border-radius: 6pt; padding: 10pt 18pt; font-size: 10.5pt; }
+  .toc ol { margin: 4pt 0 4pt 18pt; }
+</style>
+</head>
+<body>
+
+<h1>Smile Craft Mobile</h1>
+<p class="lead">Backend Implementation Guide — Push Notifications</p>
+
+<div class="meta">
+  <div><b>For:</b> Smiles Craft backend team</div>
+  <div><b>Stack:</b> Flask + SQLAlchemy + Celery + Expo Push</div>
+  <div><b>Status:</b> <span class="pill amber">Required before mobile push can be enabled</span></div>
+  <div><b>Estimated effort:</b> ~1 working day</div>
+</div>
+
+<div class="toc">
+  <b>Contents</b>
+  <ol>
+    <li>What the mobile app already does</li>
+    <li>Why Expo Push (and not raw FCM / APNs)</li>
+    <li>Database schema</li>
+    <li>New endpoints</li>
+    <li>Helper — resolve which tokens to push to</li>
+    <li>Celery task — <code>send_push_notification</code></li>
+    <li>Wiring with existing socket emits</li>
+    <li>Environment setup</li>
+    <li>Verification checklist</li>
+    <li>Scope summary</li>
+  </ol>
+</div>
+
+<h2>1. What the mobile app already does</h2>
+<p>
+  When a user logs into the mobile app, the device generates a unique push
+  token (an Expo Push Token, format <code>ExponentPushToken[xxxxxxxxxxxxxx]</code>).
+  The mobile app needs to send this token to the backend so the server
+  knows where to deliver notifications when something happens — a new
+  appointment is booked, a patient confirms, an appointment is cancelled,
+  and so on.
+</p>
+<p>
+  The mobile app will call <code>POST /register-device-token</code> right
+  after a successful login, and <code>POST /unregister-device-token</code>
+  on logout. The backend stores these tokens per user and uses them
+  whenever it currently calls <code>socketio.emit(...)</code>.
+</p>
+
+<h2>2. Why Expo Push (and not raw FCM / APNs)</h2>
+<p>
+  The mobile app is built on Expo. Expo provides a single push service
+  that handles both Android (FCM under the hood) and iOS (APNs under the
+  hood) through one HTTPS endpoint.
+</p>
+
+<table>
+  <thead>
+    <tr><th>Approach</th><th>What the backend has to manage</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>Expo Push</b> <span class="pill blue">Recommended</span></td>
+      <td>One env var (<code>EXPO_ACCESS_TOKEN</code>), one HTTPS POST to <code>https://exp.host/--/api/v2/push/send</code></td>
+    </tr>
+    <tr>
+      <td>Raw FCM</td>
+      <td>Service-account JSON, refresh tokens, Firebase project, separate certificate management</td>
+    </tr>
+    <tr>
+      <td>Raw APNs</td>
+      <td><code>.p8</code> key file, Team ID, Key ID, JWT signing every hour</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>
+  Expo Push is one HTTP call. No certificates to rotate, no Firebase
+  console to maintain, no Apple Developer key renewals every year. If the
+  clinic ever moves off Expo, the same <code>DeviceToken</code> table
+  works — the backend simply swaps the Celery task body to call FCM / APNs
+  directly. Nothing else changes.
+</p>
+
+<h2>3. Database schema</h2>
+<p>
+  Add one new table. Migration is additive — no existing data is touched.
+</p>
+
+<pre><code># models.py
+
+class DeviceToken(db.Model):
+    __tablename__ = 'device_tokens'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'),
+                        nullable=False, index=True)
+    token = db.Column(db.String(255), nullable=False, unique=True)
+    platform = db.Column(db.String(16), nullable=False)   # 'ios' | 'android'
+    device_id = db.Column(db.String(128), nullable=True)  # for de-duping per device
+    created_at = db.Column(db.DateTime, default=datetime.utcnow,
+                           nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow,
+                           onupdate=datetime.utcnow, nullable=False)
+
+    user = db.relationship('User',
+                           backref=db.backref('device_tokens', lazy=True))
+</code></pre>
+
+<p>Run the Flask-Migrate migration:</p>
+
+<pre><code>flask db migrate -m "add device_tokens table"
+flask db upgrade
+</code></pre>
+
+<h2>4. New endpoints</h2>
+
+<h3>4.1 <code>POST /register-device-token</code></h3>
+<p>
+  Called by the mobile app immediately after login. If the same token
+  already exists, update <code>user_id</code> and <code>updated_at</code>
+  (the same physical device might be shared across two staff accounts). If
+  <code>device_id</code> is provided and another row already has it,
+  replace the token — this handles the case where a phone re-installs the
+  app and Expo issues a new token for the same device.
+</p>
+
+<pre><code># views.py
+
+@main.route('/register-device-token', methods=['POST'])
+@token_required
+def register_device_token(current_user):
+    data = request.json or {}
+    token = (data.get('token') or '').strip()
+    platform = (data.get('platform') or '').strip().lower()
+    device_id = (data.get('deviceId') or '').strip() or None
+
+    if not token or platform not in ('ios', 'android'):
+        return jsonify({"status": "error",
+                        "message": "token and platform ('ios'|'android') are required"}), 400
+
+    user_id = current_user["user_id"]
+
+    # 1. If this device already had a token, replace it.
+    if device_id:
+        DeviceToken.query.filter_by(device_id=device_id).delete()
+
+    # 2. If this token already exists (maybe under another user), reassign.
+    existing = DeviceToken.query.filter_by(token=token).first()
+    if existing:
+        existing.user_id = user_id
+        existing.platform = platform
+        existing.device_id = device_id
+        existing.updated_at = datetime.utcnow()
+    else:
+        db.session.add(DeviceToken(
+            user_id=user_id,
+            token=token,
+            platform=platform,
+            device_id=device_id,
+        ))
+
+    db.session.commit()
+    return jsonify({"status": "success"})
+</code></pre>
+
+<h3>4.2 <code>POST /unregister-device-token</code></h3>
+<p>
+  Called by the mobile app on logout, so the server stops pushing to a
+  phone that's no longer logged in.
+</p>
+
+<pre><code>@main.route('/unregister-device-token', methods=['POST'])
+@token_required
+def unregister_device_token(current_user):
+    data = request.json or {}
+    token = (data.get('token') or '').strip()
+    if not token:
+        return jsonify({"status": "error", "message": "token required"}), 400
+
+    DeviceToken.query.filter_by(token=token,
+                                user_id=current_user["user_id"]).delete()
+    db.session.commit()
+    return jsonify({"status": "success"})
+</code></pre>
+
+<h3>4.3 Mobile payload reference</h3>
+<p>
+  This is what the mobile app will POST. No changes are needed on the
+  backend side beyond reading these fields:
+</p>
+
+<pre><code>POST /register-device-token
+Authorization: Bearer &lt;jwt&gt;
+
+{
+  "token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]",
+  "platform": "android",
+  "deviceId": "stable-device-uuid-from-expo"
+}
+</code></pre>
+
+<h2>5. Helper — resolve which tokens to push to</h2>
+<p>
+  The existing socket emits target <b>rooms</b>, not user IDs:
+</p>
+<ul>
+  <li><code>clinic_&lt;clinic_id&gt;</code> — every staff member of a clinic</li>
+  <li><code>doctor_&lt;user_id&gt;</code> — one specific doctor</li>
+</ul>
+<p>
+  Add a single helper that mirrors that and returns the matching push tokens.
+</p>
+
+<pre><code># push_helpers.py
+
+def tokens_for_clinic(clinic_id):
+    """Every active user in this clinic, across all their devices."""
+    rows = (
+        db.session.query(DeviceToken.token, DeviceToken.platform)
+        .join(User, User.id == DeviceToken.user_id)
+        .filter(User.clinic_id == clinic_id, User.status == 'active')
+        .all()
+    )
+    return [{"token": t, "platform": p} for t, p in rows]
+
+
+def tokens_for_user(user_id):
+    """All devices logged in as this specific user."""
+    rows = (
+        db.session.query(DeviceToken.token, DeviceToken.platform)
+        .filter(DeviceToken.user_id == user_id)
+        .all()
+    )
+    return [{"token": t, "platform": p} for t, p in rows]
+</code></pre>
+
+<h2>6. Celery task — <code>send_push_notification</code></h2>
+<p>
+  This is the single function every socket emit will call alongside its
+  existing <code>socketio.emit(...)</code>. It runs asynchronously so HTTP
+  requests never block the user-facing response.
+</p>
+
+<pre><code># tasks.py
+
+import os
+import requests
+from celery import shared_task
+
+EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=10)
+def send_push_notification(self, tokens, title, body, data=None):
+    """
+    tokens:  list of {"token": "...", "platform": "ios"|"android"}
+    title:   short heading shown in the notification banner
+    body:    longer text shown under the title
+    data:    optional dict — delivered to the mobile app for deep-linking
+             (e.g. {"type": "newAppointment", "bookingId": 123})
+    """
+    if not tokens:
+        return {"sent": 0}
+
+    # Expo accepts up to 100 messages per HTTP call.
+    chunks = [tokens[i:i + 100] for i in range(0, len(tokens), 100)]
+    sent = 0
+    errors = []
+
+    headers = {
+        "Accept": "application/json",
+        "Accept-encoding": "gzip, deflate",
+        "Content-Type": "application/json",
+    }
+    access_token = os.environ.get("EXPO_ACCESS_TOKEN")
+    if access_token:
+        headers["Authorization"] = f"Bearer {access_token}"
+
+    for chunk in chunks:
+        messages = [{
+            "to": t["token"],
+            "title": title,
+            "body": body,
+            "sound": "default",
+            "priority": "high",
+            "data": data or {},
+        } for t in chunk]
+
+        try:
+            resp = requests.post(EXPO_PUSH_URL, json=messages,
+                                 headers=headers, timeout=10)
+            resp.raise_for_status()
+            payload = resp.json()
+            # Expo returns one ticket per message. Tickets with
+            # status="error" and details.error == "DeviceNotRegistered"
+            # mean the token is dead (user uninstalled the app) — drop it
+            # from the DB.
+            for ticket, msg in zip(payload.get("data", []), chunk):
+                if ticket.get("status") == "ok":
+                    sent += 1
+                elif ticket.get("details", {}).get("error") == "DeviceNotRegistered":
+                    DeviceToken.query.filter_by(token=msg["token"]).delete()
+                else:
+                    errors.append(ticket)
+            db.session.commit()
+        except requests.RequestException as exc:
+            raise self.retry(exc=exc)
+
+    return {"sent": sent, "errors": errors}
+</code></pre>
+
+<h2>7. Wiring with existing socket emits</h2>
+<p>
+  For every place that currently emits a socket event, add a matching
+  <code>send_push_notification.delay(...)</code> call. The pattern is
+  always the same:
+</p>
+
+<pre><code>socketio.emit(EVENT_NAME, payload, room=ROOM)
+
+send_push_notification.delay(
+    tokens_for_&lt;clinic|user&gt;(&lt;id&gt;),
+    title="&lt;short title&gt;",
+    body="&lt;longer message&gt;",
+    data={"type": EVENT_NAME, ...payload identifiers...},
+)
+</code></pre>
+
+<div class="card">
+  <div class="title">7.1 New appointment created — <code>views.py:2663</code></div>
+<pre><code>socketio.emit("newAppointment", new_appointment, room=f"clinic_{clinic_id}")
+socketio.emit("newAppointment", new_appointment, room=f"doctor_{user_id}")
+
+send_push_notification.delay(
+    tokens_for_clinic(clinic_id),
+    title="New appointment",
+    body=f"{patient_name} booked for {visit_date} at {start_time}",
+    data={"type": "newAppointment", "bookingId": new_appointment["mainId"]},
+)
+</code></pre>
+</div>
+
+<div class="card">
+  <div class="title">7.2 Appointment updated / rescheduled — <code>views.py:2620</code></div>
+<pre><code>send_push_notification.delay(
+    tokens_for_clinic(clinic_id),
+    title="Appointment updated",
+    body=f"{patient_name}'s appointment moved to {visit_date} {start_time}",
+    data={"type": "updateAppointment", "bookingId": updated_appointment["mainId"]},
+)
+</code></pre>
+</div>
+
+<div class="card">
+  <div class="title">7.3 Appointment cancelled — <code>views.py:1461</code>, <code>3505</code></div>
+<pre><code>send_push_notification.delay(
+    tokens_for_clinic(clinic_id),
+    title="Appointment cancelled",
+    body=f"{patient_name} cancelled their {visit_date} appointment",
+    data={"type": "cancelledAppointment", "bookingId": booking.id},
+)
+</code></pre>
+</div>
+
+<div class="card">
+  <div class="title">7.4 Patient confirmed via WhatsApp — <code>views.py:1438</code></div>
+<pre><code>send_push_notification.delay(
+    tokens_for_clinic(clinic_id),
+    title="Appointment confirmed",
+    body=f"{patient_name} confirmed for {visit_date}",
+    data={"type": "confirmedAppointment", "bookingId": patient_appointment.id},
+)
+</code></pre>
+</div>
+
+<div class="card">
+  <div class="title">7.5 New patient registered — <code>views.py:2350</code></div>
+<pre><code>send_push_notification.delay(
+    tokens_for_clinic(clinic_id),
+    title="New patient",
+    body=f"{name} {family} was added to the clinic",
+    data={"type": "patientAdded", "patientId": newPatient["id"]},
+)
+</code></pre>
+</div>
+
+<div class="card">
+  <div class="title">7.6 Remaining emit sites — same pattern</div>
+  <ul>
+    <li><b>Patient edited</b> — <code>views.py:2380</code></li>
+    <li><b>Patient deleted</b> — <code>views.py:2041</code></li>
+    <li><b>Booking deleted</b> — <code>views.py:2500</code></li>
+    <li><b>Pending bills updated</b> — <code>views.py:3722</code></li>
+    <li><b>Bill paid / updated</b> — <code>views.py:3738</code></li>
+  </ul>
+  <p>
+    Each follows the same shape — one
+    <code>send_push_notification.delay(...)</code> call placed next to
+    the existing socket emit. The <code>data</code> payload should carry
+    the IDs the mobile app needs to deep-link the user to the right
+    screen when they tap the notification.
+  </p>
+</div>
+
+<h2>8. Environment setup</h2>
+<p>
+  Add one environment variable on the backend server (staging and
+  production):
+</p>
+
+<pre><code># .env
+EXPO_ACCESS_TOKEN=&lt;from expo.dev → Account Settings → Access Tokens&gt;
+</code></pre>
+
+<div class="info">
+  <b>Note —</b> the token is optional. Expo Push works without one, but
+  Expo recommends using a token for production traffic. Without it, Expo
+  may rate-limit or delay messages from unknown senders.
+</div>
+
+<p>Steps to obtain:</p>
+<ol>
+  <li>Sign in to <code>https://expo.dev</code> with the project owner account.</li>
+  <li>Open <b>Account Settings → Access Tokens → Create token</b>.</li>
+  <li>Name it <code>smilescraft-prod-push</code>, copy the value, paste
+      into the server's <code>.env</code>.</li>
+  <li>Restart the Flask and Celery workers so they pick up the new env var.</li>
+</ol>
+
+<p>No mobile-side change is needed when the token is added.</p>
+
+<h2>9. Verification checklist</h2>
+<p>After deploying:</p>
+<ol>
+  <li>Mobile app installs cleanly, logs in, and
+      <code>POST /register-device-token</code> succeeds with
+      <code>{ "status": "success" }</code>.</li>
+  <li>Check the <code>device_tokens</code> table — one row per logged-in
+      mobile device.</li>
+  <li>Book an appointment from the web app for a clinic that has a
+      logged-in mobile user → mobile receives a "New appointment" banner
+      within ~5 seconds.</li>
+  <li>Cancel that appointment from the web → mobile receives a
+      "Cancelled" banner.</li>
+  <li>Tap the banner → mobile app opens and navigates to the appointment
+      (handled mobile-side; backend just sends the <code>data</code> payload).</li>
+  <li>Log out of the mobile app →
+      <code>POST /unregister-device-token</code> removes the row from
+      <code>device_tokens</code>.</li>
+  <li>Send another web-side event → that phone no longer receives a push.</li>
+</ol>
+
+<h2>10. Scope summary</h2>
+
+<table>
+  <thead>
+    <tr><th>Item</th><th style="width: 140pt;">Effort</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>DeviceToken</code> model + migration</td><td>1 hour</td></tr>
+    <tr><td>Two new endpoints (<code>/register-device-token</code>, <code>/unregister-device-token</code>)</td><td>1 hour</td></tr>
+    <tr><td>Helper <code>tokens_for_clinic</code> / <code>tokens_for_user</code></td><td>30 min</td></tr>
+    <tr><td>Celery task <code>send_push_notification</code> (Expo Push integration)</td><td>2 hours</td></tr>
+    <tr><td>Wire the task into ~10 existing socket emit sites</td><td>2 hours</td></tr>
+    <tr><td>Environment variable + deploy + smoke test</td><td>1 hour</td></tr>
+    <tr><td><b>Total</b></td><td><b>~1 working day</b></td></tr>
+  </tbody>
+</table>
+
+<p class="footer-note">
+  Once this lands on the staging backend, the mobile app's push
+  notifications can be enabled via a single env flag flip in the next
+  preview build — no additional mobile work required.
+</p>
+
+</body>
+</html>

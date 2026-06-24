@@ -14,6 +14,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { setUnauthorizedHandler } from '@/api/client';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSocketEvents } from '@/hooks/use-socket-events';
 import { queryClient } from '@/lib/query-client';
@@ -42,6 +43,18 @@ export default function RootLayout() {
   }, [hydrate]);
 
   useEffect(() => {
+    // When the API client detects an expired/missing/invalid JWT (either as a
+    // 401 or as the Flask 200-with-`message: Token is missing or invalid`
+    // body), bump the user back to the login screen instead of letting them
+    // sit on a zombie session with empty data everywhere.
+    setUnauthorizedHandler(async () => {
+      await useAuthStore.getState().logout();
+      queryClient.clear();
+    });
+    return () => setUnauthorizedHandler(null);
+  }, []);
+
+  useEffect(() => {
     if (fontsLoaded && authStatus !== 'unknown') {
       SplashScreen.hideAsync().catch(() => {});
     }
@@ -61,6 +74,10 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen
             name="appointment-edit"
+            options={{ headerShown: false, presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="appointment-new"
             options={{ headerShown: false, presentation: 'modal' }}
           />
           <Stack.Screen

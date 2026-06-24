@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Ionicons } from '@expo/vector-icons';
-import { Redirect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -10,15 +10,29 @@ import { Button } from '@/components/button';
 import { Checkbox } from '@/components/checkbox';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Screen } from '@/components/screen';
+import { Select, type SelectOption } from '@/components/select';
 import { TextInput } from '@/components/text-input';
-import { useDeleteAppointment } from '@/hooks/use-delete-appointment';
+import { useCreateAppointment } from '@/hooks/use-create-appointment';
+import { useMappedDoctors } from '@/hooks/use-mapped-doctors';
 import { useSearchPatients } from '@/hooks/use-search-patients';
-import { useUpdateAppointment } from '@/hooks/use-update-appointment';
+import { mappedDoctorDisplayName } from '@/types/doctors';
 import { ms, s } from '@/lib/responsive';
-import { useEditEventStore } from '@/store/edit-event';
+import { useNewAppointmentStore } from '@/store/new-appointment';
 import { colors, radius, spacing, typography } from '@/theme';
-import type { UpdateAppointmentRequest } from '@/types/appointments';
+import type { CreateAppointmentRequest } from '@/types/appointments';
 import type { PatientListItem } from '@/types/patients';
+
+// RFC 4122 v4-style id. Backend stores this as encounter_id and we MUST
+// send a fresh one for every new booking — otherwise the /encounter handler
+// runs filter_by(encounter_id=None) and matches the first existing booking
+// with a NULL encounter_id, taking the UPDATE branch and overwriting it.
+function generateEventId(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 const HEADING_COLOR = '#1A202C';
 const SUBTITLE_COLOR = '#64748B';
@@ -31,6 +45,7 @@ const schema = z
     date: z.string().trim().regex(DATE_REGEX, 'Use format DD-MM-YYYY'),
     startTime: z.string().trim().regex(TIME_REGEX, 'Use 24h format HH:MM'),
     endTime: z.string().trim().regex(TIME_REGEX, 'Use 24h format HH:MM'),
+    doctorId: z.number().int().positive('Pick a doctor'),
     notes: z.string().trim(),
     bookingReminder: z.boolean(),
   })
@@ -46,112 +61,20 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
-export default function AppointmentEditScreen() {
+export default function AppointmentNewScreen() {
   const router = useRouter();
-  const event = useEditEventStore((s) => s.event);
-  const clearEvent = useEditEventStore((s) => s.clear);
-  const updateAppointment = useUpdateAppointment();
-  const deleteAppointment = useDeleteAppointment();
+  const prefill = useNewAppointmentStore((s) => s.prefill);
+  const clearPrefill = useNewAppointmentStore((s) => s.clear);
+  const createAppointment = useCreateAppointment();
+  const { data: doctors, isLoading: doctorsLoading, isError: doctorsError } = useMappedDoctors();
+
+  const [selectedPatient, setSelectedPatient] = useState<PatientListItem | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [savedOpen, setSavedOpen] = useState(false);
-  const [deletedOpen, setDeletedOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [swappedPatient, setSwappedPatient] = useState<PatientListItem | null>(null);
-
-  if (!event) {
-    return <Redirect href="/(tabs)/calendar" />;
-  }
-
-  return (
-    <EditForm
-      event={event}
-      router={router}
-      clearEvent={clearEvent}
-      updateAppointment={updateAppointment}
-      deleteAppointment={deleteAppointment}
-      serverError={serverError}
-      setServerError={setServerError}
-      savedOpen={savedOpen}
-      setSavedOpen={setSavedOpen}
-      deletedOpen={deletedOpen}
-      setDeletedOpen={setDeletedOpen}
-      deleteOpen={deleteOpen}
-      setDeleteOpen={setDeleteOpen}
-      swappedPatient={swappedPatient}
-      setSwappedPatient={setSwappedPatient}
-    />
-  );
-}
-
-function EditForm({
-  event,
-  router,
-  clearEvent,
-  updateAppointment,
-  deleteAppointment,
-  serverError,
-  setServerError,
-  savedOpen,
-  setSavedOpen,
-  deletedOpen,
-  setDeletedOpen,
-  deleteOpen,
-  setDeleteOpen,
-  swappedPatient,
-  setSwappedPatient,
-}: {
-  event: NonNullable<ReturnType<typeof useEditEventStore.getState>['event']>;
-  router: ReturnType<typeof useRouter>;
-  clearEvent: () => void;
-  updateAppointment: ReturnType<typeof useUpdateAppointment>;
-  deleteAppointment: ReturnType<typeof useDeleteAppointment>;
-  serverError: string | null;
-  setServerError: (s: string | null) => void;
-  savedOpen: boolean;
-  setSavedOpen: (b: boolean) => void;
-  deletedOpen: boolean;
-  setDeletedOpen: (b: boolean) => void;
-  deleteOpen: boolean;
-  setDeleteOpen: (b: boolean) => void;
-  swappedPatient: PatientListItem | null;
-  setSwappedPatient: (p: PatientListItem | null) => void;
-}) {
-  const initialDefaults = useMemo<FormValues>(() => {
-    const start = parseIsoSafe(event.start);
-    const end = parseIsoSafe(event.end);
-    return {
-      date: start ? formatDdMmYyyy(start) : '',
-      startTime: start ? formatHhMm(start) : '',
-      endTime: end ? formatHhMm(end) : '',
-      notes: event.extendedProps?.procedure ?? '',
-      bookingReminder: false,
-    };
-  }, [event]);
-
-  const { control, handleSubmit, formState, reset } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: initialDefaults,
-    mode: 'onTouched',
-  });
-
-  useEffect(() => {
-    reset(initialDefaults);
-  }, [initialDefaults, reset]);
-
-  // Active patient = the swap target if one was picked, otherwise the event's
-  // original patient. Display + submit pull from this single source.
-  const activePatient = useMemo(
-    () => ({
-      name: swappedPatient?.name ?? event.name,
-      family: swappedPatient?.family ?? event.family,
-      dob: swappedPatient?.dob ?? event.dob ?? '',
-      phone: swappedPatient?.phone ?? event.phone ?? '',
-    }),
-    [swappedPatient, event],
-  );
-
+  const [successOpen, setSuccessOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedTerm, setDebouncedTerm] = useState('');
+  const [patientError, setPatientError] = useState<string | null>(null);
+
   useEffect(() => {
     const id = setTimeout(() => setDebouncedTerm(searchTerm), 400);
     return () => clearTimeout(id);
@@ -159,34 +82,70 @@ function EditForm({
 
   const { data: searchResults, isFetching: searchLoading } = useSearchPatients(debouncedTerm);
 
+  const defaultValues = useMemo<FormValues>(() => {
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const todayDdMm = `${dd}-${mm}-${yyyy}`;
+    const nextHour = (now.getHours() + 1) % 24;
+    const nextHourStr = String(nextHour).padStart(2, '0');
+    return {
+      date: prefill?.date ?? todayDdMm,
+      startTime: prefill?.startTime ?? `${nextHourStr}:00`,
+      endTime: prefill?.endTime ?? `${String((nextHour + 1) % 24).padStart(2, '0')}:00`,
+      doctorId: prefill?.doctorId ?? 0,
+      notes: '',
+      bookingReminder: false,
+    };
+  }, [prefill]);
+
+  const { control, handleSubmit, formState, reset } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues,
+    mode: 'onTouched',
+  });
+
+  useEffect(() => {
+    reset(defaultValues);
+  }, [defaultValues, reset]);
+
+  const doctorOptions: SelectOption<number>[] = useMemo(
+    () =>
+      (doctors ?? []).map((d) => ({
+        value: d.id,
+        label: mappedDoctorDisplayName(d),
+      })),
+    [doctors],
+  );
+
   const goBack = () => {
-    clearEvent();
-    setSwappedPatient(null);
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/(tabs)/calendar');
-    }
+    clearPrefill();
+    setSelectedPatient(null);
+    if (router.canGoBack()) router.back();
+    else router.replace('/(tabs)/calendar');
   };
 
   const goToRegister = () => {
-    clearEvent();
-    setSwappedPatient(null);
+    clearPrefill();
+    setSelectedPatient(null);
     router.replace('/patient-register' as never);
   };
 
   const handleSelectPatient = (p: PatientListItem) => {
-    setSwappedPatient(p);
+    setSelectedPatient(p);
+    setPatientError(null);
     setSearchTerm('');
     setDebouncedTerm('');
   };
 
-  const handleClearSwap = () => {
-    setSwappedPatient(null);
-  };
-
   const onSubmit = async (values: FormValues) => {
     setServerError(null);
+
+    if (!selectedPatient) {
+      setPatientError('Search and select a patient first');
+      return;
+    }
 
     const dateIso = ddMmYyyyToIso(values.date);
     if (!dateIso) {
@@ -200,56 +159,65 @@ function EditForm({
       return;
     }
 
-    const payload: UpdateAppointmentRequest = {
-      eventId: event.id,
-      name: activePatient.name,
-      family: activePatient.family,
-      dob: normalizeDob(activePatient.dob),
-      // Backend stores phone with a leading "+" (see /register-patient),
-      // so the patient lookup in /encounter compares against "+9615566787".
-      // Send exactly that — stripping "+" caused "patient not registered".
-      phone: ensureLeadingPlus(activePatient.phone),
+    const doctor = doctorOptions.find((d) => d.value === values.doctorId);
+    const doctorName = doctor
+      ? doctor.label.replace(/^Dr\.\s*/, '')
+      : prefill?.doctorName ?? '';
+
+    const payload: CreateAppointmentRequest = {
+      // Fresh UUID per submission so the backend takes the "first time
+      // encounter" branch instead of the update branch (which silently
+      // overwrites the first row with a NULL encounter_id).
+      eventId: generateEventId(),
+      name: selectedPatient.name,
+      family: selectedPatient.family ?? '',
+      dob: normalizeDob(selectedPatient.dob ?? ''),
+      // Send phone EXACTLY as the backend stores it — /register-patient
+      // prepends a `+`, so /search-patient returns "+9615566787" and the
+      // /encounter patient lookup compares against the stored "+9615566787".
+      // Stripping the `+` here would cause the lookup to fail and the user
+      // gets a misleading "patient not registered" error.
+      phone: ensureLeadingPlus(selectedPatient.phone ?? ''),
       date: dateIso,
       start_iso: startIso,
       end_iso: endIso,
       proc: values.notes.trim(),
-      resourceId: event.resourceId,
-      doctor_name: event.doctor,
+      resourceId: values.doctorId,
+      doctor_name: doctorName,
       booking_reminder: values.bookingReminder,
     };
 
+    // Diagnostic — surfaces the exact payload + response in Metro logs so
+    // we can compare the mobile request to what the web app sends.
+     
+    console.log('[appointment-new] POST /encounter payload:', JSON.stringify(payload, null, 2));
+
     try {
-      const res = await updateAppointment.mutateAsync(payload);
+      const res = await createAppointment.mutateAsync(payload);
+       
+      console.log('[appointment-new] /encounter response:', JSON.stringify(res, null, 2));
       if (res.status === 'success') {
-        setSavedOpen(true);
+        setSuccessOpen(true);
+      } else if (res.status === 'unavailable') {
+        setServerError(
+          res.message?.toLowerCase().includes('patient not registered')
+            ? 'This patient is not registered. Open Register Patient first.'
+            : res.message || 'This time slot is unavailable.',
+        );
       } else {
-        setServerError(res.message || 'Could not update appointment.');
+        setServerError(res.message || 'Could not book appointment.');
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Could not update appointment.';
+       
+      console.log('[appointment-new] /encounter ERROR:', err);
+      const message = err instanceof Error ? err.message : 'Could not book appointment.';
       setServerError(message);
     }
   };
 
-  const onConfirmDelete = async () => {
-    setServerError(null);
-    try {
-      const res = await deleteAppointment.mutateAsync({ eventToDelete: event.id });
-      setDeleteOpen(false);
-      if (res.status === 'deleted') {
-        setDeletedOpen(true);
-      } else {
-        setServerError(res.message || 'Could not delete appointment.');
-      }
-    } catch (err) {
-      setDeleteOpen(false);
-      const message = err instanceof Error ? err.message : 'Could not delete appointment.';
-      setServerError(message);
-    }
-  };
-
-  const fullName = `${(activePatient.name ?? '').trim()} ${(activePatient.family ?? '').trim()}`.trim();
-  const dobDisplay = formatDobDisplay(activePatient.dob);
+  const fullName = selectedPatient
+    ? `${selectedPatient.name} ${selectedPatient.family ?? ''}`.trim()
+    : '';
   const showResults = debouncedTerm.trim().length >= 2;
 
   return (
@@ -263,8 +231,10 @@ function EditForm({
           <Ionicons name="chevron-back" size={s(20)} color={HEADING_COLOR} />
         </Pressable>
         <View style={styles.headerText}>
-          <Text style={styles.title}>Edit appointment</Text>
-          <Text style={styles.subtitle}>{fullName || 'Patient'}</Text>
+          <Text style={styles.title}>New appointment</Text>
+          <Text style={styles.subtitle}>
+            {fullName || 'Search a patient, then pick a time'}
+          </Text>
         </View>
       </View>
 
@@ -323,22 +293,41 @@ function EditForm({
       <View style={styles.patientBlock}>
         <View style={styles.patientHeadRow}>
           <Text style={styles.sectionLabel}>Patient</Text>
-          {swappedPatient ? (
+          {selectedPatient ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Undo patient swap"
-              onPress={handleClearSwap}
+              accessibilityLabel="Change selected patient"
+              onPress={() => setSelectedPatient(null)}
               style={({ pressed }) => [styles.swapBadge, pressed && styles.pressed]}>
               <Ionicons name="swap-horizontal" size={ms(14)} color={colors.primary[500]} />
-              <Text style={styles.swapBadgeText}>Swapped — undo</Text>
+              <Text style={styles.swapBadgeText}>Change</Text>
             </Pressable>
           ) : null}
         </View>
-        <View style={styles.row}>
-          <ReadOnlyField label="Name" value={activePatient.name || '—'} style={styles.flex} />
-          <ReadOnlyField label="Family" value={activePatient.family || '—'} style={styles.flex} />
-        </View>
-        <ReadOnlyField label="Date of birth" value={dobDisplay || '—'} />
+        {selectedPatient ? (
+          <>
+            <View style={styles.row}>
+              <ReadOnlyField label="Name" value={selectedPatient.name} style={styles.flex} />
+              <ReadOnlyField
+                label="Family"
+                value={selectedPatient.family || '—'}
+                style={styles.flex}
+              />
+            </View>
+            <ReadOnlyField
+              label="Date of birth"
+              value={formatDobDisplay(selectedPatient.dob || '') || '—'}
+            />
+          </>
+        ) : (
+          <View style={styles.patientEmpty}>
+            <Ionicons name="person-add-outline" size={ms(20)} color={SUBTITLE_COLOR} />
+            <Text style={styles.patientEmptyText}>
+              Search above to pick the patient for this appointment.
+            </Text>
+          </View>
+        )}
+        {patientError ? <Text style={styles.fieldError}>{patientError}</Text> : null}
       </View>
 
       <View style={styles.formBlock}>
@@ -397,11 +386,32 @@ function EditForm({
 
         <Controller
           control={control}
+          name="doctorId"
+          render={({ field, fieldState }) => (
+            <Select<number>
+              label="Doctor *"
+              placeholder="Pick a doctor"
+              value={field.value || null}
+              options={doctorOptions}
+              onChange={(v) => field.onChange(v)}
+              error={fieldState.error?.message}
+              loading={doctorsLoading}
+              emptyMessage={
+                doctorsError
+                  ? 'Could not load doctors. Please retry.'
+                  : 'No doctors mapped to clinics yet. Open Admin → Map Clinics on the web.'
+              }
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
           name="notes"
           render={({ field, fieldState }) => (
             <TextInput
               label="Notes"
-              placeholder="Add notes for this visit"
+              placeholder="Procedure or visit notes"
               autoCapitalize="sentences"
               multiline
               numberOfLines={3}
@@ -414,8 +424,6 @@ function EditForm({
           )}
         />
 
-        <ReadOnlyField label="Doctor" value={event.doctor ? `Dr. ${event.doctor}` : '—'} />
-
         <Controller
           control={control}
           name="bookingReminder"
@@ -424,7 +432,7 @@ function EditForm({
               <Checkbox
                 value={field.value}
                 onChange={field.onChange}
-                label="Send WhatsApp reminder to patient"
+                label="Send WhatsApp confirmation to patient"
               />
             </View>
           )}
@@ -435,63 +443,29 @@ function EditForm({
 
       <View style={styles.actions}>
         <Button
-          label="Close"
+          label="Cancel"
           variant="secondary"
           onPress={goBack}
           fullWidth={false}
           style={styles.flex}
         />
         <Button
-          label="Save"
-          loading={formState.isSubmitting || updateAppointment.isPending}
+          label="Book appointment"
+          loading={formState.isSubmitting || createAppointment.isPending}
           onPress={handleSubmit(onSubmit)}
           fullWidth={false}
           style={styles.flex}
         />
       </View>
 
-      <Button
-        label="Delete appointment"
-        variant="danger"
-        onPress={() => setDeleteOpen(true)}
-        leftIcon={
-          <Ionicons name="trash-outline" size={ms(18)} color={colors.text.inverse} />
-        }
-        style={styles.deleteBtn}
-      />
-
       <ConfirmDialog
-        visible={deleteOpen}
-        variant="danger"
-        title="Delete this appointment?"
-        message="This will remove the appointment from the calendar. This action can't be undone."
-        confirmLabel="Delete"
-        cancelLabel="Keep it"
-        loading={deleteAppointment.isPending}
-        onConfirm={onConfirmDelete}
-        onCancel={() => setDeleteOpen(false)}
-      />
-
-      <ConfirmDialog
-        visible={savedOpen}
+        visible={successOpen}
         variant="success"
-        title="Appointment Updated"
-        message={`${fullName || 'The appointment'} has been saved.`}
+        title="Appointment Booked"
+        message={`${fullName || 'The appointment'} is on the calendar. Time and doctor are saved.`}
         confirmLabel="Done"
         onConfirm={() => {
-          setSavedOpen(false);
-          goBack();
-        }}
-      />
-
-      <ConfirmDialog
-        visible={deletedOpen}
-        variant="success"
-        title="Appointment Deleted"
-        message={`${fullName || 'The appointment'} has been removed from the calendar.`}
-        confirmLabel="Done"
-        onConfirm={() => {
-          setDeletedOpen(false);
+          setSuccessOpen(false);
           goBack();
         }}
       />
@@ -522,25 +496,6 @@ function ReadOnlyField({
 
 // ---------- helpers ----------
 
-function parseIsoSafe(value: string | null | undefined): Date | null {
-  if (!value) return null;
-  const d = new Date(value);
-  return isNaN(d.getTime()) ? null : d;
-}
-
-function formatDdMmYyyy(d: Date): string {
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const yyyy = d.getFullYear();
-  return `${dd}-${mm}-${yyyy}`;
-}
-
-function formatHhMm(d: Date): string {
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
-}
-
 function ddMmYyyyToIso(value: string): string | null {
   const m = value.match(DATE_REGEX);
   if (!m) return null;
@@ -548,11 +503,22 @@ function ddMmYyyyToIso(value: string): string | null {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// Match the web app's dayjs(...).format() output — ISO 8601 with the local
+// timezone offset (e.g. "2026-06-22T14:00:00+03:00"). The /encounter handler
+// uses dateutil.parser.isoparse which accepts both naive and tz-aware, but
+// some downstream WhatsApp template parameters are derived from the parsed
+// datetime, so matching the web payload exactly removes one source of drift.
 function combineDateAndTime(yyyymmdd: string, hhmm: string): string | null {
   const m = hhmm.match(TIME_REGEX);
   if (!m) return null;
   const [, hh, mm] = m;
-  return `${yyyymmdd}T${hh}:${mm}:00`;
+  const dt = new Date(`${yyyymmdd}T${hh}:${mm}:00`);
+  if (isNaN(dt.getTime())) return null;
+  const offsetMin = -dt.getTimezoneOffset();
+  const sign = offsetMin >= 0 ? '+' : '-';
+  const offsetH = String(Math.floor(Math.abs(offsetMin) / 60)).padStart(2, '0');
+  const offsetM = String(Math.abs(offsetMin) % 60).padStart(2, '0');
+  return `${yyyymmdd}T${hh}:${mm}:00${sign}${offsetH}:${offsetM}`;
 }
 
 function parseTime(hhmm: string): number | null {
@@ -576,8 +542,8 @@ function formatTimeMask(input: string): string {
   return `${digits.slice(0, 2)}:${digits.slice(2)}`;
 }
 
-// Backend stores DOB as "DD-Month-YYYY" (e.g. "14-August-1990"); convert back
-// to "YYYY-MM-DD" before re-sending to /encounter.
+// Backend stores DOB as "DD-Month-YYYY" (e.g. "14-August-1990") but the
+// /encounter handler expects YYYY-MM-DD. Translate either format back.
 function normalizeDob(dob: string): string {
   if (!dob) return '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(dob)) return dob;
@@ -593,7 +559,6 @@ function normalizeDob(dob: string): string {
   return `${yyyy}-${String(idx + 1).padStart(2, '0')}-${dd.padStart(2, '0')}`;
 }
 
-// Display DOB nicely — accept either "DD-Month-YYYY" or "YYYY-MM-DD".
 function formatDobDisplay(dob: string): string {
   if (!dob) return '';
   const iso = normalizeDob(dob);
@@ -722,6 +687,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  patientEmpty: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.border.default,
+    backgroundColor: colors.background.surface,
+  },
+  patientEmptyText: {
+    ...typography.body.medium,
+    color: SUBTITLE_COLOR,
+    flex: 1,
+  },
   swapBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -776,6 +758,10 @@ const styles = StyleSheet.create({
   reminderRow: {
     paddingVertical: spacing.xs,
   },
+  fieldError: {
+    ...typography.body.small,
+    color: colors.danger[500],
+  },
   serverError: {
     ...typography.body.medium,
     color: colors.danger[500],
@@ -789,9 +775,5 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: spacing.md,
-  },
-  deleteBtn: {
-    backgroundColor: colors.danger[500],
-    borderColor: colors.danger[500],
   },
 });

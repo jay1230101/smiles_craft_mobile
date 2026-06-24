@@ -3,10 +3,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { Redirect, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { CountryPicker } from '@/components/country-picker';
 import { DateField } from '@/components/date-field';
 import { Screen } from '@/components/screen';
 import { Select, type SelectOption } from '@/components/select';
@@ -14,6 +15,12 @@ import { TextInput } from '@/components/text-input';
 import { useDoctors } from '@/hooks/use-doctors';
 import { useGenders } from '@/hooks/use-genders';
 import { useUpdatePatient } from '@/hooks/use-update-patient';
+import {
+  DEFAULT_COUNTRY,
+  inferCountryFromPhone,
+  stripDialCode,
+  type Country,
+} from '@/lib/countries';
 import { ms, s } from '@/lib/responsive';
 import { useEditPatientStore } from '@/store/edit-patient';
 import { colors, spacing, typography } from '@/theme';
@@ -86,17 +93,23 @@ function EditForm({
   const [serverError, setServerError] = useState<string | null>(null);
   const [successOpen, setSuccessOpen] = useState(false);
 
+  const initialCountry = useMemo<Country>(
+    () => inferCountryFromPhone(patient.phone ?? '') ?? DEFAULT_COUNTRY,
+    [patient.phone],
+  );
+  const [country, setCountry] = useState<Country>(initialCountry);
+
   const initialDefaults = useMemo<FormValues>(
     () => ({
       name: patient.name ?? '',
       family: patient.family ?? '',
       dob: backendDobToForm(patient.dob),
-      phone: stripPhone(patient.phone ?? ''),
+      phone: stripDialCode(patient.phone ?? '', initialCountry),
       gender: patient.gender ?? '',
       doctor: patient.doctor_id ?? 0,
       allergy: patient.allergy ?? '',
     }),
-    [patient],
+    [patient, initialCountry],
   );
 
   const { control, handleSubmit, reset, formState } = useForm<FormValues>({
@@ -135,12 +148,13 @@ function EditForm({
   const onSubmit = async (values: FormValues) => {
     setServerError(null);
 
+    const localPhone = values.phone.trim();
     const payload: UpdatePatientRequest = {
       id: patient.id,
       name: values.name.trim(),
       family: values.family.trim(),
       dob: values.dob?.trim() ? dobToBackend(values.dob.trim()) : undefined,
-      phone: values.phone.trim(),
+      phone: `${country.dial}${localPhone}`,
       gender: values.gender || undefined,
       doctor: values.doctor,
       allergy: values.allergy?.trim() || undefined,
@@ -233,22 +247,10 @@ function EditForm({
             <View style={styles.phoneBlock}>
               <Text style={styles.fieldLabel}>Phone Number</Text>
               <View style={styles.phoneRow}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Country code"
-                  onPress={() =>
-                    Alert.alert(
-                      'Country code',
-                      'Only Lebanon (+961) is supported right now. More countries will be added later.',
-                    )
-                  }
-                  style={({ pressed }) => [styles.countryCode, pressed && styles.pressed]}>
-                  <Text style={styles.flag}>🇱🇧</Text>
-                  <Ionicons name="chevron-down" size={ms(16)} color={SUBTITLE_COLOR} />
-                </Pressable>
+                <CountryPicker value={country} onChange={setCountry} />
                 <View style={styles.phoneInputWrap}>
                   <TextInput
-                    placeholder="+961"
+                    placeholder={`+${country.dial}`}
                     keyboardType="phone-pad"
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -370,13 +372,6 @@ function backendDobToForm(input?: string): string {
   if (!m) return '';
   const [, yyyy, mm, dd] = m;
   return `${dd}-${mm}-${yyyy}`;
-}
-
-// Phones are stored with country code on the backend; strip "+" and any
-// non-digit so the form input only carries digits (the +961 prefix is shown
-// separately by the country-code chip).
-function stripPhone(input: string): string {
-  return input.replace(/\D/g, '');
 }
 
 const styles = StyleSheet.create({

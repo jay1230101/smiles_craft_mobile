@@ -11,7 +11,8 @@ import { ProfileButton } from '@/components/profile-button';
 import { Screen } from '@/components/screen';
 import { SummaryCard } from '@/components/summary-card';
 import { useAllEvents } from '@/hooks/use-appointments';
-import { useDoctors } from '@/hooks/use-doctors';
+import { useMappedDoctors } from '@/hooks/use-mapped-doctors';
+import type { Doctor } from '@/types/doctors';
 import {
   eventToAppointmentItem,
   eventsForDate,
@@ -39,7 +40,11 @@ export default function HomeScreen() {
   const bottomTabHeight = useBottomTabBarHeight();
   const safeBottomPadding = Math.max(bottomTabHeight, 80) + spacing.xxl;
   const { data: events, isLoading, isError, refetch, isRefetching } = useAllEvents();
-  const { data: doctors } = useDoctors();
+  const { data: mappedDoctors } = useMappedDoctors();
+  const doctors: Doctor[] = useMemo(
+    () => (mappedDoctors ?? []).map((d) => ({ id: d.id, name: d.name, family: '' })),
+    [mappedDoctors],
+  );
   const selectedDoctorId = useDoctorFilterStore((s) => s.selectedDoctorId);
   const setSelectedDoctorId = useDoctorFilterStore((s) => s.setSelectedDoctorId);
   const hasUnreadNotifications = useNotificationsStore((s) =>

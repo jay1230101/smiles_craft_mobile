@@ -157,6 +157,28 @@ are being agreed with the backend team.
 ### Phase 2 / backlog
 - N1 — Drag-and-drop rescheduling on the calendar
 
+### Backend asks — for tomorrow's meeting
+
+These three items block full M3 closure once the preview build switches to
+live backend (DEMO_MODE off). All small, all unblock specific UI that is
+already built on the mobile side.
+
+1. **`POST /confirm-appt { bookingId }`** — manual confirm button. Set
+   `BookingEncounter.patient_confirmed = True`, `confirmed_by`,
+   `confirmed_at`. Emit `confirmedAppointment` on the same rooms the
+   WhatsApp webhook uses (`clinic_<clinic_id>` + the assigned doctor).
+   UI is already in the popover, sitting disabled with helper text.
+2. **`POST /update-patient { id, name, family, dob?, phone, gender?,
+   allergy?, doctor }`** — patient edit. Mirror `/register-patient`
+   (`views.py:2291`) but lookup the existing `PatientRegistrationInfo` by
+   `id` and update fields in place. Emit `patientEdited` on
+   `clinic_<clinic_id>`. Currently disabled in the preview build with
+   helper text "Available with the next backend update".
+3. **`POST /register-device-token { token, platform, deviceId }`** plus
+   Celery task `send_push_notification` wired alongside every existing
+   `socketio.emit(...)`. Recommendation: use Expo Push (mobile tokens are
+   already Expo format, one HTTP endpoint, no FCM/APNs cert setup).
+
 ---
 
 ## Section 4 — Source quotes (verbatim, for traceability)
