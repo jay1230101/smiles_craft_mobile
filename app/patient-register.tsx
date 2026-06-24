@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
@@ -96,11 +96,22 @@ export default function PatientRegisterScreen() {
     [lockedDoctorId],
   );
 
-  const { control, handleSubmit, reset, formState } = useForm<FormValues>({
+  const { control, handleSubmit, reset, setValue, formState } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues,
     mode: 'onTouched',
   });
+
+  // Single-doctor clinic: skip the Select entirely and lock the field to
+  // the only available doctor. We still need the form value populated so
+  // submit() ships the correct doctor id — auto-set it the moment the
+  // doctor list finishes loading.
+  const onlyDoctor = !doctorsLoading && (doctors?.length ?? 0) === 1 ? doctors![0] : null;
+  useEffect(() => {
+    if (onlyDoctor && !lockedDoctorId) {
+      setValue('doctor', onlyDoctor.id, { shouldValidate: true });
+    }
+  }, [onlyDoctor, lockedDoctorId, setValue]);
 
   const doctorOptions: SelectOption<number>[] = useMemo(
     () =>
@@ -317,6 +328,15 @@ export default function PatientRegisterScreen() {
               </Text>
             </View>
             <Text style={styles.helperText}>You can only register patients under your own name.</Text>
+          </View>
+        ) : onlyDoctor ? (
+          <View>
+            <Text style={styles.fieldLabel}>Clinician</Text>
+            <View style={styles.lockedField}>
+              <Text style={styles.lockedFieldText} numberOfLines={1}>
+                {`Dr. ${[onlyDoctor.name, onlyDoctor.family].filter(Boolean).join(' ').trim()}`}
+              </Text>
+            </View>
           </View>
         ) : (
           <Controller
