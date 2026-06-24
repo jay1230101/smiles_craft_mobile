@@ -159,13 +159,6 @@ export default function OrdersScreen() {
     resetForm();
   };
 
-  const updateStagedDiscount = (key: string, value: string) => {
-    const numeric = Number(value) || 0;
-    setStaged((prev) =>
-      prev.map((p) => (p.key === key ? { ...p, discount: numeric } : p)),
-    );
-  };
-
   const removeStaged = (key: string) => {
     setStaged((prev) => prev.filter((p) => p.key !== key));
   };
@@ -375,15 +368,6 @@ export default function OrdersScreen() {
                       Net {formatAmount(rowNet)} {row.currency}
                     </Text>
                   </Text>
-                </View>
-                <View style={styles.stagedDiscount}>
-                  <Text style={styles.miniLabel}>Discount</Text>
-                  <TextInput
-                    containerStyle={styles.miniInput}
-                    value={String(row.discount)}
-                    onChangeText={(v) => updateStagedDiscount(row.key, v)}
-                    keyboardType="decimal-pad"
-                  />
                 </View>
                 <Pressable
                   accessibilityRole="button"
@@ -704,17 +688,6 @@ const styles = StyleSheet.create({
   stagedMeta: {
     ...typography.body.small,
     color: colors.text.secondary,
-  },
-  stagedDiscount: {
-    width: s(80),
-    gap: spacing.xs,
-  },
-  miniLabel: {
-    ...typography.body.small,
-    color: colors.text.secondary,
-  },
-  miniInput: {
-    gap: 0,
   },
   removeBtn: {
     width: s(36),
