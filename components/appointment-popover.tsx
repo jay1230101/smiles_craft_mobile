@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
 import { Select, type SelectOption } from '@/components/select';
@@ -40,6 +41,13 @@ export function AppointmentPopover({ event, onClose }: Props) {
   const router = useRouter();
   const setEditEvent = useEditEventStore((s) => s.setEvent);
   const setActiveEvent = useActiveAppointmentStore((s) => s.setEvent);
+
+  // The bottom sheet bypasses SafeAreaView, so on Android phones with a
+  // gesture bar (Samsung S25 in particular) the action row sits flush
+  // against the system bar. Add the bottom inset on top of the existing
+  // paddingBottom so the buttons float above the gesture pill.
+  const insets = useSafeAreaInsets();
+  const sheetBottomPadding = insets.bottom + spacing.xxl;
 
   // Reset internal state every time a new event is opened.
   useEffect(() => {
@@ -100,7 +108,7 @@ export function AppointmentPopover({ event, onClose }: Props) {
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={() => {}}>
+        <Pressable style={[styles.sheet, { paddingBottom: sheetBottomPadding }]} onPress={() => {}}>
           <View style={styles.handle} />
 
           <View style={styles.header}>
@@ -468,7 +476,8 @@ const styles = StyleSheet.create({
   cancelActions: {
     flexDirection: 'row',
     gap: spacing.md,
-    marginTop: spacing.sm,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
   },
   flex: {
     flex: 1,
