@@ -104,6 +104,18 @@ export default function RootLayout() {
             name="clinical-history"
             options={{ headerShown: false, presentation: 'modal' }}
           />
+          <Stack.Screen
+            name="bill-detail"
+            options={{ headerShown: false, presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="record-payment"
+            options={{ headerShown: false, presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="receipt"
+            options={{ headerShown: false, presentation: 'modal' }}
+          />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
         <StatusBar style="auto" />
