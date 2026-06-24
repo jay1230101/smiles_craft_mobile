@@ -548,11 +548,22 @@ function ddMmYyyyToIso(value: string): string | null {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// Match appointment-new.tsx exactly — emit a tz-aware ISO string so the
+// backend stores an offset-bearing datetime. Sending a naive string here
+// replaces a previously tz-aware row with a naive one and shifts the
+// display by the local UTC offset (~3h on +03:00) the next time the
+// calendar parses it.
 function combineDateAndTime(yyyymmdd: string, hhmm: string): string | null {
   const m = hhmm.match(TIME_REGEX);
   if (!m) return null;
   const [, hh, mm] = m;
-  return `${yyyymmdd}T${hh}:${mm}:00`;
+  const dt = new Date(`${yyyymmdd}T${hh}:${mm}:00`);
+  if (isNaN(dt.getTime())) return null;
+  const offsetMin = -dt.getTimezoneOffset();
+  const sign = offsetMin >= 0 ? '+' : '-';
+  const offsetH = String(Math.floor(Math.abs(offsetMin) / 60)).padStart(2, '0');
+  const offsetM = String(Math.abs(offsetMin) % 60).padStart(2, '0');
+  return `${yyyymmdd}T${hh}:${mm}:00${sign}${offsetH}:${offsetM}`;
 }
 
 function parseTime(hhmm: string): number | null {
