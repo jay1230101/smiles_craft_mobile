@@ -100,7 +100,7 @@ export default function AppointmentNewScreen() {
     };
   }, [prefill]);
 
-  const { control, handleSubmit, formState, reset } = useForm<FormValues>({
+  const { control, handleSubmit, formState, reset, setValue } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues,
     mode: 'onTouched',
@@ -118,6 +118,16 @@ export default function AppointmentNewScreen() {
       })),
     [doctors],
   );
+
+  // Single-clinician clinic: skip the Select and display the only available
+  // clinician as a read-only field. We still set the form value so submit()
+  // ships the correct resourceId.
+  const onlyDoctor = !doctorsLoading && (doctors?.length ?? 0) === 1 ? doctors![0] : null;
+  useEffect(() => {
+    if (onlyDoctor) {
+      setValue('doctorId', onlyDoctor.id, { shouldValidate: true });
+    }
+  }, [onlyDoctor, setValue]);
 
   const goBack = () => {
     clearPrefill();
@@ -384,26 +394,33 @@ export default function AppointmentNewScreen() {
           />
         </View>
 
-        <Controller
-          control={control}
-          name="doctorId"
-          render={({ field, fieldState }) => (
-            <Select<number>
-              label="Doctor *"
-              placeholder="Pick a doctor"
-              value={field.value || null}
-              options={doctorOptions}
-              onChange={(v) => field.onChange(v)}
-              error={fieldState.error?.message}
-              loading={doctorsLoading}
-              emptyMessage={
-                doctorsError
-                  ? 'Could not load doctors. Please retry.'
-                  : 'No doctors mapped to clinics yet. Open Admin → Map Clinics on the web.'
-              }
-            />
-          )}
-        />
+        {onlyDoctor ? (
+          <ReadOnlyField
+            label="Clinician *"
+            value={mappedDoctorDisplayName(onlyDoctor)}
+          />
+        ) : (
+          <Controller
+            control={control}
+            name="doctorId"
+            render={({ field, fieldState }) => (
+              <Select<number>
+                label="Clinician *"
+                placeholder="Pick a clinician"
+                value={field.value || null}
+                options={doctorOptions}
+                onChange={(v) => field.onChange(v)}
+                error={fieldState.error?.message}
+                loading={doctorsLoading}
+                emptyMessage={
+                  doctorsError
+                    ? 'Could not load clinicians. Please retry.'
+                    : 'No clinicians mapped to clinics yet. Open Admin → Map Clinics on the web.'
+                }
+              />
+            )}
+          />
+        )}
 
         <Controller
           control={control}
@@ -462,7 +479,7 @@ export default function AppointmentNewScreen() {
         visible={successOpen}
         variant="success"
         title="Appointment Booked"
-        message={`${fullName || 'The appointment'} is on the calendar. Time and doctor are saved.`}
+        message={`${fullName || 'The appointment'} is on the calendar. Time and clinician are saved.`}
         confirmLabel="Done"
         onConfirm={() => {
           setSuccessOpen(false);
