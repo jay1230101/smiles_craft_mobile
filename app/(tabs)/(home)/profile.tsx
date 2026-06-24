@@ -25,8 +25,15 @@ export default function ProfileScreen() {
   const [logoutOpen, setLogoutOpen] = useState(false);
 
   const appVersion = (Constants.expoConfig as { version?: string } | null)?.version ?? '1.0.0';
-  const buildNumber =
-    (Constants.expoConfig as { android?: { versionCode?: number } } | null)?.android?.versionCode ?? '—';
+  const androidBuild = (Constants.expoConfig as { android?: { versionCode?: number } } | null)
+    ?.android?.versionCode;
+  const iosBuild = (Constants.expoConfig as { ios?: { buildNumber?: string } } | null)
+    ?.ios?.buildNumber;
+  const build = androidBuild ?? iosBuild;
+  // Show just the semantic version on its own when no native build number is
+  // available (e.g. running in Expo Go) — the old "1.0.0 (—)" rendering
+  // looked like the value failed to load.
+  const versionLabel = build ? `v${appVersion} · Build ${build}` : `v${appVersion}`;
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
@@ -156,11 +163,7 @@ export default function ProfileScreen() {
 
       <SectionTitle>About</SectionTitle>
       <View style={styles.groupCard}>
-        <DetailRow
-          icon="information-circle-outline"
-          label="Version"
-          value={`${appVersion} (${buildNumber})`}
-        />
+        <DetailRow icon="information-circle-outline" label="Version" value={versionLabel} />
       </View>
 
       <Pressable
