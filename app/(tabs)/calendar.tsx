@@ -12,6 +12,7 @@ import { useAllEvents } from '@/hooks/use-appointments';
 import { useMappedDoctors } from '@/hooks/use-mapped-doctors';
 import {
   deriveStatus,
+  eventMatchesDoctor,
   eventsForDate,
   formatEventTime,
   todayYMD,
@@ -89,19 +90,7 @@ export default function CalendarScreen() {
 
   const events = useMemo<BackendEvent[]>(() => {
     if (!showDoctorPicker || selectedDoctorId === null) return allEvents;
-    const filtered = allEvents.filter((e) => e.resourceId === selectedDoctorId);
-    console.log('[calendar] filter', {
-      selectedDoctorId,
-      selectedType: typeof selectedDoctorId,
-      total: allEvents.length,
-      filtered: filtered.length,
-      eventResourceIds: allEvents.slice(0, 10).map((e) => ({
-        rid: e.resourceId,
-        type: typeof e.resourceId,
-        doctor: e.doctor,
-      })),
-    });
-    return filtered;
+    return allEvents.filter((e) => eventMatchesDoctor(e, selectedDoctorId));
   }, [allEvents, selectedDoctorId, showDoctorPicker]);
 
   const ymd = useMemo(() => todayYMD(selectedDate), [selectedDate]);

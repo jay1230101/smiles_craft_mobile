@@ -15,6 +15,7 @@ import { useMappedDoctors } from '@/hooks/use-mapped-doctors';
 import type { Doctor } from '@/types/doctors';
 import {
   eventToAppointmentItem,
+  eventMatchesDoctor,
   eventsForDate,
   sortAppointmentsByTime,
   summarize,
@@ -69,7 +70,7 @@ export default function HomeScreen() {
   const liveFilteredEvents = useMemo(() => {
     const all = events ?? [];
     if (!showDoctorPicker || selectedDoctorId === null) return all;
-    return all.filter((e) => e.resourceId === selectedDoctorId);
+    return all.filter((e) => eventMatchesDoctor(e, selectedDoctorId));
   }, [events, selectedDoctorId, showDoctorPicker]);
   const liveSummary = useMemo(
     () => summarize(liveFilteredEvents, today),
@@ -91,7 +92,7 @@ export default function HomeScreen() {
         appointments: MOCK_APPOINTMENTS.slice(0, DASHBOARD_VISIBLE),
       };
     }
-    const filtered = getMockCalendarEvents().filter((e) => e.resourceId === selectedDoctorId);
+    const filtered = getMockCalendarEvents().filter((e) => eventMatchesDoctor(e, selectedDoctorId));
     return {
       summary: summarize(filtered, today),
       appointments: sortAppointmentsByTime(
