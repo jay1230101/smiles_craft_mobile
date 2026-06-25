@@ -9,7 +9,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Screen } from '@/components/screen';
 import { ms, s } from '@/lib/responsive';
 import { useAuthStore } from '@/store/auth';
-import { colors, radius, spacing, typography } from '@/theme';
+import { colors, spacing, typography } from '@/theme';
 import type { Role } from '@/types/auth';
 
 const HERO_BANNER = colors.primary[500];
