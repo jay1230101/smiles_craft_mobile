@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 
 import { ConfirmDialog } from '@/components/confirm-dialog';
@@ -79,6 +79,14 @@ export default function PatientRegisterScreen() {
   const [successOpen, setSuccessOpen] = useState(false);
   const [savedName, setSavedName] = useState<string>('');
   const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
+  // Duplicate-phone confirmation: holds the pending form values + the
+  // already-registered patient's name so the dialog can ask the user
+  // whether to register a second patient under the same phone (common
+  // case: a parent and their children share a number).
+  const [duplicatePending, setDuplicatePending] = useState<{
+    values: FormValues;
+    existing: string;
+  } | null>(null);
 
   const isNonOwnerDoctor = user?.role === 'DOCTOR' && !user.is_owner;
   const lockedDoctorId = isNonOwnerDoctor ? user?.user_id ?? null : null;
@@ -171,17 +179,17 @@ export default function PatientRegisterScreen() {
       const existing = result.existing_patient
         ? `${result.existing_patient.name} ${result.existing_patient.family}`.trim()
         : 'an existing patient';
-      Alert.alert(
-        'Phone number already used',
-        `This phone is already registered to ${existing}. Continue anyway?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Continue', style: 'destructive', onPress: () => submit(values, true) },
-        ],
-      );
+      setDuplicatePending({ values, existing });
       return;
     }
     setServerError(result.message || 'Could not register patient.');
+  };
+
+  const confirmDuplicate = () => {
+    if (!duplicatePending) return;
+    const { values } = duplicatePending;
+    setDuplicatePending(null);
+    submit(values, true);
   };
 
   const onSubmit = (values: FormValues) => submit(values, false);
@@ -399,6 +407,18 @@ export default function PatientRegisterScreen() {
           setSuccessOpen(false);
           goBack();
         }}
+      />
+
+      <ConfirmDialog
+        visible={duplicatePending !== null}
+        variant="primary"
+        title="Phone already on file"
+        message={`${duplicatePending?.existing ?? 'Another patient'} is already registered with this phone. Different patients can share a number (e.g. parent and child). Register this patient as a new record?`}
+        cancelLabel="Cancel"
+        confirmLabel="Continue"
+        loading={registerPatient.isPending}
+        onCancel={() => setDuplicatePending(null)}
+        onConfirm={confirmDuplicate}
       />
     </Screen>
   );
