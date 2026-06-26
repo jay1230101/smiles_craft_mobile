@@ -116,16 +116,25 @@
   When a user logs into the mobile app, the device generates a unique push
   token (an Expo Push Token, format <code>ExponentPushToken[xxxxxxxxxxxxxx]</code>).
   The mobile app needs to send this token to the backend so the server
-  knows where to deliver notifications when something happens — a new
-  appointment is booked, a patient confirms, an appointment is cancelled,
-  and so on.
+  knows where to deliver notifications when something happens — an
+  appointment is rescheduled, an appointment is cancelled, or a patient
+  confirms or cancels via WhatsApp.
 </p>
 <p>
   The mobile app will call <code>POST /register-device-token</code> right
   after a successful login, and <code>POST /unregister-device-token</code>
   on logout. The backend stores these tokens per user and uses them
-  whenever it currently calls <code>socketio.emit(...)</code>.
+  whenever the corresponding <code>socketio.emit(...)</code> fires.
 </p>
+<div class="meta" style="background:#FFF7E0; border-left: 3pt solid #E0A800;">
+  <div>
+    <b>Scope decision (2026-06-26):</b> Push notifications are intentionally limited to
+    <b>changes to existing appointments</b>. We do <b>not</b> push for new patient registrations
+    or for new appointments created by staff — those happen many times per day and would spam
+    the doctor. Pushes are reserved for events the doctor needs to act on quickly: a slot
+    moving, a slot opening up, or a patient responding to a WhatsApp prompt.
+  </div>
+</div>
 
 <h2>2. Why Expo Push (and not raw FCM / APNs)</h2>
 <p>
@@ -392,9 +401,10 @@ def send_push_notification(self, tokens, title, body, data=None):
 
 <h2>7. Wiring with existing socket emits</h2>
 <p>
-  For every place that currently emits a socket event, add a matching
-  <code>send_push_notification.delay(...)</code> call. The pattern is
-  always the same:
+  Push notifications are limited to <b>four lifecycle events</b>. Everywhere else
+  the existing <code>socketio.emit(...)</code> calls continue to work unchanged —
+  they update the in-app cache via WebSocket but do <b>not</b> trigger a push to
+  the device. The pattern is always:
 </p>
 
 <pre><code>socketio.emit(EVENT_NAME, payload, room=ROOM)
@@ -408,24 +418,14 @@ send_push_notification.delay(
 </code></pre>
 
 <div class="card">
-  <div class="title">7.1 New appointment created — <code>views.py:2663</code></div>
-<pre><code>socketio.emit("newAppointment", new_appointment, room=f"clinic_{clinic_id}")
-socketio.emit("newAppointment", new_appointment, room=f"doctor_{user_id}")
-
-send_push_notification.delay(
-    tokens_for_clinic(clinic_id),
-    title="New appointment",
-    body=f"{patient_name} booked for {visit_date} at {start_time}",
-    data={"type": "newAppointment", "bookingId": new_appointment["mainId"]},
-)
-</code></pre>
-</div>
-
-<div class="card">
-  <div class="title">7.2 Appointment updated / rescheduled — <code>views.py:2620</code></div>
+  <div class="title">7.1 Appointment rescheduled — <code>views.py:2620</code></div>
+  <p style="margin-top:0;">
+    Fires when staff opens an appointment and changes its start / end time via
+    the Edit / Reschedule flow, or drags it to a new slot on the mobile calendar.
+  </p>
 <pre><code>send_push_notification.delay(
     tokens_for_clinic(clinic_id),
-    title="Appointment updated",
+    title="Appointment rescheduled",
     body=f"{patient_name}'s appointment moved to {visit_date} {start_time}",
     data={"type": "updateAppointment", "bookingId": updated_appointment["mainId"]},
 )
@@ -433,18 +433,26 @@ send_push_notification.delay(
 </div>
 
 <div class="card">
-  <div class="title">7.3 Appointment cancelled — <code>views.py:1461</code>, <code>3505</code></div>
+  <div class="title">7.2 Appointment cancelled by staff — <code>views.py:3505</code></div>
+  <p style="margin-top:0;">
+    Fires when staff cancels an appointment from the popover's "Cancel appointment" action.
+  </p>
 <pre><code>send_push_notification.delay(
     tokens_for_clinic(clinic_id),
     title="Appointment cancelled",
-    body=f"{patient_name} cancelled their {visit_date} appointment",
+    body=f"{patient_name}'s {visit_date} appointment was cancelled",
     data={"type": "cancelledAppointment", "bookingId": booking.id},
 )
 </code></pre>
 </div>
 
 <div class="card">
-  <div class="title">7.4 Patient confirmed via WhatsApp — <code>views.py:1438</code></div>
+  <div class="title">7.3 Appointment confirmed via WhatsApp — <code>views.py:1438</code></div>
+  <p style="margin-top:0;">
+    Fires when the patient taps the "Confirm" button on the WhatsApp reminder.
+    The existing webhook handler already emits the socket event — add the push
+    call alongside it.
+  </p>
 <pre><code>send_push_notification.delay(
     tokens_for_clinic(clinic_id),
     title="Appointment confirmed",
@@ -455,31 +463,40 @@ send_push_notification.delay(
 </div>
 
 <div class="card">
-  <div class="title">7.5 New patient registered — <code>views.py:2350</code></div>
+  <div class="title">7.4 Appointment cancelled via WhatsApp — <code>views.py:1461</code></div>
+  <p style="margin-top:0;">
+    Fires when the patient taps "Cancel" on the WhatsApp reminder. Same webhook
+    handler as 7.3.
+  </p>
 <pre><code>send_push_notification.delay(
     tokens_for_clinic(clinic_id),
-    title="New patient",
-    body=f"{name} {family} was added to the clinic",
-    data={"type": "patientAdded", "patientId": newPatient["id"]},
+    title="Appointment cancelled by patient",
+    body=f"{patient_name} cancelled their {visit_date} appointment",
+    data={"type": "cancelledAppointment", "bookingId": booking.id, "source": "whatsapp"},
 )
 </code></pre>
 </div>
 
 <div class="card">
-  <div class="title">7.6 Remaining emit sites — same pattern</div>
-  <ul>
-    <li><b>Patient edited</b> — <code>views.py:2380</code></li>
-    <li><b>Patient deleted</b> — <code>views.py:2041</code></li>
-    <li><b>Booking deleted</b> — <code>views.py:2500</code></li>
-    <li><b>Pending bills updated</b> — <code>views.py:3722</code></li>
-    <li><b>Bill paid / updated</b> — <code>views.py:3738</code></li>
-  </ul>
-  <p>
-    Each follows the same shape — one
-    <code>send_push_notification.delay(...)</code> call placed next to
-    the existing socket emit. The <code>data</code> payload should carry
-    the IDs the mobile app needs to deep-link the user to the right
-    screen when they tap the notification.
+  <div class="title">Events that intentionally do NOT push</div>
+  <table style="width:100%; border-collapse:collapse; font-size:10.5pt; margin-top:6pt;">
+    <thead>
+      <tr style="background:#F4F4F8;">
+        <th style="text-align:left; padding:6pt 8pt; border-bottom:1pt solid #D3E7FF;">Event</th>
+        <th style="text-align:left; padding:6pt 8pt; border-bottom:1pt solid #D3E7FF;">Why no push</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td style="padding:5pt 8pt; border-bottom:1pt solid #EEE;"><code>newAppointment</code> (staff books)</td><td style="padding:5pt 8pt; border-bottom:1pt solid #EEE;">Routine — staff already see it in the app they just used to book it.</td></tr>
+      <tr><td style="padding:5pt 8pt; border-bottom:1pt solid #EEE;"><code>patientAdded</code></td><td style="padding:5pt 8pt; border-bottom:1pt solid #EEE;">Routine — staff just registered the patient.</td></tr>
+      <tr><td style="padding:5pt 8pt; border-bottom:1pt solid #EEE;"><code>patientEdited</code> / <code>patientDeleted</code></td><td style="padding:5pt 8pt; border-bottom:1pt solid #EEE;">Administrative; no time-critical action needed.</td></tr>
+      <tr><td style="padding:5pt 8pt; border-bottom:1pt solid #EEE;"><code>bookingDeleted</code> (hard delete)</td><td style="padding:5pt 8pt; border-bottom:1pt solid #EEE;">Rare; cancellation (7.2) covers the real-world case.</td></tr>
+      <tr><td style="padding:5pt 8pt;">Bill / payment events</td><td style="padding:5pt 8pt;">Not in the v1 push scope.</td></tr>
+    </tbody>
+  </table>
+  <p style="margin-top:8pt;">
+    The socket emits for all of these stay in place — they keep the in-app cache fresh
+    in real time. They just don't surface as push notifications on the device.
   </p>
 </div>
 
@@ -518,17 +535,23 @@ EXPO_ACCESS_TOKEN=&lt;from expo.dev → Account Settings → Access Tokens&gt;
       <code>{ "status": "success" }</code>.</li>
   <li>Check the <code>device_tokens</code> table — one row per logged-in
       mobile device.</li>
-  <li>Book an appointment from the web app for a clinic that has a
-      logged-in mobile user → mobile receives a "New appointment" banner
-      within ~5 seconds.</li>
-  <li>Cancel that appointment from the web → mobile receives a
-      "Cancelled" banner.</li>
-  <li>Tap the banner → mobile app opens and navigates to the appointment
+  <li><b>Book</b> an appointment from the web app for a clinic that has a
+      logged-in mobile user → mobile receives <b>no push</b>
+      (booking is not a push event; the in-app calendar should still update
+      via the existing socket event).</li>
+  <li><b>Reschedule</b> that appointment from the web → mobile receives an
+      "Appointment rescheduled" banner within ~5 seconds.</li>
+  <li><b>Cancel</b> that appointment from the web → mobile receives an
+      "Appointment cancelled" banner.</li>
+  <li>Send a WhatsApp confirm / cancel as the patient → mobile receives the
+      corresponding banner.</li>
+  <li>Tap any banner → mobile app opens and navigates to the appointment
       (handled mobile-side; backend just sends the <code>data</code> payload).</li>
   <li>Log out of the mobile app →
       <code>POST /unregister-device-token</code> removes the row from
       <code>device_tokens</code>.</li>
-  <li>Send another web-side event → that phone no longer receives a push.</li>
+  <li>Trigger another reschedule / cancel from the web → that phone no
+      longer receives a push.</li>
 </ol>
 
 <h2>10. Scope summary</h2>
@@ -542,9 +565,9 @@ EXPO_ACCESS_TOKEN=&lt;from expo.dev → Account Settings → Access Tokens&gt;
     <tr><td>Two new endpoints (<code>/register-device-token</code>, <code>/unregister-device-token</code>)</td><td>1 hour</td></tr>
     <tr><td>Helper <code>tokens_for_clinic</code> / <code>tokens_for_user</code></td><td>30 min</td></tr>
     <tr><td>Celery task <code>send_push_notification</code> (Expo Push integration)</td><td>2 hours</td></tr>
-    <tr><td>Wire the task into ~10 existing socket emit sites</td><td>2 hours</td></tr>
+    <tr><td>Wire the task into the <b>4</b> lifecycle emit sites (section 7)</td><td>1 hour</td></tr>
     <tr><td>Environment variable + deploy + smoke test</td><td>1 hour</td></tr>
-    <tr><td><b>Total</b></td><td><b>~1 working day</b></td></tr>
+    <tr><td><b>Total</b></td><td><b>~6 hours / about ¾ of a working day</b></td></tr>
   </tbody>
 </table>
 
