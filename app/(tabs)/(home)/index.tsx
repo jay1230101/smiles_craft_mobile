@@ -21,7 +21,7 @@ import {
   summarize,
   todayYMD,
 } from '@/lib/appointments';
-import { firstNameOf, formatLongDate, greetingForHour } from '@/lib/greeting';
+import { formatLongDate } from '@/lib/greeting';
 import {
   DEMO_MODE,
   MOCK_APPOINTMENTS,
@@ -56,10 +56,9 @@ export default function HomeScreen() {
   // only ever see their own appointments and any filter would be a no-op.
   const showDoctorPicker = !(user?.role === 'DOCTOR' && !user.is_owner);
 
-  const { greeting, dateLabel, today } = useMemo(() => {
+  const { dateLabel, today } = useMemo(() => {
     const now = new Date();
     return {
-      greeting: greetingForHour(now.getHours()),
       dateLabel: formatLongDate(now),
       today: todayYMD(now),
     };
@@ -104,7 +103,13 @@ export default function HomeScreen() {
   const summary = DEMO_MODE ? demoData.summary : liveSummary;
   const appointments = DEMO_MODE ? demoData.appointments : liveAppointments;
 
-  const firstName = firstNameOf(user?.user_name) || 'there';
+  const displayName = (user?.user_name ?? '').trim();
+  const isDoctor = user?.role === 'DOCTOR';
+  const greetingName = displayName
+    ? isDoctor
+      ? `Dr ${displayName}`
+      : displayName
+    : 'there';
   const showLoading = !DEMO_MODE && isLoading && !events;
   const showError = !DEMO_MODE && isError;
   const showEmpty = !DEMO_MODE && !showLoading && !showError && appointments.length === 0;
@@ -116,7 +121,7 @@ export default function HomeScreen() {
       edges={['top']}>
       <View style={styles.headerRow}>
         <View style={styles.headerText}>
-          <Text style={styles.greeting}>{`${greeting} ${firstName}!`}</Text>
+          <Text style={styles.greeting}>{`Hi ${greetingName}!`}</Text>
           <Text style={styles.dateLabel}>{dateLabel}</Text>
         </View>
         <View style={styles.headerActions}>
