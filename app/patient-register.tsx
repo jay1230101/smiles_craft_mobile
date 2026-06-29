@@ -327,26 +327,7 @@ export default function PatientRegisterScreen() {
           )}
         />
 
-        {isNonOwnerDoctor ? (
-          <View>
-            <Text style={styles.fieldLabel}>Clinician</Text>
-            <View style={styles.lockedField}>
-              <Text style={styles.lockedFieldText} numberOfLines={1}>
-                {`Dr. ${user?.user_name ?? ''}`.trim() || 'You'}
-              </Text>
-            </View>
-            <Text style={styles.helperText}>You can only register patients under your own name.</Text>
-          </View>
-        ) : onlyDoctor ? (
-          <View>
-            <Text style={styles.fieldLabel}>Clinician</Text>
-            <View style={styles.lockedField}>
-              <Text style={styles.lockedFieldText} numberOfLines={1}>
-                {`Dr. ${[onlyDoctor.name, onlyDoctor.family].filter(Boolean).join(' ').trim()}`}
-              </Text>
-            </View>
-          </View>
-        ) : (
+        {isNonOwnerDoctor || onlyDoctor ? null : (
           <Controller
             control={control}
             name="doctor"
@@ -499,23 +480,6 @@ const styles = StyleSheet.create({
   },
   phoneInputWrap: {
     flex: 1,
-  },
-  lockedField: {
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    borderRadius: s(12),
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.background.surface,
-  },
-  lockedFieldText: {
-    ...typography.body.large,
-    color: HEADING_COLOR,
-  },
-  helperText: {
-    ...typography.body.small,
-    color: SUBTITLE_COLOR,
-    marginTop: spacing.xs,
   },
   serverError: {
     ...typography.body.medium,
