@@ -1,9 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 
 import { ConfirmDialog } from '@/components/confirm-dialog';
@@ -79,6 +79,14 @@ export default function PatientRegisterScreen() {
   const [successOpen, setSuccessOpen] = useState(false);
   const [savedName, setSavedName] = useState<string>('');
   const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
+  // Duplicate-phone confirmation: holds the pending form values + the
+  // already-registered patient's name so the dialog can ask the user
+  // whether to register a second patient under the same phone (common
+  // case: a parent and their children share a number).
+  const [duplicatePending, setDuplicatePending] = useState<{
+    values: FormValues;
+    existing: string;
+  } | null>(null);
 
   const isNonOwnerDoctor = user?.role === 'DOCTOR' && !user.is_owner;
   const lockedDoctorId = isNonOwnerDoctor ? user?.user_id ?? null : null;
@@ -96,11 +104,22 @@ export default function PatientRegisterScreen() {
     [lockedDoctorId],
   );
 
-  const { control, handleSubmit, reset, formState } = useForm<FormValues>({
+  const { control, handleSubmit, reset, setValue, formState } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues,
     mode: 'onTouched',
   });
+
+  // Single-doctor clinic: skip the Select entirely and lock the field to
+  // the only available doctor. We still need the form value populated so
+  // submit() ships the correct doctor id — auto-set it the moment the
+  // doctor list finishes loading.
+  const onlyDoctor = !doctorsLoading && (doctors?.length ?? 0) === 1 ? doctors![0] : null;
+  useEffect(() => {
+    if (onlyDoctor && !lockedDoctorId) {
+      setValue('doctor', onlyDoctor.id, { shouldValidate: true });
+    }
+  }, [onlyDoctor, lockedDoctorId, setValue]);
 
   const doctorOptions: SelectOption<number>[] = useMemo(
     () =>
@@ -160,17 +179,17 @@ export default function PatientRegisterScreen() {
       const existing = result.existing_patient
         ? `${result.existing_patient.name} ${result.existing_patient.family}`.trim()
         : 'an existing patient';
-      Alert.alert(
-        'Phone number already used',
-        `This phone is already registered to ${existing}. Continue anyway?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Continue', style: 'destructive', onPress: () => submit(values, true) },
-        ],
-      );
+      setDuplicatePending({ values, existing });
       return;
     }
     setServerError(result.message || 'Could not register patient.');
+  };
+
+  const confirmDuplicate = () => {
+    if (!duplicatePending) return;
+    const { values } = duplicatePending;
+    setDuplicatePending(null);
+    submit(values, true);
   };
 
   const onSubmit = (values: FormValues) => submit(values, false);
@@ -308,17 +327,7 @@ export default function PatientRegisterScreen() {
           )}
         />
 
-        {isNonOwnerDoctor ? (
-          <View>
-            <Text style={styles.fieldLabel}>Clinician</Text>
-            <View style={styles.lockedField}>
-              <Text style={styles.lockedFieldText} numberOfLines={1}>
-                {`Dr. ${user?.user_name ?? ''}`.trim() || 'You'}
-              </Text>
-            </View>
-            <Text style={styles.helperText}>You can only register patients under your own name.</Text>
-          </View>
-        ) : (
+        {isNonOwnerDoctor || onlyDoctor ? null : (
           <Controller
             control={control}
             name="doctor"
@@ -379,6 +388,18 @@ export default function PatientRegisterScreen() {
           setSuccessOpen(false);
           goBack();
         }}
+      />
+
+      <ConfirmDialog
+        visible={duplicatePending !== null}
+        variant="primary"
+        title="Phone already on file"
+        message={`${duplicatePending?.existing ?? 'Another patient'} is already registered with this phone. Different patients can share a number (e.g. parent and child). Register this patient as a new record?`}
+        cancelLabel="Cancel"
+        confirmLabel="Continue"
+        loading={registerPatient.isPending}
+        onCancel={() => setDuplicatePending(null)}
+        onConfirm={confirmDuplicate}
       />
     </Screen>
   );
@@ -459,23 +480,6 @@ const styles = StyleSheet.create({
   },
   phoneInputWrap: {
     flex: 1,
-  },
-  lockedField: {
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    borderRadius: s(12),
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.background.surface,
-  },
-  lockedFieldText: {
-    ...typography.body.large,
-    color: HEADING_COLOR,
-  },
-  helperText: {
-    ...typography.body.small,
-    color: SUBTITLE_COLOR,
-    marginTop: spacing.xs,
   },
   serverError: {
     ...typography.body.medium,

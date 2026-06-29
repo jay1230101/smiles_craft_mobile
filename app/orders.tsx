@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -157,13 +156,6 @@ export default function OrdersScreen() {
     };
     setStaged((prev) => [...prev, row]);
     resetForm();
-  };
-
-  const updateStagedDiscount = (key: string, value: string) => {
-    const numeric = Number(value) || 0;
-    setStaged((prev) =>
-      prev.map((p) => (p.key === key ? { ...p, discount: numeric } : p)),
-    );
   };
 
   const removeStaged = (key: string) => {
@@ -376,15 +368,6 @@ export default function OrdersScreen() {
                     </Text>
                   </Text>
                 </View>
-                <View style={styles.stagedDiscount}>
-                  <Text style={styles.miniLabel}>Discount</Text>
-                  <TextInput
-                    containerStyle={styles.miniInput}
-                    value={String(row.discount)}
-                    onChangeText={(v) => updateStagedDiscount(row.key, v)}
-                    keyboardType="decimal-pad"
-                  />
-                </View>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Remove"
@@ -408,27 +391,17 @@ export default function OrdersScreen() {
         ) : (pending?.procedures ?? []).length === 0 ? (
           <Text style={styles.emptyText}>No pending procedures for this patient.</Text>
         ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View>
-              <View style={[styles.tableRow, styles.tableHead]}>
-                <HeadCell label="Procedure" width={s(160)} />
-                <HeadCell label="Tooth" width={s(90)} />
-                <HeadCell label="Date" width={s(100)} />
-                <HeadCell label="Status" width={s(100)} />
-                <HeadCell label="Balance" width={s(80)} />
-                <HeadCell label="Update" width={s(140)} />
-              </View>
-              {(pending?.procedures ?? []).map((p) => (
-                <PendingRow
-                  key={p.encounterId}
-                  pending={p}
-                  statusOptions={statusOptions}
-                  selectedUpdate={statusUpdates[p.encounterId] ?? null}
-                  onSelectUpdate={(v) => setStatusUpdate(p.encounterId, v)}
-                />
-              ))}
-            </View>
-          </ScrollView>
+          <View style={styles.pendingList}>
+            {(pending?.procedures ?? []).map((p) => (
+              <PendingCard
+                key={p.encounterId}
+                pending={p}
+                statusOptions={statusOptions}
+                selectedUpdate={statusUpdates[p.encounterId] ?? null}
+                onSelectUpdate={(v) => setStatusUpdate(p.encounterId, v)}
+              />
+            ))}
+          </View>
         )}
       </View>
 
@@ -479,15 +452,12 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
   );
 }
 
-function HeadCell({ label, width }: { label: string; width: number }) {
-  return (
-    <View style={[styles.tableCell, { width }]}>
-      <Text style={styles.tableHeadText}>{label}</Text>
-    </View>
-  );
-}
-
-function PendingRow({
+// Card layout (replaces the previous horizontal-scroll table). The old
+// table was 670px wide on a 360dp phone, which pushed the Status Update
+// Select off-screen to the right — clients reported the control was
+// "missing" because they never scrolled far enough to find it. Cards
+// keep the Select inline and full-width.
+function PendingCard({
   pending,
   statusOptions,
   selectedUpdate,
@@ -499,35 +469,26 @@ function PendingRow({
   onSelectUpdate: (v: string) => void;
 }) {
   return (
-    <View style={styles.tableRow}>
-      <View style={[styles.tableCell, { width: s(160) }]}>
-        <Text style={styles.tableText} numberOfLines={2}>
+    <View style={styles.pendingCard}>
+      <View style={styles.pendingHeadRow}>
+        <Text style={styles.pendingProcedure} numberOfLines={2}>
           {pending.procedure}
         </Text>
+        <Text style={styles.pendingTooth}>{pending.toothNum || '—'}</Text>
       </View>
-      <View style={[styles.tableCell, { width: s(90) }]}>
-        <Text style={styles.tableText} numberOfLines={2}>
-          {pending.toothNum || '—'}
+      <View style={styles.pendingMetaRow}>
+        <Text style={styles.pendingMetaText}>{pending.encounterDate}</Text>
+        <Text style={styles.pendingMetaText}>
+          Status: {pending.status.replace(/_/g, ' ')}
+        </Text>
+        <Text style={styles.pendingMetaText}>
+          Balance: {pending.remainingBalance}
         </Text>
       </View>
-      <View style={[styles.tableCell, { width: s(100) }]}>
-        <Text style={styles.tableText} numberOfLines={2}>
-          {pending.encounterDate}
-        </Text>
-      </View>
-      <View style={[styles.tableCell, { width: s(100) }]}>
-        <Text style={styles.tableText} numberOfLines={2}>
-          {pending.status.replace(/_/g, ' ')}
-        </Text>
-      </View>
-      <View style={[styles.tableCell, { width: s(80) }]}>
-        <Text style={styles.tableText} numberOfLines={1}>
-          {pending.remainingBalance}
-        </Text>
-      </View>
-      <View style={[styles.tableCell, { width: s(140) }]}>
+      <View style={styles.pendingSelectBlock}>
         <Select<string>
-          placeholder="Select…"
+          label="Update status"
+          placeholder="Select an update…"
           value={selectedUpdate}
           options={statusOptions}
           onChange={onSelectUpdate}
@@ -705,46 +666,50 @@ const styles = StyleSheet.create({
     ...typography.body.small,
     color: colors.text.secondary,
   },
-  stagedDiscount: {
-    width: s(80),
-    gap: spacing.xs,
-  },
-  miniLabel: {
-    ...typography.body.small,
-    color: colors.text.secondary,
-  },
-  miniInput: {
-    gap: 0,
-  },
   removeBtn: {
     width: s(36),
     height: s(36),
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tableRow: {
+  pendingList: {
+    gap: spacing.md,
+  },
+  pendingCard: {
+    borderRadius: s(12),
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    backgroundColor: colors.background.base,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  pendingHeadRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.subtle,
-    paddingVertical: spacing.sm,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: spacing.md,
   },
-  tableHead: {
-    backgroundColor: colors.background.surface,
-  },
-  tableCell: {
-    paddingHorizontal: spacing.sm,
-  },
-  tableHeadText: {
-    ...typography.body.small,
+  pendingProcedure: {
+    flex: 1,
+    ...typography.label.large,
     fontFamily: 'Inter_600SemiBold',
     color: colors.neutral[500],
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
   },
-  tableText: {
-    ...typography.body.medium,
-    color: colors.neutral[500],
+  pendingTooth: {
+    ...typography.body.small,
+    color: colors.text.secondary,
+  },
+  pendingMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  pendingMetaText: {
+    ...typography.body.small,
+    color: colors.text.secondary,
+  },
+  pendingSelectBlock: {
+    marginTop: spacing.xs,
   },
   errorText: {
     ...typography.body.medium,

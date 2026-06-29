@@ -18,9 +18,16 @@ export function useUpdateAppointment() {
       }
       return updateAppointmentRequest(payload);
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       if (data.status === 'success') {
-        queryClient.invalidateQueries({ queryKey: ['appointments', 'all-events'] });
+        // refetchQueries (not invalidateQueries) — by the time this success
+        // handler fires, the calendar is usually behind a modal stack and
+        // not actively observed. invalidate only refetches *active*
+        // queries by default, so the cache stays stale until the user
+        // returns to the tab; the new start/end time wouldn't appear
+        // until the next focus refetch. Force the refetch so the cache
+        // is fresh by the time the user pops the modal.
+        await queryClient.refetchQueries({ queryKey: ['appointments', 'all-events'] });
       }
     },
   });

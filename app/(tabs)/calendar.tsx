@@ -2,16 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppointmentPopover } from '@/components/appointment-popover';
 import { DoctorPicker } from '@/components/doctor-picker';
+import { DraggableDayTimeline } from '@/components/draggable-day-timeline';
 import { Screen } from '@/components/screen';
 import { type AppointmentStatus } from '@/components/status-pill';
 import { useAllEvents } from '@/hooks/use-appointments';
+import { useClinicSchedule } from '@/hooks/use-clinic-schedule';
 import { useMappedDoctors } from '@/hooks/use-mapped-doctors';
+import { useUpdateAppointment } from '@/hooks/use-update-appointment';
 import {
   deriveStatus,
+  eventMatchesDoctor,
   eventsForDate,
   formatEventTime,
   todayYMD,
@@ -22,7 +26,7 @@ import { useAuthStore } from '@/store/auth';
 import { useDoctorFilterStore } from '@/store/doctor-filter';
 import { useNewAppointmentStore } from '@/store/new-appointment';
 import { colors, radius, spacing, typography } from '@/theme';
-import type { BackendEvent } from '@/types/appointments';
+import type { BackendEvent, UpdateAppointmentRequest } from '@/types/appointments';
 import type { Doctor, MappedDoctor } from '@/types/doctors';
 
 type CalendarView = 'Day' | 'Week' | 'Month';
@@ -43,7 +47,12 @@ export default function CalendarScreen() {
   const safeBottomPadding = Math.max(bottomTabHeight, 80) + spacing.xxl;
   const { data: liveEvents } = useAllEvents();
   const { data: mappedDoctors } = useMappedDoctors();
+  const { data: schedule } = useClinicSchedule();
+  const slotMinutes = schedule?.slotMinutes ?? 60;
+  const dayStartHour = schedule?.startHour ?? DAY_START_HOUR;
+  const dayEndHour = schedule?.endHour ?? DAY_END_HOUR;
   const user = useAuthStore((s) => s.user);
+  const updateAppointment = useUpdateAppointment();
 
   // DoctorPicker still expects a Doctor shape. MappedDoctor has a single
   // `name` field (the full display name) — fit it into Doctor by putting
@@ -54,22 +63,26 @@ export default function CalendarScreen() {
     [mappedDoctors],
   );
 
-  const openNewAppointment = (hourOverride?: number) => {
+  const openNewAppointment = (hourFloatOverride?: number) => {
     const doctor: MappedDoctor | null =
       selectedDoctorId != null
         ? (mappedDoctors ?? []).find((d) => d.id === selectedDoctorId) ?? null
         : null;
     const now = new Date();
-    const hour = hourOverride ?? now.getHours();
+    const hourFloat = hourFloatOverride ?? now.getHours();
+    // Snap to the clinic's configured slot grid so the prefilled times match
+    // the calendar grid the user just tapped (e.g. 30-min slots → 09:30, 10:00).
+    const startMin = Math.floor((hourFloat * 60) / slotMinutes) * slotMinutes;
+    const endMin = startMin + slotMinutes;
     const dd = String(selectedDate.getDate()).padStart(2, '0');
     const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
     const yyyy = selectedDate.getFullYear();
-    const startHh = String(hour).padStart(2, '0');
-    const endHh = String((hour + 1) % 24).padStart(2, '0');
+    const toHhMm = (m: number) =>
+      `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
     setNewAppointmentPrefill({
       date: `${dd}-${mm}-${yyyy}`,
-      startTime: `${startHh}:00`,
-      endTime: `${endHh}:00`,
+      startTime: toHhMm(startMin),
+      endTime: toHhMm(endMin),
       doctorId: doctor?.id ?? null,
       doctorName: doctor?.name ?? null,
     });
@@ -89,20 +102,62 @@ export default function CalendarScreen() {
 
   const events = useMemo<BackendEvent[]>(() => {
     if (!showDoctorPicker || selectedDoctorId === null) return allEvents;
-    const filtered = allEvents.filter((e) => e.resourceId === selectedDoctorId);
-    console.log('[calendar] filter', {
-      selectedDoctorId,
-      selectedType: typeof selectedDoctorId,
-      total: allEvents.length,
-      filtered: filtered.length,
-      eventResourceIds: allEvents.slice(0, 10).map((e) => ({
-        rid: e.resourceId,
-        type: typeof e.resourceId,
-        doctor: e.doctor,
-      })),
-    });
-    return filtered;
+    return allEvents.filter((e) => eventMatchesDoctor(e, selectedDoctorId));
   }, [allEvents, selectedDoctorId, showDoctorPicker]);
+
+  // Drag-and-drop reschedule from the Day timeline. The new start comes from
+  // the timeline component (already snapped to 15-min). We keep the duration
+  // identical to the original, ask the user to confirm (drag-drop on a small
+  // screen is easy to trigger by accident), then fire the same /encounter
+  // update mutation the Edit / Reschedule modal uses.
+  const handleReschedule = (event: BackendEvent, newStart: Date) => {
+    const originalStart = new Date(event.start);
+    const originalEnd = new Date(event.end);
+    if (isNaN(originalStart.getTime()) || isNaN(originalEnd.getTime())) return;
+    const durationMs = originalEnd.getTime() - originalStart.getTime();
+    const newEnd = new Date(newStart.getTime() + durationMs);
+    const prettyOld = `${formatEventTime(event.start)} - ${formatEventTime(event.end)}`;
+    const prettyNew = `${formatEventTime(newStart.toISOString())} - ${formatEventTime(newEnd.toISOString())}`;
+
+    Alert.alert(
+      'Reschedule appointment',
+      `Move from ${prettyOld} to ${prettyNew}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reschedule',
+          onPress: async () => {
+            const dateIso = isoDate(newStart);
+            const payload: UpdateAppointmentRequest = {
+              eventId: event.id,
+              name: event.name ?? '',
+              family: event.family ?? '',
+              dob: normalizeDob(event.dob ?? ''),
+              phone: ensureLeadingPlus(event.phone ?? ''),
+              date: dateIso,
+              start_iso: toTzAwareIso(newStart),
+              end_iso: toTzAwareIso(newEnd),
+              proc: event.extendedProps?.procedure ?? '',
+              resourceId: Number(event.resourceId),
+              doctor_name: event.doctor ?? '',
+              booking_reminder: false,
+            };
+            try {
+              const res = await updateAppointment.mutateAsync(payload);
+              if (res.status !== 'success') {
+                Alert.alert('Could not reschedule', res.message || 'Try again.');
+              }
+            } catch (err) {
+              Alert.alert(
+                'Could not reschedule',
+                err instanceof Error ? err.message : 'Try again.',
+              );
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const ymd = useMemo(() => todayYMD(selectedDate), [selectedDate]);
   const dayEvents = useMemo(() => eventsForDate(events, ymd), [events, ymd]);
@@ -133,10 +188,11 @@ export default function CalendarScreen() {
   });
 
   return (
-    <Screen
-      contentContainerStyle={[styles.container, { paddingBottom: safeBottomPadding }]}
-      edges={['top']}>
-      <View style={styles.dateNav}>
+    <View style={styles.root}>
+      <Screen
+        contentContainerStyle={[styles.container, { paddingBottom: safeBottomPadding }]}
+        edges={['top']}>
+        <View style={styles.dateNav}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={view === 'Week' ? 'Previous week' : view === 'Month' ? 'Previous month' : 'Previous day'}
@@ -181,10 +237,15 @@ export default function CalendarScreen() {
       </View>
 
       {view === 'Day' ? (
-        <DayView
+        <DraggableDayTimeline
           events={dayEvents}
+          selectedDate={selectedDate}
+          dayStartHour={dayStartHour}
+          dayEndHour={dayEndHour}
+          slotMinutes={slotMinutes}
           onSelectEvent={setActiveEvent}
           onSelectEmpty={openNewAppointment}
+          onReschedule={handleReschedule}
         />
       ) : view === 'Week' ? (
         <WeekView
@@ -192,7 +253,7 @@ export default function CalendarScreen() {
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
           onSelectEvent={setActiveEvent}
-          onAddAppointment={() => openNewAppointment(DAY_START_HOUR)}
+          onAddAppointment={() => openNewAppointment(dayStartHour)}
         />
       ) : (
         <MonthView
@@ -208,10 +269,12 @@ export default function CalendarScreen() {
           }}
           onAddAppointment={(date) => {
             setSelectedDate(date);
-            openNewAppointment(DAY_START_HOUR);
+            openNewAppointment(dayStartHour);
           }}
         />
       )}
+
+      </Screen>
 
       <AppointmentPopover event={activeEvent} onClose={() => setActiveEvent(null)} />
 
@@ -226,52 +289,13 @@ export default function CalendarScreen() {
         ]}>
         <Ionicons name="add" size={ms(28)} color="#FFFFFF" />
       </Pressable>
-    </Screen>
-  );
-}
-
-function DayView({
-  events,
-  onSelectEvent,
-  onSelectEmpty,
-}: {
-  events: BackendEvent[];
-  onSelectEvent: (event: BackendEvent) => void;
-  onSelectEmpty: (hour: number) => void;
-}) {
-  const hours = useMemo(() => {
-    const arr: number[] = [];
-    for (let h = DAY_START_HOUR; h <= DAY_END_HOUR; h++) arr.push(h);
-    return arr;
-  }, []);
-
-  const eventsByHour = useMemo(() => {
-    const map = new Map<number, BackendEvent[]>();
-    for (const e of events) {
-      const d = new Date(e.start);
-      if (isNaN(d.getTime())) continue;
-      const h = d.getHours();
-      const list = map.get(h) ?? [];
-      list.push(e);
-      map.set(h, list);
-    }
-    return map;
-  }, [events]);
-
-  return (
-    <View style={styles.dayView}>
-      {hours.map((h) => (
-        <TimeRow
-          key={h}
-          hour={h}
-          events={eventsByHour.get(h) ?? []}
-          onSelectEvent={onSelectEvent}
-          onSelectEmpty={() => onSelectEmpty(h)}
-        />
-      ))}
     </View>
   );
 }
+
+// DayView removed — replaced by the continuous DraggableDayTimeline.
+// Drag-and-drop reschedule requires a continuous y-axis; the previous
+// hour-bucketed layout couldn't support it.
 
 function WeekView({
   events,
@@ -337,7 +361,7 @@ function WeekView({
           style={({ pressed }) => [
             styles.weekEmpty,
             styles.weekEmptyTappable,
-            pressed && styles.emptySlotPressed,
+            pressed && styles.pressed,
           ]}>
           <Ionicons name="add-circle-outline" size={ms(22)} color={colors.primary[500]} />
           <Text style={styles.weekEmptyTappableText}>
@@ -494,77 +518,10 @@ function uniqueStatusesFor(events: BackendEvent[]): AppointmentStatus[] {
   return STATUS_ORDER.filter((s) => present.has(s));
 }
 
-function TimeRow({
-  hour,
-  events,
-  onSelectEvent,
-  onSelectEmpty,
-}: {
-  hour: number;
-  events: BackendEvent[];
-  onSelectEvent: (event: BackendEvent) => void;
-  onSelectEmpty: () => void;
-}) {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.timeLabel}>{formatHour(hour)}</Text>
-      <View style={styles.slotColumn}>
-        {events.length === 0 ? (
-          <EmptySlot onPress={onSelectEmpty} />
-        ) : (
-          events.map((e) => (
-            <SlotCard
-              key={String(e.extendedProps?.mainId ?? e.id)}
-              event={e}
-              onPress={() => onSelectEvent(e)}
-            />
-          ))
-        )}
-      </View>
-    </View>
-  );
-}
-
-function EmptySlot({ onPress }: { onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Book new appointment in this time slot"
-      onPress={onPress}
-      style={({ pressed }) => [styles.emptySlot, pressed && styles.emptySlotPressed]}>
-      <Ionicons name="add" size={ms(16)} color={colors.text.secondary} />
-      <Text style={styles.emptySlotText}>Tap to book</Text>
-    </Pressable>
-  );
-}
-
-function SlotCard({ event, onPress }: { event: BackendEvent; onPress: () => void }) {
-  const treatment = event.extendedProps?.procedure ?? '';
-  const palette = paletteForEvent(event);
-  const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
-  const timeRange = `${formatEventTime(event.start)} - ${formatEventTime(event.end)}`;
-  const doctor = event.doctor ? `Dr. ${event.doctor}` : '';
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Open appointment for ${fullName || 'patient'}`}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.slotCard,
-        { backgroundColor: palette.bg, borderLeftColor: palette.border },
-        pressed && styles.pressed,
-      ]}>
-      <View style={[styles.statusDot, { backgroundColor: palette.dot }]} />
-      <Text style={styles.slotName} numberOfLines={1}>
-        {fullName || 'Unknown'}
-      </Text>
-      <Text style={styles.slotTime}>{timeRange}</Text>
-      {treatment ? <Text style={styles.slotTreatment}>{treatment}</Text> : null}
-      {doctor ? <Text style={styles.slotDoctor}>{doctor}</Text> : null}
-    </Pressable>
-  );
-}
+// TimeRow / EmptySlot / SlotCard were replaced by DraggableDayTimeline +
+// DraggableEventCard in components/draggable-day-timeline.tsx, which uses
+// a continuous-pixel y-axis so long-press drag-and-drop can reschedule
+// against real time geometry instead of discrete hour buckets.
 
 function WeekCard({ event, onPress }: { event: BackendEvent; onPress: () => void }) {
   const procedure = event.extendedProps?.procedure ?? '';
@@ -641,10 +598,50 @@ function paletteForEvent(event: BackendEvent): { border: string; bg: string; dot
   return doctorPalette(event.doctor);
 }
 
-function formatHour(hour: number): string {
-  const period = hour >= 12 ? 'PM' : 'AM';
-  const h12 = hour % 12 || 12;
-  return `${h12}:00 ${period}`;
+// Reschedule helpers. Backend stores DOB as "DD-Month-YYYY" so re-sending
+// it untouched would fail the patient lookup in /encounter; normalize back
+// to YYYY-MM-DD. Phone numbers are stored with a leading "+" so /encounter
+// matches against "+961…" exactly. start_iso / end_iso must be tz-aware so
+// the backend doesn't lose the local-time intent across timezone boundaries.
+function normalizeDob(dob: string): string {
+  if (!dob) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dob)) return dob;
+  const parts = dob.split('-');
+  if (parts.length !== 3) return dob;
+  const [dd, monthName, yyyy] = parts;
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+  const idx = months.findIndex((m) => m.toLowerCase() === monthName.toLowerCase());
+  if (idx < 0) return dob;
+  return `${yyyy}-${String(idx + 1).padStart(2, '0')}-${dd.padStart(2, '0')}`;
+}
+
+function ensureLeadingPlus(phone: string): string {
+  const trimmed = (phone ?? '').trim();
+  if (!trimmed) return '';
+  return trimmed.startsWith('+') ? trimmed : `+${trimmed}`;
+}
+
+function isoDate(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function toTzAwareIso(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  const offsetMin = -d.getTimezoneOffset();
+  const sign = offsetMin >= 0 ? '+' : '-';
+  const oh = String(Math.floor(Math.abs(offsetMin) / 60)).padStart(2, '0');
+  const om = String(Math.abs(offsetMin) % 60).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}:00${sign}${oh}:${om}`;
 }
 
 function startOfWeekMonday(date: Date): Date {
@@ -667,6 +664,12 @@ function byStartTime(a: BackendEvent, b: BackendEvent): number {
 }
 
 const styles = StyleSheet.create({
+  // Outer wrapper so the floating "+" FAB can be a sibling of the
+  // scrollable Screen instead of a child of its inner ScrollView. Without
+  // this the FAB scrolled with the timeline and disappeared off-screen.
+  root: {
+    flex: 1,
+  },
   container: {
     paddingTop: spacing.sm,
     gap: spacing.lg,
@@ -718,45 +721,6 @@ const styles = StyleSheet.create({
     color: colors.neutral[500],
     fontFamily: 'Inter_600SemiBold',
   },
-  dayView: {
-    gap: spacing.md,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    alignItems: 'flex-start',
-  },
-  timeLabel: {
-    width: s(64),
-    paddingTop: spacing.sm,
-    ...typography.body.medium,
-    color: colors.text.secondary,
-    textAlign: 'left',
-  },
-  slotColumn: {
-    flex: 1,
-    gap: spacing.sm,
-  },
-  emptySlot: {
-    minHeight: s(48),
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: colors.border.subtle,
-    borderRadius: radius.lg,
-    backgroundColor: 'transparent',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-  },
-  emptySlotPressed: {
-    backgroundColor: colors.background.surface,
-    borderColor: colors.primary[500],
-  },
-  emptySlotText: {
-    ...typography.body.small,
-    color: colors.text.secondary,
-  },
   fab: {
     position: 'absolute',
     right: spacing.lg,
@@ -772,15 +736,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  slotCard: {
-    borderLeftWidth: 4,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingRight: spacing.xl,
-    gap: 2,
-    position: 'relative',
-  },
+  // Used by WeekCard (still rendered inline by the Week view).
   statusDot: {
     position: 'absolute',
     top: spacing.md,
@@ -796,16 +752,6 @@ const styles = StyleSheet.create({
   },
   slotTime: {
     ...typography.body.medium,
-    color: colors.text.secondary,
-  },
-  slotTreatment: {
-    ...typography.body.medium,
-    fontFamily: 'Inter_600SemiBold',
-    color: colors.neutral[500],
-    marginTop: 2,
-  },
-  slotDoctor: {
-    ...typography.body.small,
     color: colors.text.secondary,
   },
   weekView: {

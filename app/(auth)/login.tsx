@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
@@ -8,9 +8,11 @@ import { z } from 'zod';
 import { BrandLogo } from '@/components/brand-logo';
 import { Button } from '@/components/button';
 import { Checkbox } from '@/components/checkbox';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { LinkText } from '@/components/link-text';
 import { Screen } from '@/components/screen';
 import { TextInput } from '@/components/text-input';
+import { rememberedEmailStorage } from '@/api/storage';
 import { useAuthStore } from '@/store/auth';
 import { colors, spacing, typography } from '@/theme';
 
@@ -26,11 +28,13 @@ export default function LoginScreen() {
   const login = useAuthStore((s) => s.login);
   const isSubmitting = useAuthStore((s) => s.isSubmitting);
   const [remember, setRemember] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [errorOpen, setErrorOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   const {
     control,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<LoginForm>({
     resolver: zodResolver(schema),
@@ -38,13 +42,49 @@ export default function LoginScreen() {
     mode: 'onTouched',
   });
 
+  // Hydrate the remembered email on mount. If we find one, prefill the email
+  // field and pre-check the "Remember me" box so the user sees their choice
+  // restored. Only the email is persisted — never the password.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const saved = await rememberedEmailStorage.get();
+      if (alive && saved) {
+        setValue('email', saved);
+        setRemember(true);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [setValue]);
+
   const onSubmit = async (values: LoginForm) => {
-    setSubmitError(null);
+    const email = values.email.trim().toLowerCase();
     try {
-      await login(values.email.trim().toLowerCase(), values.password);
+      await login(email, values.password);
+      // Persist (or clear) the email based on the checkbox after a
+      // successful login so the wrong-credentials path doesn't trigger it.
+      if (remember) {
+        await rememberedEmailStorage.set(email);
+      } else {
+        await rememberedEmailStorage.clear();
+      }
     } catch (err) {
-      const message = err && typeof err === 'object' && 'message' in err ? String(err.message) : 'Login failed';
-      setSubmitError(message);
+      const raw =
+        err && typeof err === 'object' && 'message' in err ? String(err.message) : '';
+      // Normalize backend messages — anything 401/credentials-related becomes
+      // the friendly "Incorrect email or password" copy; everything else
+      // surfaces verbatim so the user gets useful detail (e.g. network down).
+      const looksLikeCredentialError =
+        !raw ||
+        /invalid|incorrect|wrong|unauthor|password|credential|not found/i.test(raw);
+      setErrorMessage(
+        looksLikeCredentialError
+          ? 'The email or password you entered is incorrect. Please try again.'
+          : raw,
+      );
+      setErrorOpen(true);
     }
   };
 
@@ -109,11 +149,18 @@ export default function LoginScreen() {
         <LinkText label="Forgot Password?" onPress={() => router.push('/(auth)/forgot-password')} />
       </View>
 
-      {submitError ? <Text style={styles.serverError}>{submitError}</Text> : null}
-
       <View style={styles.submitWrap}>
         <Button label="Login" loading={isSubmitting} onPress={handleSubmit(onSubmit)} />
       </View>
+
+      <ConfirmDialog
+        visible={errorOpen}
+        variant="danger"
+        title="Sign-in failed"
+        message={errorMessage}
+        confirmLabel="Try again"
+        onConfirm={() => setErrorOpen(false)}
+      />
     </Screen>
   );
 }
@@ -148,12 +195,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: spacing.xl,
-  },
-  serverError: {
-    ...typography.body.medium,
-    color: colors.danger[500],
-    marginTop: spacing.xl,
-    textAlign: 'center',
   },
   submitWrap: {
     marginTop: spacing.huge,

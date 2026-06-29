@@ -18,6 +18,21 @@ export type SummaryCounts = {
   total: number;
 };
 
+// Backend stores BookingEncounter.doctor_id as String(255) (models.py:540)
+// so /getAllEvents returns resourceId as the STRING "5", not the number 5
+// — even though our TS type declares it as number. The doctor-filter chip
+// is a numeric id; comparing them with strict equality always returned
+// false and freshly-booked appointments vanished under any per-doctor
+// filter. Coerce both sides through Number() so the comparison is
+// representation-independent.
+export function eventMatchesDoctor(
+  event: { resourceId: number | string },
+  doctorId: number | null,
+): boolean {
+  if (doctorId === null || doctorId === undefined) return true;
+  return Number(event.resourceId) === Number(doctorId);
+}
+
 export function todayYMD(date: Date = new Date()): string {
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, '0');

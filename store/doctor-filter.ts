@@ -5,9 +5,11 @@ import { create } from 'zustand';
 type DoctorFilterState = {
   selectedDoctorId: number | null;
   setSelectedDoctorId: (id: number | null) => void;
+  reset: () => void;
 };
 
 export const useDoctorFilterStore = create<DoctorFilterState>((set) => ({
   selectedDoctorId: null,
   setSelectedDoctorId: (id) => set({ selectedDoctorId: id }),
+  reset: () => set({ selectedDoctorId: null }),
 }));

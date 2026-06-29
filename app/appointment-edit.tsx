@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { Button } from '@/components/button';
 import { Checkbox } from '@/components/checkbox';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { DateField } from '@/components/date-field';
 import { Screen } from '@/components/screen';
 import { TextInput } from '@/components/text-input';
 import { useDeleteAppointment } from '@/hooks/use-delete-appointment';
@@ -25,6 +26,9 @@ const SUBTITLE_COLOR = '#64748B';
 
 const DATE_REGEX = /^(\d{2})-(\d{2})-(\d{4})$/;
 const TIME_REGEX = /^(\d{2}):(\d{2})$/;
+
+const APPOINTMENT_MIN_DATE = new Date(new Date().getFullYear() - 2, 0, 1);
+const APPOINTMENT_MAX_DATE = new Date(new Date().getFullYear() + 5, 11, 31);
 
 const schema = z
   .object({
@@ -348,13 +352,13 @@ function EditForm({
           control={control}
           name="date"
           render={({ field, fieldState }) => (
-            <TextInput
+            <DateField
               label="Date *"
               placeholder="DD-MM-YYYY"
-              keyboardType="number-pad"
               value={field.value}
-              onChangeText={(t) => field.onChange(formatDateMask(t))}
-              onBlur={field.onBlur}
+              onChange={field.onChange}
+              minimumDate={APPOINTMENT_MIN_DATE}
+              maximumDate={APPOINTMENT_MAX_DATE}
               error={fieldState.error?.message}
             />
           )}
@@ -548,26 +552,28 @@ function ddMmYyyyToIso(value: string): string | null {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// Match appointment-new.tsx exactly — emit a tz-aware ISO string so the
+// backend stores an offset-bearing datetime. Sending a naive string here
+// replaces a previously tz-aware row with a naive one and shifts the
+// display by the local UTC offset (~3h on +03:00) the next time the
+// calendar parses it.
 function combineDateAndTime(yyyymmdd: string, hhmm: string): string | null {
   const m = hhmm.match(TIME_REGEX);
   if (!m) return null;
   const [, hh, mm] = m;
-  return `${yyyymmdd}T${hh}:${mm}:00`;
+  const dt = new Date(`${yyyymmdd}T${hh}:${mm}:00`);
+  if (isNaN(dt.getTime())) return null;
+  const offsetMin = -dt.getTimezoneOffset();
+  const sign = offsetMin >= 0 ? '+' : '-';
+  const offsetH = String(Math.floor(Math.abs(offsetMin) / 60)).padStart(2, '0');
+  const offsetM = String(Math.abs(offsetMin) % 60).padStart(2, '0');
+  return `${yyyymmdd}T${hh}:${mm}:00${sign}${offsetH}:${offsetM}`;
 }
 
 function parseTime(hhmm: string): number | null {
   const m = hhmm.match(TIME_REGEX);
   if (!m) return null;
   return Number(m[1]) * 60 + Number(m[2]);
-}
-
-function formatDateMask(input: string): string {
-  const digits = input.replace(/\D/g, '').slice(0, 8);
-  const parts: string[] = [];
-  if (digits.length > 0) parts.push(digits.slice(0, 2));
-  if (digits.length > 2) parts.push(digits.slice(2, 4));
-  if (digits.length > 4) parts.push(digits.slice(4, 8));
-  return parts.join('-');
 }
 
 function formatTimeMask(input: string): string {
@@ -774,7 +780,12 @@ const styles = StyleSheet.create({
     color: colors.neutral[500],
   },
   reminderRow: {
-    paddingVertical: spacing.xs,
+    borderWidth: 2,
+    borderColor: colors.primary[500],
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.primary[0],
   },
   serverError: {
     ...typography.body.medium,

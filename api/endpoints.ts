@@ -6,6 +6,7 @@ export const endpoints = {
   },
   calendar: {
     list: '/getAllEvents',
+    schedule: '/getClinicSchedule',
   },
   appointments: {
     cancellationReasons: '/cancellation-reasons',

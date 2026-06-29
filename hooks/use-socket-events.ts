@@ -17,6 +17,17 @@ const APPOINTMENT_EVENTS: ServerEvent[] = [
 
 const PATIENT_EVENTS: ServerEvent[] = ['patientAdded', 'patientEdited', 'patientDeleted'];
 
+// Per client feedback (2026-06-29 #9): the notifications feed is too noisy.
+// Cache invalidation still fires for every event below so the calendar/patient
+// list stay live, but the bell + notifications screen only surface events the
+// user actually wants to be alerted about: reschedules, staff cancellations,
+// and patient-initiated WhatsApp confirm/cancel.
+const NOTIFY_EVENTS: ReadonlySet<ServerEvent> = new Set<ServerEvent>([
+  'updateAppointment',
+  'confirmedAppointment',
+  'cancelledAppointment',
+]);
+
 // The backend assigns each connection to the right Socket.IO room based on the
 // JWT it sees on connect (`socket_events.py` server-side):
 //   - Owner Doctors + Assistants + Admins -> `clinic_<clinic_id>` (whole clinic)
@@ -61,11 +72,15 @@ export function useSocketEvents() {
 
     const makeAppointmentHandler = (event: ServerEvent) => (payload: unknown) => {
       invalidateAppointments();
-      pushNotification(buildNotification(event, payload));
+      if (NOTIFY_EVENTS.has(event)) {
+        pushNotification(buildNotification(event, payload));
+      }
     };
     const makePatientHandler = (event: ServerEvent) => (payload: unknown) => {
       invalidatePatients();
-      pushNotification(buildNotification(event, payload));
+      if (NOTIFY_EVENTS.has(event)) {
+        pushNotification(buildNotification(event, payload));
+      }
     };
 
     const appointmentHandlers = APPOINTMENT_EVENTS.map((event) => {

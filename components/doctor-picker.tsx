@@ -11,6 +11,12 @@ type Props = {
 };
 
 export function DoctorPicker({ doctors, selectedDoctorId, onSelect }: Props) {
+  // Single-doctor clinics never need a picker — the "All Doctors" toggle
+  // becomes a no-op since the set of events is identical either way. Hide
+  // the whole strip rather than render a one-chip row, which would look
+  // like a broken filter UI.
+  if (doctors.length <= 1) return null;
+
   return (
     <View style={styles.wrapper}>
       <ScrollView

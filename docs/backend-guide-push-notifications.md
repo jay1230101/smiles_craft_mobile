@@ -13,8 +13,16 @@ in the mobile app
 When a user logs into the mobile app, the device generates a unique push
 token (an Expo Push Token, format `ExponentPushToken[xxxxxxxxxxxxxx]`). The
 mobile app needs to send this token to the backend so the server knows where
-to deliver notifications when something happens (a new appointment is booked,
-a patient confirms, an appointment is cancelled, etc.).
+to deliver notifications when something happens (an appointment is
+rescheduled, an appointment is cancelled, a patient confirms or cancels via
+WhatsApp).
+
+> **Scope decision (2026-06-26):** Push notifications are intentionally
+> limited to **changes to existing appointments**. We do **not** push for
+> new patient registrations or for new appointments created by staff —
+> those happen many times per day and would spam the doctor. Pushes are
+> reserved for events the doctor needs to act on quickly: a slot moving,
+> a slot opening up, or a patient responding to a WhatsApp prompt.
 
 The mobile app will call **`POST /register-device-token`** right after a
 successful login, and **`POST /unregister-device-token`** on logout. The
@@ -272,10 +280,10 @@ def send_push_notification(self, tokens, title, body, data=None):
 
 ## 7. Wiring with existing socket emits
 
-For every place that currently emits a socket event, add a matching
-`send_push_notification.delay(...)` call. The existing emits are listed
-below for completeness — the mobile app needs all of them to surface as
-push notifications on iOS / Android.
+Push notifications are limited to **four lifecycle events**. Everywhere
+else the existing `socketio.emit(...)` calls continue to work unchanged
+— they update the in-app cache via WebSocket but do **not** trigger a
+push to the device.
 
 The pattern is always:
 
@@ -289,43 +297,40 @@ send_push_notification.delay(
 )
 ```
 
-### 7.1 New appointment created (`views.py:2663`)
+### 7.1 Appointment rescheduled (`views.py:2620`)
 
-```python
-socketio.emit("newAppointment", new_appointment, room=f"clinic_{clinic_id}")
-socketio.emit("newAppointment", new_appointment, room=f"doctor_{user_id}")
-
-send_push_notification.delay(
-    tokens_for_clinic(clinic_id),
-    title="New appointment",
-    body=f"{patient_name} booked for {visit_date} at {start_time}",
-    data={"type": "newAppointment", "bookingId": new_appointment["mainId"]},
-)
-```
-
-### 7.2 Appointment updated / rescheduled (`views.py:2620`)
+Fires when staff opens an appointment and changes its start / end time
+via the Edit / Reschedule flow, or drags it to a new slot on the mobile
+calendar.
 
 ```python
 send_push_notification.delay(
     tokens_for_clinic(clinic_id),
-    title="Appointment updated",
+    title="Appointment rescheduled",
     body=f"{patient_name}'s appointment moved to {visit_date} {start_time}",
     data={"type": "updateAppointment", "bookingId": updated_appointment["mainId"]},
 )
 ```
 
-### 7.3 Appointment cancelled (`views.py:1461`, `3505`)
+### 7.2 Appointment cancelled by staff (`views.py:3505`)
+
+Fires when staff cancels an appointment from the popover's "Cancel
+appointment" action.
 
 ```python
 send_push_notification.delay(
     tokens_for_clinic(clinic_id),
     title="Appointment cancelled",
-    body=f"{patient_name} cancelled their {visit_date} appointment",
+    body=f"{patient_name}'s {visit_date} appointment was cancelled",
     data={"type": "cancelledAppointment", "bookingId": booking.id},
 )
 ```
 
-### 7.4 Patient confirmed appointment via WhatsApp (`views.py:1438`)
+### 7.3 Appointment confirmed via WhatsApp (`views.py:1438`)
+
+Fires when the patient taps the "Confirm" button on the WhatsApp
+reminder. The existing WhatsApp webhook handler already emits the
+socket event — add the push call alongside it.
 
 ```python
 send_push_notification.delay(
@@ -336,26 +341,33 @@ send_push_notification.delay(
 )
 ```
 
-### 7.5 New patient registered (`views.py:2350`)
+### 7.4 Appointment cancelled via WhatsApp (`views.py:1461`)
+
+Fires when the patient taps "Cancel" on the WhatsApp reminder. Same
+webhook handler as 7.3.
 
 ```python
 send_push_notification.delay(
     tokens_for_clinic(clinic_id),
-    title="New patient",
-    body=f"{name} {family} was added to the clinic",
-    data={"type": "patientAdded", "patientId": newPatient["id"]},
+    title="Appointment cancelled by patient",
+    body=f"{patient_name} cancelled their {visit_date} appointment",
+    data={"type": "cancelledAppointment", "bookingId": booking.id, "source": "whatsapp"},
 )
 ```
 
-### 7.6 Patient edited / deleted (`views.py:2380`, `2041`)
-### 7.7 Booking deleted (`views.py:2500`)
-### 7.8 Pending bills updated (`views.py:3722`)
-### 7.9 Bill paid / updated (`views.py:3738`)
+### Events that intentionally do NOT push
 
-Same pattern as above — one `send_push_notification.delay(...)` next to each
-existing socket emit. The `data` payload should carry the IDs the mobile app
-needs to deep-link the user to the right screen when they tap the
-notification.
+| Event | Why no push |
+|-------|-------------|
+| `newAppointment` (staff books) | Routine — staff already see it in the app they just used to book it. |
+| `patientAdded` | Routine — staff just registered the patient. |
+| `patientEdited` / `patientDeleted` | Administrative; no time-critical action needed. |
+| `bookingDeleted` (hard delete) | Rare; cancellation (7.2) covers the real-world case. |
+| Bill / payment events | Not in the v1 push scope. |
+
+The socket emits for all of these stay in place — they keep the in-app
+cache fresh in real time. They just don't surface as push notifications
+on the device.
 
 ---
 
@@ -390,14 +402,21 @@ After deploying:
 1. Mobile app installs cleanly, logs in, and **`POST /register-device-token`**
    succeeds with `{ "status": "success" }`
 2. Check `device_tokens` table — one row per logged-in mobile device
-3. Book an appointment from the web app for a clinic that has a logged-in
-   mobile user → mobile receives a "New appointment" banner within ~5 seconds
-4. Cancel that appointment from the web → mobile receives a "Cancelled" banner
-5. Tap the banner → mobile app opens and navigates to the appointment
+3. **Book** an appointment from the web app for a clinic that has a logged-in
+   mobile user → mobile receives **no push** (booking is not a push event;
+   the in-app calendar should still update via the existing socket event)
+4. **Reschedule** that appointment from the web → mobile receives an
+   "Appointment rescheduled" banner within ~5 seconds
+5. **Cancel** that appointment from the web → mobile receives an
+   "Appointment cancelled" banner
+6. Send a WhatsApp confirm / cancel as the patient → mobile receives the
+   corresponding banner
+7. Tap any banner → mobile app opens and navigates to the appointment
    (mobile handles this — backend just sends the `data` payload)
-6. Log out of the mobile app → **`POST /unregister-device-token`** removes
+8. Log out of the mobile app → **`POST /unregister-device-token`** removes
    the row from `device_tokens`
-7. Send another web-side event → that phone no longer receives a push
+9. Trigger another reschedule / cancel from the web → that phone no longer
+   receives a push
 
 ---
 
@@ -409,9 +428,9 @@ After deploying:
 | Two new endpoints (`/register-device-token`, `/unregister-device-token`) | 1 hour |
 | Helper `tokens_for_clinic` / `tokens_for_user` | 30 min |
 | Celery task `send_push_notification` (Expo Push integration) | 2 hours |
-| Wire the task into ~10 existing socket emit sites | 2 hours |
+| Wire the task into the **4** lifecycle emit sites (section 7) | 1 hour |
 | Environment variable + deploy + smoke test | 1 hour |
-| **Total** | **~1 working day** |
+| **Total** | **~6 hours / about ¾ of a working day** |
 
 Once this lands on the staging backend, the mobile app's push notifications
 can be enabled via a single env flag flip in the next preview build — no
