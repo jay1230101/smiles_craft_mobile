@@ -148,11 +148,16 @@ export function DateField({
                   </View>
                   <DateTimePicker
                     mode="date"
-                    display="spinner"
+                    // "inline" is the iOS 14+ calendar-grid picker. The
+                    // older "spinner" / wheels mode kept rendering empty
+                    // inside this Modal even with an explicit height.
+                    // Inline renders reliably and matches modern iOS UX.
+                    display="inline"
                     value={draft ?? initial}
                     maximumDate={max}
                     minimumDate={min}
                     onChange={onChangeNative}
+                    themeVariant="light"
                     style={styles.iosPicker}
                   />
                 </View>
@@ -260,6 +265,10 @@ const styles = StyleSheet.create({
     fontSize: ms(15),
   },
   iosPicker: {
+    // The inline calendar-grid picker needs a generous height — it draws
+    // a month grid plus a header row. Without an explicit height the
+    // native control collapses to a thin grey placeholder.
+    height: s(360),
     backgroundColor: colors.background.base,
   },
 });
