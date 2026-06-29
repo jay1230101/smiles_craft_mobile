@@ -19,6 +19,7 @@ import { deriveStatus, formatEventTime } from '@/lib/appointments';
 import { ms, s } from '@/lib/responsive';
 import { useActiveAppointmentStore } from '@/store/active-appointment';
 import { useEditEventStore } from '@/store/edit-event';
+import { useNewAppointmentStore } from '@/store/new-appointment';
 import { colors, radius, spacing, typography } from '@/theme';
 import type { BackendEvent } from '@/types/appointments';
 
@@ -41,6 +42,7 @@ export function AppointmentPopover({ event, onClose }: Props) {
   const router = useRouter();
   const setEditEvent = useEditEventStore((s) => s.setEvent);
   const setActiveEvent = useActiveAppointmentStore((s) => s.setEvent);
+  const setNewAppointmentPrefill = useNewAppointmentStore((s) => s.setPrefill);
 
   // The bottom sheet bypasses SafeAreaView, so on Android phones with a
   // gesture bar (Samsung S25 in particular) the action row sits flush
@@ -78,6 +80,24 @@ export function AppointmentPopover({ event, onClose }: Props) {
   const patientId = event.patientId;
   const doctorId = event.resourceId;
 
+  const bookAnotherHere = () => {
+    const start = new Date(event.start);
+    const end = new Date(event.end);
+    const ymd = (event.visit_date || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const ddmmyyyy = ymd ? `${ymd[3]}-${ymd[2]}-${ymd[1]}` : '';
+    const hhmm = (d: Date) =>
+      `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    setNewAppointmentPrefill({
+      date: ddmmyyyy,
+      startTime: isNaN(start.getTime()) ? '09:00' : hhmm(start),
+      endTime: isNaN(end.getTime()) ? '10:00' : hhmm(end),
+      doctorId: doctorId ?? null,
+      doctorName: event.doctor ?? null,
+    });
+    onClose();
+    router.push('/appointment-new' as never);
+  };
+
   const submitCancel = async () => {
     if (!reasonId) {
       setReasonError('Pick a cancellation reason');
@@ -93,11 +113,13 @@ export function AppointmentPopover({ event, onClose }: Props) {
         reason: reasonId,
       });
       if (res.status === 'success') {
-        setActionMessage('Appointment cancelled.');
-        // Close after a short beat so the user sees confirmation.
+        setActionMessage(isCancelled ? 'Reason updated.' : 'Appointment cancelled.');
         setTimeout(() => onClose(), 700);
       } else {
-        setReasonError(res.message || 'Could not cancel appointment.');
+        setReasonError(
+          res.message ||
+            (isCancelled ? 'Could not update reason.' : 'Could not cancel appointment.'),
+        );
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not cancel appointment.';
@@ -145,77 +167,88 @@ export function AppointmentPopover({ event, onClose }: Props) {
               ) : null}
 
               <View style={styles.actionsBlock}>
-                <ActionButton
-                  icon="add-circle-outline"
-                  label="Orders"
-                  disabled={isCancelled}
-                  helper={isCancelled ? 'Cancelled appointments can’t take new orders' : undefined}
-                  onPress={() => {
-                    setActiveEvent(event);
-                    onClose();
-                    router.push('/orders' as never);
-                  }}
-                />
-                <ActionButton
-                  icon="medkit-outline"
-                  label="New Plan of Care"
-                  disabled={isCancelled}
-                  helper={isCancelled ? 'Cancelled appointments can’t add a plan' : undefined}
-                  onPress={() => {
-                    setActiveEvent(event);
-                    onClose();
-                    router.push('/plan-of-care' as never);
-                  }}
-                />
-                <ActionButton
-                  icon="chatbubbles-outline"
-                  label="Schedule Future WhatsApp"
-                  onPress={() => {
-                    setActiveEvent(event);
-                    onClose();
-                    router.push('/schedule-whatsapp' as never);
-                  }}
-                />
-                <ActionButton
-                  icon="create-outline"
-                  label="Edit / Reschedule"
-                  disabled={isCancelled}
-                  helper={isCancelled ? 'Cancelled appointments can’t be edited' : undefined}
-                  onPress={() => {
-                    setEditEvent(event);
-                    onClose();
-                    router.push('/appointment-edit' as never);
-                  }}
-                />
-                <ActionButton
-                  icon="library-outline"
-                  label="Clinical history"
-                  onPress={() => {
-                    setActiveEvent(event);
-                    onClose();
-                    router.push('/clinical-history' as never);
-                  }}
-                />
-                <ActionButton
-                  icon="close-circle-outline"
-                  label="Cancel appointment"
-                  variant="danger"
-                  disabled={isCancelled}
-                  helper={isCancelled ? 'Already cancelled' : undefined}
-                  onPress={() => setPane('cancel')}
-                />
-                <ActionButton
-                  icon="checkmark-circle-outline"
-                  label={isConfirmed ? 'Confirmed' : 'Confirm appointment'}
-                  helper="Manual confirm needs a backend update"
-                  disabled
-                />
+                {isCancelled ? (
+                  <ActionButton
+                    icon="create-outline"
+                    label="Change cancel reason"
+                    helper="Update the reason this appointment was cancelled"
+                    onPress={() => setPane('cancel')}
+                  />
+                ) : (
+                  <>
+                    <ActionButton
+                      icon="duplicate-outline"
+                      label="Book another at this time"
+                      helper="Book a second appointment in the same slot"
+                      onPress={bookAnotherHere}
+                    />
+                    <ActionButton
+                      icon="add-circle-outline"
+                      label="Orders"
+                      onPress={() => {
+                        setActiveEvent(event);
+                        onClose();
+                        router.push('/orders' as never);
+                      }}
+                    />
+                    <ActionButton
+                      icon="medkit-outline"
+                      label="New Plan of Care"
+                      onPress={() => {
+                        setActiveEvent(event);
+                        onClose();
+                        router.push('/plan-of-care' as never);
+                      }}
+                    />
+                    <ActionButton
+                      icon="chatbubbles-outline"
+                      label="Schedule Future WhatsApp"
+                      onPress={() => {
+                        setActiveEvent(event);
+                        onClose();
+                        router.push('/schedule-whatsapp' as never);
+                      }}
+                    />
+                    <ActionButton
+                      icon="create-outline"
+                      label="Edit / Reschedule"
+                      onPress={() => {
+                        setEditEvent(event);
+                        onClose();
+                        router.push('/appointment-edit' as never);
+                      }}
+                    />
+                    <ActionButton
+                      icon="library-outline"
+                      label="Clinical history"
+                      onPress={() => {
+                        setActiveEvent(event);
+                        onClose();
+                        router.push('/clinical-history' as never);
+                      }}
+                    />
+                    <ActionButton
+                      icon="close-circle-outline"
+                      label="Cancel appointment"
+                      variant="danger"
+                      onPress={() => setPane('cancel')}
+                    />
+                    <ActionButton
+                      icon="checkmark-circle-outline"
+                      label={isConfirmed ? 'Confirmed' : 'Confirm appointment'}
+                      helper="Manual confirm needs a backend update"
+                      disabled
+                    />
+                  </>
+                )}
               </View>
             </>
           ) : (
             <View style={styles.cancelPane}>
               <Text style={styles.panePrompt}>
-                Why are you cancelling this appointment?
+                {isCancelled
+                  ? 'Update the cancellation reason for this appointment.'
+                  : 'Why are you cancelling this appointment?'}
               </Text>
 
               {reasonsLoading ? (
@@ -245,7 +278,7 @@ export function AppointmentPopover({ event, onClose }: Props) {
                   style={styles.flex}
                 />
                 <Button
-                  label="Cancel appointment"
+                  label={isCancelled ? 'Update reason' : 'Cancel appointment'}
                   loading={cancelAppt.isPending}
                   onPress={submitCancel}
                   fullWidth={false}
