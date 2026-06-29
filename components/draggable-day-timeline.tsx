@@ -25,17 +25,24 @@ import type { BackendEvent } from '@/types/appointments';
 // called with the proposed new start.
 
 const HOUR_HEIGHT = s(72);
-const SNAP_MINUTES = 15;
-const TIME_LABEL_WIDTH = s(56);
+const TIME_LABEL_WIDTH = s(60);
 const LONG_PRESS_MS = 300;
+// Minimum row height — keeps half-hour slots tappable (above the iOS 44dp
+// minimum) without compressing labels onto two lines.
+const MIN_SLOT_HEIGHT = s(44);
 
 type Props = {
   events: BackendEvent[];
   selectedDate: Date;
   dayStartHour: number;
   dayEndHour: number;
+  // Clinic-configured slot duration in minutes (30, 60, etc.) so the grid
+  // subdivisions, snap granularity, and tap-to-book default duration all
+  // match the web app's behavior for the same clinic.
+  slotMinutes: number;
   onSelectEvent: (event: BackendEvent) => void;
-  onSelectEmpty: (hour: number) => void;
+  // hourFloat is the slot start expressed as hours-since-midnight (8.0, 8.5...).
+  onSelectEmpty: (hourFloat: number) => void;
   onReschedule: (event: BackendEvent, newStart: Date) => void;
 };
 
@@ -43,6 +50,11 @@ type Geometry = {
   event: BackendEvent;
   top: number;
   height: number;
+  // Side-by-side column layout for overlapping events. column = index in
+  // the parallel set (0..columns-1), columns = total parallel cards at this
+  // moment. Single-event slots have column=0, columns=1.
+  column: number;
+  columns: number;
 };
 
 export function DraggableDayTimeline({
@@ -50,54 +62,131 @@ export function DraggableDayTimeline({
   selectedDate,
   dayStartHour,
   dayEndHour,
+  slotMinutes,
   onSelectEvent,
   onSelectEmpty,
   onReschedule,
 }: Props) {
-  const hours = useMemo(() => {
-    const arr: number[] = [];
-    for (let h = dayStartHour; h <= dayEndHour; h++) arr.push(h);
-    return arr;
-  }, [dayStartHour, dayEndHour]);
+  const safeSlotMinutes = slotMinutes > 0 ? slotMinutes : 60;
+  const slotPx = Math.max(MIN_SLOT_HEIGHT, (HOUR_HEIGHT * safeSlotMinutes) / 60);
 
-  const totalHours = dayEndHour - dayStartHour + 1;
-  const timelineHeight = totalHours * HOUR_HEIGHT;
+  const slots = useMemo(() => {
+    // Slot start times in minutes-since-midnight, from dayStart up to (but not
+    // including) dayEnd. Each entry becomes a labelled tap-to-book row.
+    const start = dayStartHour * 60;
+    const end = dayEndHour * 60;
+    const arr: number[] = [];
+    for (let m = start; m < end; m += safeSlotMinutes) arr.push(m);
+    return arr;
+  }, [dayStartHour, dayEndHour, safeSlotMinutes]);
+
+  const timelineHeight = slots.length * slotPx;
 
   const geometries = useMemo<Geometry[]>(() => {
-    return events
-      .map((event) => {
-        const start = new Date(event.start);
-        const end = new Date(event.end);
-        if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
-        const startMin = start.getHours() * 60 + start.getMinutes();
-        const endMin = end.getHours() * 60 + end.getMinutes();
-        const top = ((startMin - dayStartHour * 60) / 60) * HOUR_HEIGHT;
-        const duration = Math.max(15, endMin - startMin);
-        const height = Math.max(s(32), (duration / 60) * HOUR_HEIGHT - 2);
-        return { event, top, height };
-      })
-      .filter((g): g is Geometry => g !== null);
-  }, [events, dayStartHour]);
+    type Base = {
+      event: BackendEvent;
+      top: number;
+      height: number;
+      startMin: number;
+      endMin: number;
+    };
+
+    const bases: Base[] = [];
+    const pxPerMinute = slotPx / safeSlotMinutes;
+    for (const event of events) {
+      const start = new Date(event.start);
+      const end = new Date(event.end);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) continue;
+      const startMin = start.getHours() * 60 + start.getMinutes();
+      const endMin = end.getHours() * 60 + end.getMinutes();
+      const top = (startMin - dayStartHour * 60) * pxPerMinute;
+      const duration = Math.max(safeSlotMinutes, endMin - startMin);
+      const height = Math.max(s(32), duration * pxPerMinute - 2);
+      bases.push({ event, top, height, startMin, endMin });
+    }
+
+    // Greedy column assignment over time-overlapping clusters so events that
+    // share a moment render side-by-side instead of stacking on top of one
+    // another. Previously two concurrent appointments (e.g. Dr A and Dr B
+    // both at 10 AM under "All Doctors") collapsed to a single visible card.
+    bases.sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+
+    const out: Geometry[] = [];
+    let cluster: Base[] = [];
+    let clusterEnd = -1;
+
+    const flush = () => {
+      if (!cluster.length) return;
+      const lanes: number[] = [];
+      const cols = new Map<Base, number>();
+      for (const b of cluster) {
+        let placed = -1;
+        for (let i = 0; i < lanes.length; i++) {
+          if (lanes[i] <= b.startMin) {
+            lanes[i] = b.endMin;
+            placed = i;
+            break;
+          }
+        }
+        if (placed === -1) {
+          lanes.push(b.endMin);
+          placed = lanes.length - 1;
+        }
+        cols.set(b, placed);
+      }
+      const columns = lanes.length;
+      for (const b of cluster) {
+        out.push({
+          event: b.event,
+          top: b.top,
+          height: b.height,
+          column: cols.get(b) ?? 0,
+          columns,
+        });
+      }
+      cluster = [];
+      clusterEnd = -1;
+    };
+
+    for (const b of bases) {
+      if (cluster.length === 0 || b.startMin < clusterEnd) {
+        cluster.push(b);
+        clusterEnd = Math.max(clusterEnd, b.endMin);
+      } else {
+        flush();
+        cluster.push(b);
+        clusterEnd = b.endMin;
+      }
+    }
+    flush();
+
+    return out;
+  }, [events, dayStartHour, slotPx, safeSlotMinutes]);
 
   return (
     <View style={[styles.container, { height: timelineHeight }]}>
-      {hours.map((h, i) => (
-        <View key={h} style={[styles.hourRow, { top: i * HOUR_HEIGHT }]}>
-          <Text style={styles.hourLabel}>{formatHour(h)}</Text>
-          <View style={styles.hourLine} />
-        </View>
-      ))}
+      {slots.map((m, i) => {
+        const isHour = m % 60 === 0;
+        return (
+          <View key={m} style={[styles.hourRow, { top: i * slotPx }]}>
+            <Text style={[styles.hourLabel, !isHour && styles.minorLabel]}>
+              {formatMinutes(m)}
+            </Text>
+            <View style={[styles.hourLine, !isHour && styles.minorLine]} />
+          </View>
+        );
+      })}
 
       <View style={[styles.tapLayer, { left: TIME_LABEL_WIDTH + s(8) }]}>
-        {hours.slice(0, -1).map((h, i) => (
+        {slots.map((m, i) => (
           <Pressable
-            key={`tap-${h}`}
+            key={`tap-${m}`}
             accessibilityRole="button"
-            accessibilityLabel={`Book appointment at ${formatHour(h)}`}
-            onPress={() => onSelectEmpty(h)}
+            accessibilityLabel={`Book appointment at ${formatMinutes(m)}`}
+            onPress={() => onSelectEmpty(m / 60)}
             style={[
               styles.tapZone,
-              { top: i * HOUR_HEIGHT, height: HOUR_HEIGHT },
+              { top: i * slotPx, height: slotPx },
             ]}>
             <View style={styles.tapHint}>
               <Ionicons name="add-outline" size={ms(14)} color={colors.text.secondary} />
@@ -115,6 +204,8 @@ export function DraggableDayTimeline({
             maxBottom={timelineHeight}
             selectedDate={selectedDate}
             dayStartHour={dayStartHour}
+            slotPx={slotPx}
+            slotMinutes={safeSlotMinutes}
             onTap={() => onSelectEvent(g.event)}
             onReschedule={onReschedule}
           />
@@ -129,6 +220,8 @@ function DraggableEventCard({
   maxBottom,
   selectedDate,
   dayStartHour,
+  slotPx,
+  slotMinutes,
   onTap,
   onReschedule,
 }: {
@@ -136,23 +229,30 @@ function DraggableEventCard({
   maxBottom: number;
   selectedDate: Date;
   dayStartHour: number;
+  slotPx: number;
+  slotMinutes: number;
   onTap: () => void;
   onReschedule: (event: BackendEvent, newStart: Date) => void;
 }) {
-  const { event, top, height } = geometry;
+  const { event, top, height, column, columns } = geometry;
+  const colSlot = 100 / columns;
+  // Leave a 1% gap between adjacent columns so overlapping cards don't visually
+  // merge into a single block.
+  const widthPct = colSlot - 1;
+  const leftPct = column * colSlot;
   const translateY = useSharedValue(0);
   const isDragging = useSharedValue(0);
+  const pxPerMinute = slotPx / slotMinutes;
 
-  // Worklet-safe: compute new start from finger offset, snap to SNAP_MINUTES,
+  // Worklet-safe: compute new start from finger offset, snap to slotMinutes,
   // clamp so the event can't end past the day window, and bail if the user
   // dropped it back where it started.
   const finishDrag = (finalDy: number) => {
     const rawTop = top + finalDy;
     const clampedTop = Math.max(0, Math.min(rawTop, maxBottom - height));
-    const minutesFromDayStart = (clampedTop / HOUR_HEIGHT) * 60;
-    const snapped =
-      Math.round(minutesFromDayStart / SNAP_MINUTES) * SNAP_MINUTES;
-    const snappedTop = (snapped / 60) * HOUR_HEIGHT;
+    const minutesFromDayStart = clampedTop / pxPerMinute;
+    const snapped = Math.round(minutesFromDayStart / slotMinutes) * slotMinutes;
+    const snappedTop = snapped * pxPerMinute;
     if (Math.abs(snappedTop - top) < 1) return;
 
     const totalMins = dayStartHour * 60 + snapped;
@@ -175,8 +275,10 @@ function DraggableEventCard({
   const showTime = height >= s(34);
   const showTreatment = height >= s(54) && !!treatment;
   const showDoctor = height >= s(70) && !!doctor;
+  const isCancelled = deriveStatus(event) === 'cancelled';
 
   const panGesture = Gesture.Pan()
+    .enabled(!isCancelled)
     .activateAfterLongPress(LONG_PRESS_MS)
     .onStart(() => {
       isDragging.value = 1;
@@ -224,6 +326,8 @@ function DraggableEventCard({
           {
             top,
             height,
+            left: `${leftPct}%`,
+            width: `${widthPct}%`,
             backgroundColor: palette.bg,
             borderLeftColor: palette.border,
           },
@@ -275,10 +379,18 @@ function paletteForEvent(event: BackendEvent): { border: string; bg: string; dot
   return palettes[hue] || palettes[0];
 }
 
-function formatHour(hour: number): string {
-  const period = hour >= 12 ? 'PM' : 'AM';
-  const h12 = hour % 12 || 12;
-  return `${h12} ${period}`;
+function formatMinutes(minutesSinceMidnight: number): string {
+  const hour = Math.floor(minutesSinceMidnight / 60);
+  const minute = minutesSinceMidnight % 60;
+  // Top-of-hour labels carry the meridiem ("10 AM"); intermediate slots
+  // get a compact suffix-only label (":30") so they read as a subdivision
+  // of the hour above instead of looking like their own row.
+  if (minute === 0) {
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const h12 = hour % 12 || 12;
+    return `${h12} ${period}`;
+  }
+  return `:${String(minute).padStart(2, '0')}`;
 }
 
 const styles = StyleSheet.create({
@@ -290,7 +402,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    height: HOUR_HEIGHT,
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
@@ -302,12 +413,23 @@ const styles = StyleSheet.create({
     ...typography.body.small,
     color: colors.text.secondary,
   },
+  // Half-hour markers — same column, dimmer and a touch smaller so the
+  // hour labels stay visually dominant and the row reads as a subdivision.
+  minorLabel: {
+    fontSize: ms(10),
+    color: colors.text.disabled ?? colors.text.secondary,
+    opacity: 0.65,
+  },
   hourLine: {
     flex: 1,
     marginLeft: s(8),
     marginTop: spacing.xs + 2,
     height: 1,
     backgroundColor: colors.border.subtle,
+  },
+  // Half-hour grid line — fainter than the hourly divider.
+  minorLine: {
+    opacity: 0.45,
   },
   tapLayer: {
     position: 'absolute',
@@ -340,8 +462,8 @@ const styles = StyleSheet.create({
   },
   eventCard: {
     position: 'absolute',
-    left: 0,
-    right: spacing.sm,
+    // left + width are set inline per-event so overlapping cards lay out
+    // side-by-side instead of stacking on top of each other.
     borderLeftWidth: 4,
     borderRadius: radius.lg,
     paddingVertical: spacing.xs,

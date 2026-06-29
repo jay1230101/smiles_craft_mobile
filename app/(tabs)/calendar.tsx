@@ -10,6 +10,7 @@ import { DraggableDayTimeline } from '@/components/draggable-day-timeline';
 import { Screen } from '@/components/screen';
 import { type AppointmentStatus } from '@/components/status-pill';
 import { useAllEvents } from '@/hooks/use-appointments';
+import { useClinicSchedule } from '@/hooks/use-clinic-schedule';
 import { useMappedDoctors } from '@/hooks/use-mapped-doctors';
 import { useUpdateAppointment } from '@/hooks/use-update-appointment';
 import {
@@ -46,6 +47,10 @@ export default function CalendarScreen() {
   const safeBottomPadding = Math.max(bottomTabHeight, 80) + spacing.xxl;
   const { data: liveEvents } = useAllEvents();
   const { data: mappedDoctors } = useMappedDoctors();
+  const { data: schedule } = useClinicSchedule();
+  const slotMinutes = schedule?.slotMinutes ?? 60;
+  const dayStartHour = schedule?.startHour ?? DAY_START_HOUR;
+  const dayEndHour = schedule?.endHour ?? DAY_END_HOUR;
   const user = useAuthStore((s) => s.user);
   const updateAppointment = useUpdateAppointment();
 
@@ -58,22 +63,26 @@ export default function CalendarScreen() {
     [mappedDoctors],
   );
 
-  const openNewAppointment = (hourOverride?: number) => {
+  const openNewAppointment = (hourFloatOverride?: number) => {
     const doctor: MappedDoctor | null =
       selectedDoctorId != null
         ? (mappedDoctors ?? []).find((d) => d.id === selectedDoctorId) ?? null
         : null;
     const now = new Date();
-    const hour = hourOverride ?? now.getHours();
+    const hourFloat = hourFloatOverride ?? now.getHours();
+    // Snap to the clinic's configured slot grid so the prefilled times match
+    // the calendar grid the user just tapped (e.g. 30-min slots → 09:30, 10:00).
+    const startMin = Math.floor((hourFloat * 60) / slotMinutes) * slotMinutes;
+    const endMin = startMin + slotMinutes;
     const dd = String(selectedDate.getDate()).padStart(2, '0');
     const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
     const yyyy = selectedDate.getFullYear();
-    const startHh = String(hour).padStart(2, '0');
-    const endHh = String((hour + 1) % 24).padStart(2, '0');
+    const toHhMm = (m: number) =>
+      `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
     setNewAppointmentPrefill({
       date: `${dd}-${mm}-${yyyy}`,
-      startTime: `${startHh}:00`,
-      endTime: `${endHh}:00`,
+      startTime: toHhMm(startMin),
+      endTime: toHhMm(endMin),
       doctorId: doctor?.id ?? null,
       doctorName: doctor?.name ?? null,
     });
@@ -179,10 +188,11 @@ export default function CalendarScreen() {
   });
 
   return (
-    <Screen
-      contentContainerStyle={[styles.container, { paddingBottom: safeBottomPadding }]}
-      edges={['top']}>
-      <View style={styles.dateNav}>
+    <View style={styles.root}>
+      <Screen
+        contentContainerStyle={[styles.container, { paddingBottom: safeBottomPadding }]}
+        edges={['top']}>
+        <View style={styles.dateNav}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={view === 'Week' ? 'Previous week' : view === 'Month' ? 'Previous month' : 'Previous day'}
@@ -230,8 +240,9 @@ export default function CalendarScreen() {
         <DraggableDayTimeline
           events={dayEvents}
           selectedDate={selectedDate}
-          dayStartHour={DAY_START_HOUR}
-          dayEndHour={DAY_END_HOUR}
+          dayStartHour={dayStartHour}
+          dayEndHour={dayEndHour}
+          slotMinutes={slotMinutes}
           onSelectEvent={setActiveEvent}
           onSelectEmpty={openNewAppointment}
           onReschedule={handleReschedule}
@@ -242,7 +253,7 @@ export default function CalendarScreen() {
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
           onSelectEvent={setActiveEvent}
-          onAddAppointment={() => openNewAppointment(DAY_START_HOUR)}
+          onAddAppointment={() => openNewAppointment(dayStartHour)}
         />
       ) : (
         <MonthView
@@ -258,10 +269,12 @@ export default function CalendarScreen() {
           }}
           onAddAppointment={(date) => {
             setSelectedDate(date);
-            openNewAppointment(DAY_START_HOUR);
+            openNewAppointment(dayStartHour);
           }}
         />
       )}
+
+      </Screen>
 
       <AppointmentPopover event={activeEvent} onClose={() => setActiveEvent(null)} />
 
@@ -276,7 +289,7 @@ export default function CalendarScreen() {
         ]}>
         <Ionicons name="add" size={ms(28)} color="#FFFFFF" />
       </Pressable>
-    </Screen>
+    </View>
   );
 }
 
@@ -651,6 +664,12 @@ function byStartTime(a: BackendEvent, b: BackendEvent): number {
 }
 
 const styles = StyleSheet.create({
+  // Outer wrapper so the floating "+" FAB can be a sibling of the
+  // scrollable Screen instead of a child of its inner ScrollView. Without
+  // this the FAB scrolled with the timeline and disappeared off-screen.
+  root: {
+    flex: 1,
+  },
   container: {
     paddingTop: spacing.sm,
     gap: spacing.lg,
