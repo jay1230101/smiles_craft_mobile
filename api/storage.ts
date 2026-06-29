@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 
 const TOKEN_KEY = 'sc_jwt';
 const USER_KEY = 'sc_user';
+const REMEMBERED_EMAIL_KEY = 'sc_remembered_email';
 
 const webMemory: Record<string, string | null> = {};
 
@@ -58,6 +59,15 @@ export const userStorage = {
   },
   set: (user: unknown) => setItem(USER_KEY, JSON.stringify(user)),
   clear: () => removeItem(USER_KEY),
+};
+
+// "Remember me" survives logout on purpose — the whole point is that the
+// email is prefilled the next time the user opens the app, even after they
+// signed out. Don't include it in clearAuthStorage.
+export const rememberedEmailStorage = {
+  get: () => getItem(REMEMBERED_EMAIL_KEY),
+  set: (email: string) => setItem(REMEMBERED_EMAIL_KEY, email),
+  clear: () => removeItem(REMEMBERED_EMAIL_KEY),
 };
 
 export async function clearAuthStorage(): Promise<void> {
