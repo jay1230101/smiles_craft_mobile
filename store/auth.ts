@@ -1,6 +1,13 @@
 import { create } from 'zustand';
 import { loginRequest } from '@/api/auth';
 import { clearAuthStorage, tokenStorage, userStorage } from '@/api/storage';
+import { queryClient } from '@/lib/query-client';
+import { useActiveAppointmentStore } from '@/store/active-appointment';
+import { useDoctorFilterStore } from '@/store/doctor-filter';
+import { useEditEventStore } from '@/store/edit-event';
+import { useEditPatientStore } from '@/store/edit-patient';
+import { useNewAppointmentStore } from '@/store/new-appointment';
+import { useNotificationsStore } from '@/store/notifications';
 import type { User } from '@/types/auth';
 
 const DEV_BYPASS_LOGIN = false;
@@ -67,6 +74,18 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
 
   logout: async () => {
     await clearAuthStorage();
+    // Wipe every cross-user surface so logging in as a different clinic's user
+    // doesn't see the previous user's clinician, doctor filter, draft prefill,
+    // notifications, or any cached query data. Without this the next login
+    // can show the wrong clinician name in the booking prefill — reproduced
+    // when switching between users from different clinics.
+    queryClient.clear();
+    useNewAppointmentStore.getState().clear();
+    useActiveAppointmentStore.getState().clear();
+    useEditEventStore.getState().clear();
+    useEditPatientStore.getState().clear();
+    useDoctorFilterStore.getState().reset();
+    useNotificationsStore.getState().clear();
     set({ status: 'unauthenticated', token: null, user: null, error: null });
   },
 
