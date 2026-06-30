@@ -118,6 +118,14 @@ export default function RootLayout() {
             name="receipt"
             options={{ headerShown: false, presentation: 'modal' }}
           />
+          <Stack.Screen
+            name="all-unpaid-bills"
+            options={{ headerShown: false, presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="outstanding-by-patient"
+            options={{ headerShown: false, presentation: 'modal' }}
+          />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
             <StatusBar style="auto" />

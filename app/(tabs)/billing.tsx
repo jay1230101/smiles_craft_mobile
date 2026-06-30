@@ -77,6 +77,29 @@ export default function BillingScreen() {
         onChangeText={setQuery}
       />
 
+      <View style={styles.quickActions}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Outstanding by patient name"
+          onPress={() => router.push('/outstanding-by-patient' as never)}
+          style={({ pressed }) => [styles.quickAction, pressed && styles.rowPressed]}>
+          <Ionicons name="person-circle-outline" size={ms(20)} color={colors.primary[500]} />
+          <Text style={styles.quickActionLabel} numberOfLines={1}>
+            Outstanding by patient
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="All unpaid bills"
+          onPress={() => router.push('/all-unpaid-bills' as never)}
+          style={({ pressed }) => [styles.quickAction, pressed && styles.rowPressed]}>
+          <Ionicons name="receipt-outline" size={ms(20)} color={colors.primary[500]} />
+          <Text style={styles.quickActionLabel} numberOfLines={1}>
+            All unpaid bills
+          </Text>
+        </Pressable>
+      </View>
+
       {total === 0 ? (
         <View style={styles.emptyState}>
           <View style={styles.emptyIconCircle}>
@@ -167,6 +190,29 @@ const styles = StyleSheet.create({
     fontSize: ms(14),
     lineHeight: ms(20),
     color: PARAGRAPH_COLOR,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  quickAction: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: s(12),
+    borderWidth: 1,
+    borderColor: colors.primary[500],
+    backgroundColor: colors.primary[0],
+  },
+  quickActionLabel: {
+    flex: 1,
+    ...typography.label.large,
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: ms(13),
+    color: colors.primary[500],
   },
   list: {
     gap: spacing.md,

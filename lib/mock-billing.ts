@@ -4,6 +4,7 @@ import type {
   CurrentBillEntry,
   GetBillDetailResponse,
   GetPatientBillingResponse,
+  GetPendingBillsResponse,
   RecordPaymentInput,
   RecordPaymentResponse,
 } from '@/types/billing';
@@ -189,6 +190,35 @@ export function getMockPatientBilling(patientId: number): GetPatientBillingRespo
       currency: 'USD',
       bill_number: e.billNumber,
     })),
+  };
+}
+
+// Synthesize a clinic-wide pending-bills feed from the in-memory mock
+// encounter store so the All Unpaid Bills screen has realistic data in
+// demo mode (matches the shape /getPendingBills returns on live).
+export function getMockPendingBills(): GetPendingBillsResponse {
+  const rows = Object.entries(mockBillEncountersByPatient).flatMap(([pidStr, encounters]) => {
+    const pid = Number(pidStr);
+    const patient = mockPatients[pid];
+    const patientName = patient ? `${patient.name} ${patient.family}`.trim() : `Patient #${pid}`;
+    const phone = patient?.phone ?? '';
+    return encounters
+      .filter((e) => e.remainingBalance > 0)
+      .map((e) => ({
+        encounter_date: e.date,
+        patient_name: patientName,
+        phone_number: phone,
+        outstanding_balance: e.remainingBalance.toFixed(2),
+        encounter_id: e.id,
+        provider: e.doctor,
+        medical_status: e.status,
+      }));
+  });
+
+  return {
+    status: 'success',
+    message: rows.length === 0 ? 'No Bills with outstanding balance!' : null,
+    data: rows,
   };
 }
 
