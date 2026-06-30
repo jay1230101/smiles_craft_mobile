@@ -5,11 +5,11 @@ import { DEMO_MODE } from '@/lib/mock-appointments';
 import { applyMockPayment } from '@/lib/mock-billing';
 import type { RecordPaymentInput, RecordPaymentResponse } from '@/types/billing';
 
-// Backend route is not implemented yet — live calls will 404 until the
-// clinic team ships POST /record-payment. The UI keeps the action disabled
-// in non-demo builds and surfaces a "next backend update" notice; this
-// hook still exists so the wiring is in place and the build is one route
-// away from working end-to-end.
+// Cashier payment recording. Posts through to /treatment-plan with an
+// empty inProcessStatus + procedures payload — same primitive the web
+// app's BillDetails.jsx uses today, so no new backend route is required.
+// Receipt is synthesized in the API layer from the bill detail context
+// the screen already has on hand.
 export function useRecordPayment() {
   const queryClient = useQueryClient();
 

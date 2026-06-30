@@ -33,10 +33,9 @@ export const endpoints = {
     current: '/getCurrentBills',
     detail: (patientId: number | string) => `/bill/${patientId}`,
     history: (patientId: number | string) => `/patient/${patientId}/billing`,
-    // POST /record-payment is not implemented on the backend yet — the
-    // mobile cashier flow stubs against this path; once the route lands,
-    // the contract is { patient_id, billID:[int], amountPaid, method? }.
-    recordPayment: '/record-payment',
+    // Payment recording goes through orders.submit (/treatment-plan) with
+    // empty inProcessStatus + procedures arrays so only the payment block
+    // on the backend runs — same primitive the web uses today.
   },
   reports: {
     list: '/getReports',

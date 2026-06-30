@@ -7,7 +7,6 @@ import { Checkbox } from '@/components/checkbox';
 import { Screen } from '@/components/screen';
 import { useBillDetail } from '@/hooks/use-bill-detail';
 import { useRecordPayment } from '@/hooks/use-record-payment';
-import { DEMO_MODE } from '@/lib/mock-appointments';
 import { ms, s } from '@/lib/responsive';
 import { useActiveBillStore } from '@/store/active-bill';
 import { colors, spacing, typography } from '@/theme';
@@ -66,8 +65,7 @@ export default function RecordPaymentScreen() {
     !recordPayment.isPending &&
     selectedIds.length > 0 &&
     amountValue > 0 &&
-    amountValue <= selectedRemaining + 0.001 &&
-    (DEMO_MODE || /* live builds: gate behind backend route availability */ false);
+    amountValue <= selectedRemaining + 0.001;
 
   if (patientId === null) {
     return <Redirect href="/(tabs)/billing" />;
@@ -98,12 +96,24 @@ export default function RecordPaymentScreen() {
       setErrorMessage('Amount cannot exceed the selected remaining balance.');
       return;
     }
+    if (!data?.patient) {
+      setErrorMessage('Patient details are still loading. Please retry.');
+      return;
+    }
+    const paidEncounters = encounters.filter((e) => selectedIds.includes(e.id));
+    // All encounters in a single bill share the same doctor on the web; fall
+    // back to the first selected encounter's provider if mixed.
+    const doctorName = paidEncounters[0]?.doctor ?? '';
+
     try {
       const res = await recordPayment.mutateAsync({
         patient_id: patientId,
         billID: selectedIds,
         amountPaid: amountValue,
         method,
+        doctorName,
+        patient: data.patient,
+        paidEncounters,
       });
       if (res.status === 'success' && res.receipt) {
         setReceipt(res.receipt);
@@ -211,15 +221,6 @@ export default function RecordPaymentScreen() {
           </View>
 
           {errorMessage ? <Text style={styles.errorInline}>{errorMessage}</Text> : null}
-
-          {!DEMO_MODE ? (
-            <View style={styles.backendBanner}>
-              <Ionicons name="information-circle-outline" size={ms(18)} color={colors.primary[500]} />
-              <Text style={styles.backendBannerText}>
-                Payment recording becomes active with the next backend update.
-              </Text>
-            </View>
-          ) : null}
 
           <Pressable
             accessibilityRole="button"
@@ -396,19 +397,6 @@ const styles = StyleSheet.create({
   errorInline: {
     ...typography.body.medium,
     color: colors.danger[500],
-  },
-  backendBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: s(10),
-    backgroundColor: '#EFF6FF',
-  },
-  backendBannerText: {
-    flex: 1,
-    ...typography.body.small,
-    color: HEADING_COLOR,
   },
   primaryBtn: {
     flexDirection: 'row',

@@ -12,6 +12,26 @@ export type CurrentBillEntry = {
 
 export type GetCurrentBillsResponse = CurrentBillEntry[];
 
+// /getPendingBills — clinic-wide outstanding list (not just today). Schema
+// comes from views.py:2860; field names are snake_case because the backend
+// already serialized them that way and we don't want to drift from the web
+// payload shape that consumes the same endpoint.
+export type PendingBillEntry = {
+  encounter_date: string | null;
+  patient_name: string;
+  phone_number: string;
+  outstanding_balance: string;
+  encounter_id: number;
+  provider: string;
+  medical_status: string;
+};
+
+export type GetPendingBillsResponse = {
+  status: 'success' | 'error';
+  message: string | null;
+  data: PendingBillEntry[];
+};
+
 export type BillPatient = {
   id: number;
   name: string;
@@ -79,6 +99,15 @@ export type RecordPaymentInput = {
   billID: number[];
   amountPaid: number;
   method?: PaymentMethod;
+  // Receipt-building context. Mobile POSTs to /treatment-plan (matching
+  // what the web's BillDetails.jsx already does), and that endpoint only
+  // returns { status, message } — it does NOT echo a receipt object. So
+  // the mobile receipt has to be assembled locally from the bill detail
+  // the screen already has in memory. These fields supply that context.
+  doctorName: string;
+  patient: BillPatient;
+  paidEncounters: BillEncounter[];
+  currency?: string;
 };
 
 export type RecordPaymentResponse = {

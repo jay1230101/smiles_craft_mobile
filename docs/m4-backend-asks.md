@@ -1,9 +1,10 @@
 # M4 Backend Asks — Cashier + Reports
 
-Captured 2026-06-24 from the M4 backend audit pass. The mobile Cashier and
-Reports surfaces are fully built and wired to the existing live endpoints
-catalogued below. One new route is required on the backend before payment
-recording can be enabled in the live build.
+Captured 2026-06-24 from the M4 backend audit pass; updated 2026-06-30 after
+the cashier flow was repointed at `/treatment-plan` to match what the web
+app already does. **There are no remaining M4 backend asks for the cashier
+or reports surfaces.** This document is retained for historical context
+plus the unrelated carry-over items from M3 that still apply.
 
 ---
 
@@ -25,68 +26,22 @@ All six require `@token_required`.
 
 ---
 
-## New route required for M4
+## ~~New route required for M4~~ — withdrawn 2026-06-30
 
-### `POST /record-payment`
+The original ask was a new `POST /record-payment` route, written under the
+assumption that calling `/treatment-plan` for the cashier flow would force
+a new encounter row alongside the payment.
 
-**Why mobile needs it:** The web app records payment inside
-`POST /treatment-plan` (`views.py:3550`), which is an atomic
-"create treatment + apply payment" operation. The cashier flow on mobile
-collects payment against an **existing** bill without creating a new
-encounter — calling `/treatment-plan` is the wrong primitive because it
-forces an encounter row to be inserted alongside the payment.
+A second read of `views.py:3684-3711` showed that the payment block on
+`/treatment-plan` runs independently of the `inProcessStatus` and
+`procedures` branches — sending both as empty arrays applies the payment
+without inserting any new encounter. This is exactly what the web app's
+`frontend/src/pages/BillDetails.jsx` already does today.
 
-**Contract:**
-
-```
-POST /record-payment
-Auth: @token_required
-Body:
-{
-  "patient_id": int,
-  "billID":     [int],       // encounter ids being paid against
-  "amountPaid": float,
-  "method":     "cash" | "card" | "bank_transfer" | "other"  (optional)
-}
-
-Response:
-{
-  "status": "success" | "error",
-  "message": string?,
-  "remaining_balance": float,           // patient's total remaining after payment
-  "receipt": {
-    "receiptNumber":    string,
-    "date":             string (ISO),
-    "patient":          { id, name, family, phone },
-    "lineItems":        [{ procedure, toothNumber?, amount }],
-    "amountPaid":       float,
-    "remainingBalance": float,
-    "currency":         string
-  }
-}
-```
-
-**Implementation guidance (mirroring `/treatment-plan` payment block):**
-
-1. Validate `patient_id`, JWT-derived `clinic_id` ownership.
-2. Load each `TreatmentEncounter` in `billID` for this clinic+patient.
-3. Apply the standard payment-application algorithm:
-   - Walk encounters in `billID` order.
-   - For each: `applied = min(remaining_balance, amount_remaining)`; bump
-     `amountPaid += applied`; subtract from the working amount.
-   - If any amount is left over after all encounters are paid off, return
-     `status: error, message: "Amount exceeds outstanding balance"` and
-     rollback the transaction.
-4. Commit, then build a receipt object with `receiptNumber` formatted
-   consistently with the web cashier (suggest `RCT-<billSequenceNumber>-<ts>`).
-5. Emit `paymentRecorded` on `clinic_<clinic_id>` so other open tabs (and
-   the mobile calendar) can refresh their cached totals.
-
-**Status on mobile:** Hook + UI fully built (`hooks/use-record-payment.ts`,
-`app/record-payment.tsx`). In non-demo builds the submit button is
-disabled with helper text "Payment recording becomes active with the next
-backend update." Once this route ships, flip the gate off and the live
-flow works end-to-end.
+Mobile has been repointed to `POST /treatment-plan` with the same
+empty-array payload shape the web sends. **No backend work required** for
+the cashier flow to ship. The receipt object is synthesized client-side in
+`api/billing.ts` from the bill detail the cashier screen already holds.
 
 ---
 
