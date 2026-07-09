@@ -56,4 +56,14 @@ export const endpoints = {
     templates: '/getActiveTemplates',
     store: '/store_reminders',
   },
+  push: {
+    // POST { token, platform: 'ios'|'android', deviceId? } → { status: 'success' }
+    // Ships the current device's Expo push token to the backend so it can
+    // reach us via /--/api/v2/push/send whenever an appointment changes.
+    register: '/register-device-token',
+    // POST { token } → { status: 'success' }
+    // Cleans up on logout / permission revocation so we don't keep receiving
+    // pushes for a session we've left.
+    unregister: '/unregister-device-token',
+  },
 } as const;

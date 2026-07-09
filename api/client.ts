@@ -59,12 +59,14 @@ apiClient.interceptors.response.use(
   async (response) => {
     if (isTokenErrorBody(response.data)) {
       await handleUnauthorized();
-      return Promise.reject({
-        status: 401,
-        code: 'TOKEN_INVALID',
-        message: (response.data as { message: string }).message,
-        details: response.data,
-      } as ApiError);
+      return Promise.reject(
+        new ApiError({
+          status: 401,
+          code: 'TOKEN_INVALID',
+          message: (response.data as { message: string }).message,
+          details: response.data,
+        }),
+      );
     }
     return response;
   },
@@ -76,12 +78,22 @@ apiClient.interceptors.response.use(
   },
 );
 
-export type ApiError = {
+// A real Error subclass (not a plain object) so every `catch (err)` site's
+// `err instanceof Error ? err.message : …` check passes and surfaces the
+// friendly/server message instead of falling through to a generic fallback.
+export class ApiError extends Error {
   status: number;
-  message: string;
   code?: string;
   details?: unknown;
-};
+
+  constructor(params: { status: number; message: string; code?: string; details?: unknown }) {
+    super(params.message);
+    this.name = 'ApiError';
+    this.status = params.status;
+    this.code = params.code;
+    this.details = params.details;
+  }
+}
 
 function normalizeError(error: AxiosError): ApiError {
   const status = error.response?.status ?? 0;
@@ -91,12 +103,12 @@ function normalizeError(error: AxiosError): ApiError {
     (typeof data?.error === 'string' && data.error) ||
     null;
 
-  return {
+  return new ApiError({
     status,
     code: typeof data?.code === 'string' ? data.code : undefined,
     message: serverMessage ?? friendlyStatusMessage(status, error.message),
     details: data,
-  };
+  });
 }
 
 function friendlyStatusMessage(status: number, fallback?: string): string {
