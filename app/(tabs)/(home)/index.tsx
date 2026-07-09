@@ -105,8 +105,12 @@ export default function HomeScreen() {
 
   const displayName = (user?.user_name ?? '').trim();
   const isDoctor = user?.role === 'DOCTOR';
+  // Some backend user names already carry the honorific (e.g. "Dr. Sarah
+  // Mitchell"); prepend "Dr" only when it isn't already there so we never
+  // render "Hi Dr Dr. …" (mirrors the guard the Profile screen uses).
+  const alreadyHonorific = /^Dr\.?\s/i.test(displayName);
   const greetingName = displayName
-    ? isDoctor
+    ? isDoctor && !alreadyHonorific
       ? `Dr ${displayName}`
       : displayName
     : 'there';

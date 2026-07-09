@@ -265,7 +265,9 @@ function initialsOf(name?: string | null): string {
 function displayName(name?: string, role?: Role): string {
   const trimmed = (name ?? '').trim();
   if (!trimmed) return 'Account';
-  if (role === 'DOCTOR' && !/^Dr\.\s/i.test(trimmed)) return `Dr. ${trimmed}`;
+  // Honorific guard matches "Dr" with an optional period so a backend name
+  // like "Dr Rami Hamdan" doesn't become "Dr. Dr Rami Hamdan".
+  if (role === 'DOCTOR' && !/^Dr\.?\s/i.test(trimmed)) return `Dr. ${trimmed}`;
   return trimmed;
 }
 
