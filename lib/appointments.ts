@@ -68,6 +68,16 @@ export function formatEventTime(start: string | null | undefined): string {
   return start;
 }
 
+// Doctor names from the backend sometimes already carry an honorific
+// (e.g. "Dr Rami Hamdan"). Prepend "Dr." only when one isn't already
+// present so labels never read "Dr. Dr Rami Hamdan". Returns '' for an
+// empty/absent name so callers can fall back to their own placeholder.
+export function formatDoctorName(raw?: string | null): string {
+  const name = (raw ?? '').trim();
+  if (!name) return '';
+  return /^Dr\.?\s/i.test(name) ? name : `Dr. ${name}`;
+}
+
 export function formatInitials(name?: string, family?: string): string {
   const n = (name ?? '').trim();
   const f = (family ?? '').trim();
@@ -78,7 +88,7 @@ export function formatInitials(name?: string, family?: string): string {
 
 export function eventToAppointmentItem(event: BackendEvent): AppointmentItem {
   const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
-  const doctor = event.doctor ? `Dr. ${event.doctor}` : '';
+  const doctor = formatDoctorName(event.doctor);
   return {
     id: String(event.extendedProps?.mainId ?? event.id),
     initials: formatInitials(event.name, event.family),

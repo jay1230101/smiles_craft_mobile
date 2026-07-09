@@ -15,7 +15,7 @@ import { Button } from '@/components/button';
 import { Select, type SelectOption } from '@/components/select';
 import { useCancelAppointment } from '@/hooks/use-cancel-appointment';
 import { useCancellationReasons } from '@/hooks/use-cancellation-reasons';
-import { deriveStatus, formatEventTime } from '@/lib/appointments';
+import { deriveStatus, formatDoctorName, formatEventTime } from '@/lib/appointments';
 import { ms, s } from '@/lib/responsive';
 import { useActiveAppointmentStore } from '@/store/active-appointment';
 import { useEditEventStore } from '@/store/edit-event';
@@ -75,7 +75,7 @@ export function AppointmentPopover({ event, onClose }: Props) {
   const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
   const timeRange = `${formatEventTime(event.start)} - ${formatEventTime(event.end)}`;
   const procedure = event.extendedProps?.procedure ?? '';
-  const doctor = event.doctor ? `Dr. ${event.doctor}` : '';
+  const doctor = formatDoctorName(event.doctor);
   const mainId = event.extendedProps?.mainId ?? Number(event.id);
   const patientId = event.patientId;
   const doctorId = event.resourceId;
@@ -87,11 +87,18 @@ export function AppointmentPopover({ event, onClose }: Props) {
     const ddmmyyyy = ymd ? `${ymd[3]}-${ymd[2]}-${ymd[1]}` : '';
     const hhmm = (d: Date) =>
       `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    // resourceId is typed as a number but /getAllEvents actually returns it as a
+    // string (see lib/appointments.ts). The doctor Select matches on a numeric
+    // id and the new-appointment form validates doctorId with z.number(), so a
+    // raw string would leave the Clinician field unselected and block submit.
+    // Normalize the same way matchesDoctor() does.
+    const numericDoctorId =
+      doctorId != null && String(doctorId).trim() !== '' ? Number(doctorId) : NaN;
     setNewAppointmentPrefill({
       date: ddmmyyyy,
       startTime: isNaN(start.getTime()) ? '09:00' : hhmm(start),
       endTime: isNaN(end.getTime()) ? '10:00' : hhmm(end),
-      doctorId: doctorId ?? null,
+      doctorId: Number.isFinite(numericDoctorId) ? numericDoctorId : null,
       doctorName: event.doctor ?? null,
     });
     onClose();

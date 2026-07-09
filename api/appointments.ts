@@ -1,3 +1,4 @@
+import { toNumber } from '@/lib/num';
 import { apiClient } from './client';
 import { endpoints } from './endpoints';
 import type {
@@ -13,7 +14,13 @@ import type {
 
 export async function getAllEventsRequest(): Promise<BackendEvent[]> {
   const { data } = await apiClient.get<GetAllEventsResponse>(endpoints.calendar.list);
-  return Array.isArray(data?.data) ? data.data : [];
+  const rows = Array.isArray(data?.data) ? data.data : [];
+  // /getAllEvents returns resourceId (doctor_id) as a STRING even though the
+  // type declares it a number, and every consumer — the doctor filter, the
+  // edit/orders payloads, the "book another" prefill — treats it as a number.
+  // Coerce once here so the declared type is honest and no screen has to
+  // defensively Number() it.
+  return rows.map((e) => ({ ...e, resourceId: toNumber(e.resourceId) }));
 }
 
 export async function updateAppointmentRequest(

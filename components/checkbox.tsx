@@ -59,6 +59,9 @@ const styles = StyleSheet.create({
   label: {
     ...typography.title.medium,
     color: colors.text.primary,
+    // Let long labels wrap inside the row instead of overflowing past a
+    // bordered container (e.g. the WhatsApp toggle on the booking screen).
+    flexShrink: 1,
   },
   labelDisabled: {
     color: colors.text.disabled,

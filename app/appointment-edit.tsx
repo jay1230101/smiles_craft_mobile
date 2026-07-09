@@ -15,6 +15,20 @@ import { TextInput } from '@/components/text-input';
 import { useDeleteAppointment } from '@/hooks/use-delete-appointment';
 import { useSearchPatients } from '@/hooks/use-search-patients';
 import { useUpdateAppointment } from '@/hooks/use-update-appointment';
+import {
+  APPOINTMENT_MAX_DATE,
+  APPOINTMENT_MIN_DATE,
+  combineDateAndTime,
+  DATE_REGEX,
+  ddMmYyyyToIso,
+  ensureLeadingPlus,
+  formatDobDisplay,
+  formatTimeMask,
+  normalizeDob,
+  parseTime,
+  TIME_REGEX,
+} from '@/lib/appointment-format';
+import { formatDoctorName } from '@/lib/appointments';
 import { ms, s } from '@/lib/responsive';
 import { useEditEventStore } from '@/store/edit-event';
 import { colors, radius, spacing, typography } from '@/theme';
@@ -23,12 +37,6 @@ import type { PatientListItem } from '@/types/patients';
 
 const HEADING_COLOR = '#1A202C';
 const SUBTITLE_COLOR = '#64748B';
-
-const DATE_REGEX = /^(\d{2})-(\d{2})-(\d{4})$/;
-const TIME_REGEX = /^(\d{2}):(\d{2})$/;
-
-const APPOINTMENT_MIN_DATE = new Date(new Date().getFullYear() - 2, 0, 1);
-const APPOINTMENT_MAX_DATE = new Date(new Date().getFullYear() + 5, 11, 31);
 
 const schema = z
   .object({
@@ -418,7 +426,7 @@ function EditForm({
           )}
         />
 
-        <ReadOnlyField label="Doctor" value={event.doctor ? `Dr. ${event.doctor}` : '—'} />
+        <ReadOnlyField label="Doctor" value={formatDoctorName(event.doctor) || '—'} />
 
         <Controller
           control={control}
@@ -428,7 +436,7 @@ function EditForm({
               <Checkbox
                 value={field.value}
                 onChange={field.onChange}
-                label="Send WhatsApp reminder to patient"
+                label="Send WhatsApp reminder"
               />
             </View>
           )}
@@ -545,76 +553,7 @@ function formatHhMm(d: Date): string {
   return `${hh}:${mm}`;
 }
 
-function ddMmYyyyToIso(value: string): string | null {
-  const m = value.match(DATE_REGEX);
-  if (!m) return null;
-  const [, dd, mm, yyyy] = m;
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-// Match appointment-new.tsx exactly — emit a tz-aware ISO string so the
-// backend stores an offset-bearing datetime. Sending a naive string here
-// replaces a previously tz-aware row with a naive one and shifts the
-// display by the local UTC offset (~3h on +03:00) the next time the
-// calendar parses it.
-function combineDateAndTime(yyyymmdd: string, hhmm: string): string | null {
-  const m = hhmm.match(TIME_REGEX);
-  if (!m) return null;
-  const [, hh, mm] = m;
-  const dt = new Date(`${yyyymmdd}T${hh}:${mm}:00`);
-  if (isNaN(dt.getTime())) return null;
-  const offsetMin = -dt.getTimezoneOffset();
-  const sign = offsetMin >= 0 ? '+' : '-';
-  const offsetH = String(Math.floor(Math.abs(offsetMin) / 60)).padStart(2, '0');
-  const offsetM = String(Math.abs(offsetMin) % 60).padStart(2, '0');
-  return `${yyyymmdd}T${hh}:${mm}:00${sign}${offsetH}:${offsetM}`;
-}
-
-function parseTime(hhmm: string): number | null {
-  const m = hhmm.match(TIME_REGEX);
-  if (!m) return null;
-  return Number(m[1]) * 60 + Number(m[2]);
-}
-
-function formatTimeMask(input: string): string {
-  const digits = input.replace(/\D/g, '').slice(0, 4);
-  if (digits.length <= 2) return digits;
-  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
-}
-
-// Backend stores DOB as "DD-Month-YYYY" (e.g. "14-August-1990"); convert back
-// to "YYYY-MM-DD" before re-sending to /encounter.
-function normalizeDob(dob: string): string {
-  if (!dob) return '';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dob)) return dob;
-  const parts = dob.split('-');
-  if (parts.length !== 3) return dob;
-  const [dd, monthName, yyyy] = parts;
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
-  const idx = months.findIndex((m) => m.toLowerCase() === monthName.toLowerCase());
-  if (idx < 0) return dob;
-  return `${yyyy}-${String(idx + 1).padStart(2, '0')}-${dd.padStart(2, '0')}`;
-}
-
-// Display DOB nicely — accept either "DD-Month-YYYY" or "YYYY-MM-DD".
-function formatDobDisplay(dob: string): string {
-  if (!dob) return '';
-  const iso = normalizeDob(dob);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
-    const [yyyy, mm, dd] = iso.split('-');
-    return `${dd}-${mm}-${yyyy}`;
-  }
-  return dob;
-}
-
-function ensureLeadingPlus(phone: string): string {
-  const trimmed = (phone ?? '').trim();
-  if (!trimmed) return '';
-  return trimmed.startsWith('+') ? trimmed : `+${trimmed}`;
-}
+// Shared date/time & DOB/phone helpers live in lib/appointment-format.ts.
 
 const styles = StyleSheet.create({
   container: {

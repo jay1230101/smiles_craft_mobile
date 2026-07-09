@@ -4,7 +4,6 @@ import { Redirect, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { z } from 'zod';
 
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { CountryPicker } from '@/components/country-picker';
@@ -21,7 +20,9 @@ import {
   stripDialCode,
   type Country,
 } from '@/lib/countries';
+import { formatDoctorName } from '@/lib/appointments';
 import { ms, s } from '@/lib/responsive';
+import { dobToBackend, patientSchema, type PatientFormValues } from '@/lib/schemas';
 import { useEditPatientStore } from '@/store/edit-patient';
 import { colors, spacing, typography } from '@/theme';
 import type { PatientListItem, UpdatePatientRequest } from '@/types/patients';
@@ -29,42 +30,9 @@ import type { PatientListItem, UpdatePatientRequest } from '@/types/patients';
 const HEADING_COLOR = '#1A202C';
 const SUBTITLE_COLOR = '#64748B';
 
-const DOB_REGEX = /^(\d{2})-(\d{2})-(\d{4})$/;
-const DIGITS_ONLY = /^[0-9]+$/;
-
-const schema = z.object({
-  name: z.string().trim().min(1, 'Name is required'),
-  family: z.string().trim().min(1, 'Family name is required'),
-  dob: z
-    .string()
-    .trim()
-    .optional()
-    .refine((v) => !v || DOB_REGEX.test(v), 'Use format DD-MM-YYYY')
-    .refine((v) => {
-      if (!v) return true;
-      const match = v.match(DOB_REGEX);
-      if (!match) return false;
-      const [, dd, mm, yyyy] = match;
-      const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
-      return (
-        !isNaN(d.getTime()) &&
-        d.getDate() === Number(dd) &&
-        d.getMonth() + 1 === Number(mm) &&
-        d.getFullYear() === Number(yyyy) &&
-        d.getTime() < Date.now()
-      );
-    }, 'Enter a real past date'),
-  phone: z
-    .string()
-    .trim()
-    .min(6, 'Phone is required')
-    .regex(DIGITS_ONLY, 'Digits only, no spaces or symbols'),
-  gender: z.string().trim().optional(),
-  doctor: z.number().int().positive('Clinician is required'),
-  allergy: z.string().trim().optional(),
-});
-
-type FormValues = z.infer<typeof schema>;
+// Patient form schema + DOB converter shared with patient-register.tsx.
+const schema = patientSchema;
+type FormValues = PatientFormValues;
 
 export default function PatientEditScreen() {
   const router = useRouter();
@@ -126,7 +94,7 @@ function EditForm({
     () =>
       (doctors ?? []).map((d) => ({
         value: d.id,
-        label: `Dr. ${[d.name, d.family].filter(Boolean).join(' ').trim()}`,
+        label: formatDoctorName([d.name, d.family].filter(Boolean).join(' ').trim()) || 'Doctor',
       })),
     [doctors],
   );
@@ -356,13 +324,6 @@ function EditForm({
       />
     </Screen>
   );
-}
-
-function dobToBackend(input: string): string {
-  const m = input.match(DOB_REGEX);
-  if (!m) return input;
-  const [, dd, mm, yyyy] = m;
-  return `${yyyy}-${mm}-${dd}`;
 }
 
 // Backend returns DOB in YYYY-MM-DD; the form wants DD-MM-YYYY.

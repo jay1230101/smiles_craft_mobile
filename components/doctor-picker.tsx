@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { formatDoctorName } from '@/lib/appointments';
 import { ms, s } from '@/lib/responsive';
 import { colors, radius, spacing, typography } from '@/theme';
 import type { Doctor } from '@/types/doctors';
@@ -31,7 +32,9 @@ export function DoctorPicker({ doctors, selectedDoctorId, onSelect }: Props) {
         />
         {doctors.map((d) => {
           const name = `${(d.name ?? '').trim()} ${(d.family ?? '').trim()}`.trim();
-          const label = name ? `Dr. ${name}` : 'Doctor';
+          // formatDoctorName prepends "Dr." only when the backend name doesn't
+          // already carry one, so chips never read "Dr. Dr Rami Hamdan".
+          const label = formatDoctorName(name) || 'Doctor';
           return (
             <Chip
               key={d.id}

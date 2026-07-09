@@ -17,13 +17,17 @@ export type GetMappedDoctorsResponse = {
   data?: { clinic: string | number; doctor_id: number; doctor_name: string }[];
 };
 
+// Backend names sometimes already carry an honorific ("Dr Rami Hamdan"), so
+// the guard matches "Dr" with an OPTIONAL period — otherwise we'd render
+// "Dr. Dr Rami Hamdan". Kept in sync with formatDoctorName in lib/appointments.
 export function doctorDisplayName(doctor: Doctor): string {
   const full = `${(doctor.name ?? '').trim()} ${(doctor.family ?? '').trim()}`.trim();
-  return full ? `Dr. ${full}` : 'Doctor';
+  if (!full) return 'Doctor';
+  return /^Dr\.?\s/i.test(full) ? full : `Dr. ${full}`;
 }
 
 export function mappedDoctorDisplayName(doctor: MappedDoctor): string {
   const name = (doctor.name ?? '').trim();
   if (!name) return 'Doctor';
-  return /^Dr\.\s/i.test(name) ? name : `Dr. ${name}`;
+  return /^Dr\.?\s/i.test(name) ? name : `Dr. ${name}`;
 }
