@@ -20,6 +20,10 @@ export type Period = string; // 'YYYY-MM'
 
 export type GetPeriodsResponse = Period[];
 
+// Backend serializes SUM()/ROUND() outputs as MySQL DECIMAL which becomes a
+// JSON string. Fields marked `number` here are AFTER the API layer coerces
+// them (see toNumber in api/reports.ts). Never trust the raw wire value —
+// mixing strings into arithmetic silently yields NaN.
 export type IncomeStatementRow = {
   period: Period;
   gross_revenue: number;
@@ -33,15 +37,21 @@ export type IncomeStatementRow = {
   net_profit: number;
 };
 
+// Field names must match views.py:get_revenue_clinician exactly:
+// gross_revenue, clinic_share, provider_share (NO `_amount` suffix, NO
+// `net_revenue`). Also includes booking counts from the merged
+// appointment query.
 export type RevenueByClinicianRow = {
   period: Period;
   provider_id: number;
   provider_name: string;
   gross_revenue: number;
-  total_discount: number;
-  net_revenue: number;
-  provider_share_amount: number;
-  clinic_share_amount: number;
+  clinic_share: number;
+  provider_share: number;
+  total_appointments: number;
+  confirmed: number;
+  cancelled: number;
+  unconfirmed: number;
 };
 
 export type CancellationRow = {

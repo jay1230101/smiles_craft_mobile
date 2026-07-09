@@ -90,42 +90,68 @@ const MOCK_INCOME_BY_PERIOD: Record<Period, IncomeStatementRow> = {
   },
 };
 
+// Shape matches views.py:get_revenue_clinician — gross_revenue, clinic_share,
+// provider_share, plus per-provider booking counts. No net_revenue or
+// discount on this report.
+function revRow(
+  period: Period,
+  provider_id: number,
+  provider_name: string,
+  gross: number,
+  providerPct: number,
+  bookings: [total: number, confirmed: number, cancelled: number, unconfirmed: number],
+): RevenueByClinicianRow {
+  const provider_share = Math.round(gross * providerPct);
+  return {
+    period,
+    provider_id,
+    provider_name,
+    gross_revenue: gross,
+    clinic_share: gross - provider_share,
+    provider_share,
+    total_appointments: bookings[0],
+    confirmed: bookings[1],
+    cancelled: bookings[2],
+    unconfirmed: bookings[3],
+  };
+}
+
 const MOCK_REVENUE_PER_DOCTOR_PER_PERIOD: Record<Period, RevenueByClinicianRow[]> = {
   '2026-06': [
-    { period: '2026-06', provider_id: 1, provider_name: 'Dr. Sarah Mitchell', gross_revenue: 9200, total_discount: 400, net_revenue: 8800, provider_share_amount: 3520, clinic_share_amount: 5280 },
-    { period: '2026-06', provider_id: 2, provider_name: 'Dr. Charbel Diab', gross_revenue: 7800, total_discount: 500, net_revenue: 7300, provider_share_amount: 2920, clinic_share_amount: 4380 },
-    { period: '2026-06', provider_id: 3, provider_name: 'Dr. James Parker', gross_revenue: 5100, total_discount: 200, net_revenue: 4900, provider_share_amount: 1960, clinic_share_amount: 2940 },
-    { period: '2026-06', provider_id: 4, provider_name: 'Dr. Eli Shamlos', gross_revenue: 2400, total_discount: 100, net_revenue: 2300, provider_share_amount: 920, clinic_share_amount: 1380 },
+    revRow('2026-06', 1, 'Dr. Sarah Mitchell', 9200, 0.4, [24, 20, 2, 2]),
+    revRow('2026-06', 2, 'Dr. Charbel Diab', 7800, 0.4, [18, 15, 2, 1]),
+    revRow('2026-06', 3, 'Dr. James Parker', 5100, 0.4, [12, 10, 1, 1]),
+    revRow('2026-06', 4, 'Dr. Eli Shamlos', 2400, 0.4, [6, 5, 0, 1]),
   ],
   '2026-05': [
-    { period: '2026-05', provider_id: 1, provider_name: 'Dr. Sarah Mitchell', gross_revenue: 8400, total_discount: 300, net_revenue: 8100, provider_share_amount: 3240, clinic_share_amount: 4860 },
-    { period: '2026-05', provider_id: 2, provider_name: 'Dr. Charbel Diab', gross_revenue: 7200, total_discount: 400, net_revenue: 6800, provider_share_amount: 2720, clinic_share_amount: 4080 },
-    { period: '2026-05', provider_id: 3, provider_name: 'Dr. James Parker', gross_revenue: 4600, total_discount: 150, net_revenue: 4450, provider_share_amount: 1780, clinic_share_amount: 2670 },
-    { period: '2026-05', provider_id: 4, provider_name: 'Dr. Eli Shamlos', gross_revenue: 1900, total_discount: 50, net_revenue: 1850, provider_share_amount: 740, clinic_share_amount: 1110 },
+    revRow('2026-05', 1, 'Dr. Sarah Mitchell', 8400, 0.4, [22, 19, 2, 1]),
+    revRow('2026-05', 2, 'Dr. Charbel Diab', 7200, 0.4, [17, 14, 2, 1]),
+    revRow('2026-05', 3, 'Dr. James Parker', 4600, 0.4, [11, 9, 1, 1]),
+    revRow('2026-05', 4, 'Dr. Eli Shamlos', 1900, 0.4, [5, 4, 0, 1]),
   ],
   '2026-04': [
-    { period: '2026-04', provider_id: 1, provider_name: 'Dr. Sarah Mitchell', gross_revenue: 7800, total_discount: 250, net_revenue: 7550, provider_share_amount: 3020, clinic_share_amount: 4530 },
-    { period: '2026-04', provider_id: 2, provider_name: 'Dr. Charbel Diab', gross_revenue: 6400, total_discount: 300, net_revenue: 6100, provider_share_amount: 2440, clinic_share_amount: 3660 },
-    { period: '2026-04', provider_id: 3, provider_name: 'Dr. James Parker', gross_revenue: 4100, total_discount: 150, net_revenue: 3950, provider_share_amount: 1580, clinic_share_amount: 2370 },
-    { period: '2026-04', provider_id: 4, provider_name: 'Dr. Eli Shamlos', gross_revenue: 1500, total_discount: 50, net_revenue: 1450, provider_share_amount: 580, clinic_share_amount: 870 },
+    revRow('2026-04', 1, 'Dr. Sarah Mitchell', 7800, 0.4, [21, 18, 2, 1]),
+    revRow('2026-04', 2, 'Dr. Charbel Diab', 6400, 0.4, [15, 13, 1, 1]),
+    revRow('2026-04', 3, 'Dr. James Parker', 4100, 0.4, [10, 8, 1, 1]),
+    revRow('2026-04', 4, 'Dr. Eli Shamlos', 1500, 0.4, [4, 3, 0, 1]),
   ],
   '2026-03': [
-    { period: '2026-03', provider_id: 1, provider_name: 'Dr. Sarah Mitchell', gross_revenue: 7200, total_discount: 200, net_revenue: 7000, provider_share_amount: 2800, clinic_share_amount: 4200 },
-    { period: '2026-03', provider_id: 2, provider_name: 'Dr. Charbel Diab', gross_revenue: 5900, total_discount: 250, net_revenue: 5650, provider_share_amount: 2260, clinic_share_amount: 3390 },
-    { period: '2026-03', provider_id: 3, provider_name: 'Dr. James Parker', gross_revenue: 3700, total_discount: 100, net_revenue: 3600, provider_share_amount: 1440, clinic_share_amount: 2160 },
-    { period: '2026-03', provider_id: 4, provider_name: 'Dr. Eli Shamlos', gross_revenue: 1400, total_discount: 50, net_revenue: 1350, provider_share_amount: 540, clinic_share_amount: 810 },
+    revRow('2026-03', 1, 'Dr. Sarah Mitchell', 7200, 0.4, [19, 17, 1, 1]),
+    revRow('2026-03', 2, 'Dr. Charbel Diab', 5900, 0.4, [14, 12, 1, 1]),
+    revRow('2026-03', 3, 'Dr. James Parker', 3700, 0.4, [9, 8, 0, 1]),
+    revRow('2026-03', 4, 'Dr. Eli Shamlos', 1400, 0.4, [4, 3, 0, 1]),
   ],
   '2026-02': [
-    { period: '2026-02', provider_id: 1, provider_name: 'Dr. Sarah Mitchell', gross_revenue: 6900, total_discount: 150, net_revenue: 6750, provider_share_amount: 2700, clinic_share_amount: 4050 },
-    { period: '2026-02', provider_id: 2, provider_name: 'Dr. Charbel Diab', gross_revenue: 5800, total_discount: 200, net_revenue: 5600, provider_share_amount: 2240, clinic_share_amount: 3360 },
-    { period: '2026-02', provider_id: 3, provider_name: 'Dr. James Parker', gross_revenue: 3500, total_discount: 100, net_revenue: 3400, provider_share_amount: 1360, clinic_share_amount: 2040 },
-    { period: '2026-02', provider_id: 4, provider_name: 'Dr. Eli Shamlos', gross_revenue: 1300, total_discount: 50, net_revenue: 1250, provider_share_amount: 500, clinic_share_amount: 750 },
+    revRow('2026-02', 1, 'Dr. Sarah Mitchell', 6900, 0.4, [18, 16, 1, 1]),
+    revRow('2026-02', 2, 'Dr. Charbel Diab', 5800, 0.4, [14, 12, 1, 1]),
+    revRow('2026-02', 3, 'Dr. James Parker', 3500, 0.4, [9, 7, 1, 1]),
+    revRow('2026-02', 4, 'Dr. Eli Shamlos', 1300, 0.4, [4, 3, 0, 1]),
   ],
   '2026-01': [
-    { period: '2026-01', provider_id: 1, provider_name: 'Dr. Sarah Mitchell', gross_revenue: 6500, total_discount: 100, net_revenue: 6400, provider_share_amount: 2560, clinic_share_amount: 3840 },
-    { period: '2026-01', provider_id: 2, provider_name: 'Dr. Charbel Diab', gross_revenue: 5500, total_discount: 150, net_revenue: 5350, provider_share_amount: 2140, clinic_share_amount: 3210 },
-    { period: '2026-01', provider_id: 3, provider_name: 'Dr. James Parker', gross_revenue: 3500, total_discount: 100, net_revenue: 3400, provider_share_amount: 1360, clinic_share_amount: 2040 },
-    { period: '2026-01', provider_id: 4, provider_name: 'Dr. Eli Shamlos', gross_revenue: 1300, total_discount: 50, net_revenue: 1250, provider_share_amount: 500, clinic_share_amount: 750 },
+    revRow('2026-01', 1, 'Dr. Sarah Mitchell', 6500, 0.4, [17, 15, 1, 1]),
+    revRow('2026-01', 2, 'Dr. Charbel Diab', 5500, 0.4, [13, 11, 1, 1]),
+    revRow('2026-01', 3, 'Dr. James Parker', 3500, 0.4, [9, 7, 1, 1]),
+    revRow('2026-01', 4, 'Dr. Eli Shamlos', 1300, 0.4, [4, 3, 0, 1]),
   ],
 };
 

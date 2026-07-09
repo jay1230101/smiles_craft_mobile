@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
@@ -25,6 +27,17 @@ const SUBTITLE_COLOR = '#64748B';
 export default function ReportsScreen() {
   const bottomTabHeight = useBottomTabBarHeight();
   const safeBottomPadding = Math.max(bottomTabHeight, 80) + spacing.xxl;
+  const queryClient = useQueryClient();
+
+  // Reports data is also edited on the web (new treatments, expenses, whole new
+  // months). The tab stays mounted while the user is elsewhere in the app, so
+  // without this the cached numbers only refreshed on a full re-login. Refetch
+  // the reports list, periods and data every time the tab regains focus.
+  useFocusEffect(
+    useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+    }, [queryClient]),
+  );
 
   const { data: reportsList, isLoading: isListLoading } = useReportsList();
   const { data: allPeriods, isLoading: isPeriodsLoading } = usePeriods();
@@ -67,6 +80,7 @@ export default function ReportsScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={styles.chipStrip}
             contentContainerStyle={styles.tabsRow}>
             {reportsList.map((r) => {
               const active = r.id === activeReportId;
@@ -81,7 +95,9 @@ export default function ReportsScreen() {
                     active && styles.tabActive,
                     pressed && styles.pressed,
                   ]}>
-                  <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{r.name}</Text>
+                  <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
+                    {prettifyReportName(r.name)}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -104,6 +120,7 @@ export default function ReportsScreen() {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
+              style={styles.chipStrip}
               contentContainerStyle={styles.periodRow}>
               {allPeriods.map((p) => {
                 const active = selectedPeriods.includes(p);
@@ -182,34 +199,45 @@ function ReportBody({
 function IncomeStatementView({ rows }: { rows: IncomeStatementRow[] }) {
   return (
     <View style={styles.cards}>
-      {rows.map((row) => (
-        <View key={row.period} style={styles.card}>
-          <Text style={styles.cardPeriod}>{formatPeriodLabel(row.period)}</Text>
-          <Row label="Net Profit" value={formatMoney(row.net_profit)} emphasis />
-          <Row label="Net Revenue" value={formatMoney(row.net_revenue)} />
-          <Row label="Gross Revenue" value={formatMoney(row.gross_revenue)} />
-          <Row label="Total Discount" value={formatMoney(row.total_discount)} />
-          <Row label="Total Expenses" value={formatMoney(row.total_expenses)} />
-          <Row label="COGS" value={formatMoney(row.cogs)} />
-          <Row label="Depreciation" value={formatMoney(row.depreciation)} />
-        </View>
-      ))}
+      {rows.map((row) => {
+        // Client-requested summary — three figures only:
+        //   1. Total Net Revenue
+        //   2. Total Expenses = every expense category summed (cost of goods +
+        //      depreciation + the operating expenses in total_expenses: rent,
+        //      salaries, electricity, water …)
+        //   3. Net Profit = revenue − total expenses
+        // Net profit is derived here (rather than using row.net_profit) so the
+        // three numbers reconcile and Total Expenses can include COGS — the
+        // backend's net_profit formula leaves COGS out.
+        const totalExpenses = row.cogs + row.depreciation + row.total_expenses;
+        const netProfit = row.net_revenue - totalExpenses;
+        return (
+          <View key={row.period} style={styles.card}>
+            <Text style={styles.cardPeriod}>{formatPeriodLabel(row.period)}</Text>
+            <Row label="Total Net Revenue" value={formatMoney(row.net_revenue)} />
+            <Row label="Total Expenses" value={formatMoney(totalExpenses)} />
+            <Row label="Net Profit" value={formatMoney(netProfit)} emphasis />
+          </View>
+        );
+      })}
     </View>
   );
 }
 
 function RevenueByClinicianView({ rows }: { rows: RevenueByClinicianRow[] }) {
   // Group by period so each card shows all providers within that month.
+  // Backend returns `gross_revenue`, `clinic_share`, `provider_share` — no
+  // separate `net_revenue` field on this report. Card total sums gross.
   const grouped = useMemo(() => groupBy(rows, (r) => r.period), [rows]);
   return (
     <View style={styles.cards}>
       {Object.entries(grouped).map(([period, providerRows]) => {
-        const totalNet = providerRows.reduce((sum, r) => sum + r.net_revenue, 0);
+        const totalGross = providerRows.reduce((sum, r) => sum + r.gross_revenue, 0);
         return (
           <View key={period} style={styles.card}>
             <View style={styles.cardHeadRow}>
               <Text style={styles.cardPeriod}>{formatPeriodLabel(period)}</Text>
-              <Text style={styles.cardTotal}>{formatMoney(totalNet)}</Text>
+              <Text style={styles.cardTotal}>{formatMoney(totalGross)}</Text>
             </View>
             {providerRows.map((r) => (
               <View key={`${period}-${r.provider_id}`} style={styles.providerRow}>
@@ -217,8 +245,8 @@ function RevenueByClinicianView({ rows }: { rows: RevenueByClinicianRow[] }) {
                   {r.provider_name}
                 </Text>
                 <View style={styles.providerAmountRow}>
-                  <Text style={styles.providerShare}>{formatMoney(r.provider_share_amount)} doctor</Text>
-                  <Text style={styles.providerClinic}>{formatMoney(r.clinic_share_amount)} clinic</Text>
+                  <Text style={styles.providerShare}>{formatMoney(r.provider_share)} doctor</Text>
+                  <Text style={styles.providerClinic}>{formatMoney(r.clinic_share)} clinic</Text>
                 </View>
               </View>
             ))}
@@ -270,7 +298,22 @@ function Row({ label, value, emphasis = false }: { label: string; value: string;
 }
 
 function formatMoney(n: number): string {
-  return `$${(Math.round(n * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // Defensive: even after the API-layer normalization, guard against a
+  // stray NaN/Infinity slipping through (e.g. a future report shape we
+  // haven't mapped yet) — showing $0.00 beats showing $NaN to the client.
+  const safe = Number.isFinite(n) ? n : 0;
+  return `$${(Math.round(safe * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+// Backend stores report names in the Reports table verbatim, currently as
+// "Income_Statement", "Revenue_By_Clinician", "Cancellation_By_Reason".
+// The web app displays them with spaces; do the same on mobile so the tab
+// pills read naturally. Also lowercase joining words to feel like a title.
+function prettifyReportName(raw: string): string {
+  return raw
+    .replace(/_/g, ' ')
+    .replace(/\bBy\b/g, 'by')
+    .trim();
 }
 
 function groupBy<T, K extends string | number>(items: T[], keyOf: (t: T) => K): Record<K, T[]> {
@@ -316,11 +359,22 @@ const styles = StyleSheet.create({
     color: colors.danger[500],
     textAlign: 'center',
   },
+  // Nested inside <Screen>'s vertical ScrollView the horizontal ScrollView
+  // otherwise inherits flex-grow and stretches — that made the pill-shaped
+  // Pressable children render as huge circles because borderRadius: 999
+  // rounds to whichever side is smaller. flexGrow: 0 + alignItems: center
+  // pin the strip at its content height so the pills stay pill-shaped.
+  chipStrip: {
+    flexGrow: 0,
+    alignSelf: 'stretch',
+  },
   tabsRow: {
     gap: spacing.sm,
     paddingRight: spacing.lg,
+    alignItems: 'center',
   },
   tab: {
+    alignSelf: 'flex-start',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: 999,
@@ -360,8 +414,10 @@ const styles = StyleSheet.create({
   periodRow: {
     gap: spacing.sm,
     paddingRight: spacing.lg,
+    alignItems: 'center',
   },
   periodChip: {
+    alignSelf: 'flex-start',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: 999,
