@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Smiles Craft Mobile — Fixes from Your Feedback (Re-test Guide)</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10.5pt; line-height: 1.45; color: #1E1E1E; margin: 0; padding: 0;
+  }
+  h1 { font-size: 22pt; color: #014CA9; margin: 0 0 4pt 0; border-bottom: 2px solid #014CA9; padding-bottom: 4pt; }
+  h2 {
+    font-size: 13.5pt; color: #014CA9; margin: 20pt 0 6pt 0;
+    border-bottom: 1px solid #E3E8F0; padding-bottom: 3pt; page-break-after: avoid;
+  }
+  h3 { font-size: 11pt; color: #181818; margin: 12pt 0 4pt 0; page-break-after: avoid; }
+  p { margin: 0 0 6pt 0; }
+  ul, ol { margin: 0 0 8pt 0; padding-left: 18pt; }
+  li { margin-bottom: 3pt; }
+  .sub { color: #5A6472; font-size: 10pt; margin: 2pt 0 0 0; }
+  .meta {
+    background: #F4F7FC; border: 1px solid #DCE5F2; border-radius: 6pt;
+    padding: 10pt 14pt; margin: 12pt 0 8pt 0; font-size: 9.8pt;
+  }
+  .meta strong { color: #014CA9; }
+  .meta div { margin-bottom: 2pt; }
+  .note {
+    background: #FFF8E6; border: 1px solid #F2E2B0; border-radius: 6pt;
+    padding: 9pt 13pt; margin: 10pt 0; font-size: 9.8pt;
+  }
+  .note strong { color: #9A6B00; }
+  .callout {
+    background: #EAF3FF; border-left: 3px solid #014CA9; border-radius: 4pt;
+    padding: 9pt 13pt; margin: 10pt 0; font-size: 9.8pt;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 6pt 0 14pt 0; font-size: 9.6pt; page-break-inside: auto; }
+  thead { background: #014CA9; color: #fff; }
+  th, td { border: 1px solid #D8DEE8; padding: 5pt 7pt; vertical-align: top; text-align: left; }
+  th { font-weight: 600; font-size: 9.4pt; }
+  tbody tr:nth-child(even) { background: #F7F9FC; }
+  td.num { text-align: center; width: 22pt; color: #5A6472; font-weight: 600; }
+  td.result { text-align: center; width: 74pt; white-space: nowrap; color: #5A6472; }
+  tr { page-break-inside: avoid; }
+  .tag {
+    display: inline-block; font-size: 8pt; font-weight: 700; letter-spacing: .3px;
+    padding: 1pt 5pt; border-radius: 3pt; vertical-align: middle; white-space: nowrap;
+  }
+  .tag-fix { background: #EAF3FF; color: #014CA9; border: 1px solid #C5DBF5; }
+  .tag-new { background: #E3F6E8; color: #1B7A3D; border: 1px solid #BEE6C8; }
+  .tag-info { background: #FBEEDD; color: #9A6B00; border: 1px solid #F0D6AC; }
+  .legend { font-size: 9.4pt; color: #5A6472; margin: 4pt 0 0 0; }
+  .footer { margin-top: 20pt; padding-top: 8pt; border-top: 1px solid #E3E8F0; font-size: 8.6pt; color: #8A93A0; }
+  a { color: #014CA9; }
+</style>
+</head>
+<body>
+
+<h1>Smiles Craft Mobile — Fixes from Your Feedback</h1>
+<p class="sub">Every item you flagged in your last testing round, what changed, and a quick way to confirm each one.</p>
+
+<div class="meta">
+  <div><strong>Build:</strong> Feedback fixes follow-up</div>
+  <div><strong>App version:</strong> 1.4.0 &nbsp;·&nbsp; <strong>Platform:</strong> Android app file (APK)</div>
+  <div><strong>Prepared:</strong> 6 July 2026</div>
+  <div><strong>Environment:</strong> Connected to the live system — records you create here appear on the web app too.</div>
+</div>
+
+<h2>1. Before you start</h2>
+<ol>
+  <li><strong>Install the new app file (the APK)</strong> from the link shared with you. If Android warns about installing outside the Play Store, allow it for this file. If the update won't install over the old one, uninstall the previous app first — your data is on the server, so nothing is lost.</li>
+  <li><strong>Confirm the version.</strong> Open <strong>Profile</strong> and check it reads <strong>v1.4.0</strong>, so you know you are testing this build.</li>
+  <li><strong>Sign in</strong> with your Smiles Craft clinic account — the same email and password you use on the web app.</li>
+  <li><strong>A few checks need a two-doctor clinic</strong> (marked below). Use an account whose clinic has more than one doctor for those — for example the two-doctor login you used last time.</li>
+  <li><strong>One check needs a non-dental specialty</strong> (Treatment &amp; Orders). Use a physiotherapy — or other non-dental — account for that row.</li>
+</ol>
+
+<div class="callout">
+  <strong>How to record your results.</strong> Mark each row <strong>Pass</strong> or <strong>Fail</strong>. For anything still wrong, please note <strong>(1)</strong> the screen, <strong>(2)</strong> the exact steps, <strong>(3)</strong> what you expected, <strong>(4)</strong> what actually happened — plus a screenshot if possible. There is a blank feedback table at the end.
+</div>
+
+<h2>2. Summary of what changed</h2>
+<p>Each of these addresses an item you reported. The checklists in the following sections let you confirm them one by one. Tag: <span class="tag tag-fix">FIX</span> corrected, <span class="tag tag-new">NEW</span> new behaviour, <span class="tag tag-info">INFO</span> please read.</p>
+<table>
+  <thead><tr><th class="num">#</th><th>Area</th><th>What changed</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Home &amp; Calendar — doctor buttons <span class="tag tag-fix">FIX</span></td><td>The doctor name buttons at the top no longer repeat the title (was "Dr Dr Rami Hamdan", now "Dr Rami Hamdan").</td></tr>
+    <tr><td class="num">2</td><td>Home — appointment card <span class="tag tag-fix">FIX</span></td><td>Removed the empty gap between the time and the doctor's name.</td></tr>
+    <tr><td class="num">3</td><td>Calendar — All Doctors <span class="tag tag-new">FIX</span></td><td>In "All Doctors" view (two-doctor clinic): the Day view shows the doctor's name in place of the time; the Week view keeps the time and adds the doctor's name underneath.</td></tr>
+    <tr><td class="num">4</td><td>Treatment &amp; Orders — non-dental <span class="tag tag-fix">FIX</span></td><td>For non-dental specialties: the layout no longer leaves an empty field before Discount, and the Status field is hidden (recorded as completed automatically) so the visit can be saved.</td></tr>
+    <tr><td class="num">5</td><td>Treatment &amp; Orders — clinician <span class="tag tag-fix">FIX</span></td><td>The order now records the doctor the appointment is actually booked with — so the correct doctor shows on the visit, on All Unpaid Bills and at the cashier.</td></tr>
+    <tr><td class="num">6</td><td>New Appointment — clinician <span class="tag tag-fix">FIX</span></td><td>Booking from a single doctor's calendar shows that doctor as a read-only field; booking under "All Doctors" shows the doctor picker.</td></tr>
+    <tr><td class="num">7</td><td>New Appointment — WhatsApp toggle <span class="tag tag-fix">FIX</span></td><td>The toggle now reads "Send WhatsApp confirmation" and fits neatly inside its box.</td></tr>
+    <tr><td class="num">8</td><td>Patient Registration — duplicate phone <span class="tag tag-fix">FIX</span></td><td>The message is now short: "Phone Number already exists!" / "Click continue to proceed."</td></tr>
+    <tr><td class="num">9</td><td>Schedule Future WhatsApp <span class="tag tag-fix">FIX</span></td><td>Scheduling a reminder now goes through (the "Doctor missing" error is resolved). Any error is shown as a clear pop-up.</td></tr>
+    <tr><td class="num">10</td><td>Cashier — Record Payment <span class="tag tag-fix">FIX</span></td><td>The payment-method buttons are removed. The amount field is labelled "Amount (insert amount collected)" and stays editable, with the Record Payment button and Share Receipt kept.</td></tr>
+    <tr><td class="num">11</td><td>Reports — Income Statement <span class="tag tag-fix">FIX</span></td><td>Now shows three figures only: Total Net Revenue, Total Expenses, Net Profit.</td></tr>
+    <tr><td class="num">12</td><td>Reports — refresh <span class="tag tag-fix">FIX</span></td><td>Opening the Reports tab now refreshes the figures, so changes made on the web appear without signing out and back in.</td></tr>
+    <tr><td class="num">13</td><td>Notifications — wording <span class="tag tag-fix">FIX</span></td><td>Reschedule and cancellation notices now name the patient and match the web wording.</td></tr>
+    <tr><td class="num">14</td><td>Profile — name <span class="tag tag-fix">FIX</span></td><td>Your name shows the title once (no "Dr Dr").</td></tr>
+  </tbody>
+</table>
+
+<h2>3. Home dashboard</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to re-test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Doctor buttons</td><td>On Home (and Calendar), look at the doctor name buttons across the top.</td><td>Each shows the title once — e.g. "Dr Rami Hamdan", not "Dr Dr Rami Hamdan".</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Appointment card spacing</td><td>Open an appointment card on Home that has no procedure note.</td><td>The time and the doctor's name sit together — no empty gap between them.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>4. Calendar — "All Doctors" view</h2>
+<div class="callout">
+  <strong>Please test this in the right mode.</strong> The doctor's name only appears when the doctor buttons at the top are set to <strong>All Doctors</strong> <em>and</em> the clinic has more than one doctor. With a single doctor — or when one specific doctor is selected — the calendar keeps showing the time, which is the intended behaviour.
+</div>
+<table>
+  <thead><tr><th class="num">#</th><th>What to re-test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Day view (All Doctors)</td><td>Two-doctor clinic → tap <strong>All Doctors</strong> → open <strong>Day</strong>.</td><td>Each appointment block shows the patient name and, on the second line, the <strong>doctor's name</strong> instead of the start–end time.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Week view (All Doctors)</td><td>Same account → tap <strong>All Doctors</strong> → open <strong>Week</strong>.</td><td>Each appointment keeps its <strong>start time</strong> and shows the <strong>doctor's name</strong> on a line beneath it.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">3</td><td>Single doctor selected</td><td>Tap one specific doctor's button (not All Doctors) → open Day.</td><td>Blocks show the time again (the doctor name isn't needed when only one doctor is in view).</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>5. Treatment &amp; Orders</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to re-test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Correct doctor on the order <span class="tag tag-info">2 doctors</span></td><td>As the owner, open an appointment booked for the <strong>other</strong> doctor → tap <strong>Orders</strong>.</td><td>The <strong>Clinician</strong> field shows that appointment's doctor — not your own name.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Correct doctor carries through</td><td>Add a procedure and Submit → check <strong>All Unpaid Bills</strong> and the cashier for that patient.</td><td>The patient's bill shows the correct doctor (each patient keeps their own doctor).</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">3</td><td>Non-dental layout <span class="tag tag-info">non-dental</span></td><td>Sign in to a non-dental specialty (e.g. physiotherapy) → open Treatment &amp; Orders for a patient.</td><td>No empty field appears before Discount; the Procedure spans the row with Price and Discount beneath.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">4</td><td>Non-dental submit <span class="tag tag-info">non-dental</span></td><td>Pick a procedure → <strong>Add to list</strong> → <strong>Submit</strong>.</td><td>There is no "Select Status" field; the visit is added and saved (recorded as completed) with no error.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>6. New Appointment</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to re-test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Clinician — one doctor's calendar</td><td>Select one doctor at the top → tap a slot to book.</td><td>The <strong>Clinician</strong> field is a read-only field showing that doctor (no dropdown).</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Clinician — All Doctors</td><td>Tap <strong>All Doctors</strong> → tap a slot to book.</td><td>The <strong>Clinician</strong> field is a dropdown so you can choose the doctor.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">3</td><td>WhatsApp toggle</td><td>Scroll to the toggle above the Book button.</td><td>Reads <strong>"Send WhatsApp confirmation"</strong> and the text stays inside the box.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>7. Patient Registration</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to re-test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Duplicate phone message</td><td>Register a patient using a phone number already on file.</td><td>A short pop-up appears: <strong>"Phone Number already exists!"</strong> with <strong>"Click continue to proceed."</strong> Continue still lets you save.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>8. Schedule Future WhatsApp</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to re-test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Schedule a reminder</td><td>Open an appointment → New Future WhatsApp → pick a template and a future date → <strong>Schedule</strong>.</td><td>It saves successfully — no "Doctor missing" error.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Error shows as a pop-up</td><td>If anything is rejected (e.g. a missing field), observe how the message appears.</td><td>The message is shown as a clear pop-up, not small text.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>9. Cashier — Record Payment</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to re-test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>No payment-method buttons</td><td>Open a patient's bill → Record Payment.</td><td>There are no Cash / Card / Transfer buttons — just the amount and the Record Payment button.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Amount field label</td><td>Look at the amount field.</td><td>Labelled <strong>"Amount (insert amount collected)"</strong>; the amount is editable and can differ from the default.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">3</td><td>Record &amp; share</td><td>Enter an amount → Record Payment.</td><td>The payment is saved and a <strong>Share Receipt</strong> option is available.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>10. Reports</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to re-test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Income Statement</td><td>Open Reports → Income Statement.</td><td>Shows three figures per period: <strong>Total Net Revenue</strong>, <strong>Total Expenses</strong>, <strong>Net Profit</strong>.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Reports refresh</td><td>Add a treatment on the web app → return to the phone → open the <strong>Reports</strong> tab.</td><td>The figures update to include the new treatment without needing to sign out and in.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>11. Notifications</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to re-test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Cancellation notice</td><td>Have a colleague cancel an appointment → open the notifications bell.</td><td>Reads <strong>"{patient name} cancelled their {date} appointment"</strong> — the patient's name is included.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Reschedule notice</td><td>Have a colleague reschedule an appointment → open the bell.</td><td>Reads <strong>"{patient name}'s appointment rescheduled to {new date}"</strong>.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>12. Profile</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to re-test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Your name</td><td>Open Profile.</td><td>Your name shows the title once (e.g. "Dr Rami Hamdan"), not "Dr Dr".</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>13. One item we need your help to reproduce</h2>
+<div class="note">
+  <strong>"Name is not showing up — it shows the family name and other fields."</strong> On every screen we checked, the name field is filling in correctly, so we could not reproduce this. When you next see it, please tell us: <strong>(1)</strong> which screen you were on, <strong>(2)</strong> whether it was your own name or a patient's name, <strong>(3)</strong> which fields <em>did</em> appear beside the blank name (e.g. family, email, role, date of birth, phone), and <strong>(4)</strong> a screenshot if possible. That will let us fix it precisely.
+</div>
+
+<h2>14. Your feedback</h2>
+<p>Use this table for anything that failed or looked off. One row per issue.</p>
+<table>
+  <thead><tr><th class="num">#</th><th>Screen</th><th>Steps you took</th><th>What you expected</th><th>What happened</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+    <tr><td class="num">2</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+    <tr><td class="num">3</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+    <tr><td class="num">4</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+    <tr><td class="num">5</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+  </tbody>
+</table>
+
+<div class="footer">
+  Smiles Craft Mobile — Fixes from Your Feedback · App version 1.4.0 · Prepared 6 July 2026 · Connected to the live system.
+</div>
+
+</body>
+</html>

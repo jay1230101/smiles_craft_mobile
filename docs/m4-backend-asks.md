@@ -55,9 +55,15 @@ These three remain on the backend punch list — repeated here so the M3
 2. **`POST /update-patient { id, name, family, dob?, phone, gender?,
    allergy?, doctor }`** — patient edit on mobile. UI already disabled
    with helper text.
-3. **Push-notification stack** — `POST /register-device-token` +
-   Celery task wired alongside existing socket emits. Implementation
-   guide already delivered (`docs/backend-guide-push-notifications.pdf`).
+3. ~~**Push-notification stack**~~ — shipped upstream on 2026-07-01.
+   `POST /register-device-token` (`views.py:4844`) + `POST /unregister-device-token`
+   (`views.py:4874`), the `DeviceToken` table (migration
+   `4adea41d406a`), `send_push_notification` Celery task via Expo Push
+   (`backend/tasks.py:1333`), and firing sites at all four agreed
+   events (rescheduled / staff-cancel / WA-confirm / WA-cancel).
+   Mobile scaffolding lives in `lib/push-notifications.ts` and
+   `lib/push-bridge.tsx`; runs on real devices only, best-effort
+   register on login, unregister on logout.
 
 ---
 

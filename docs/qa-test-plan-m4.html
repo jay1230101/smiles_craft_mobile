@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Smiles Craft Mobile — Test Guide (Cashier, Reports &amp; Feedback Fixes)</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 10.5pt; line-height: 1.45; color: #1E1E1E; margin: 0; padding: 0;
+  }
+  h1 { font-size: 22pt; color: #014CA9; margin: 0 0 4pt 0; border-bottom: 2px solid #014CA9; padding-bottom: 4pt; }
+  h2 {
+    font-size: 13.5pt; color: #014CA9; margin: 20pt 0 6pt 0;
+    border-bottom: 1px solid #E3E8F0; padding-bottom: 3pt; page-break-after: avoid;
+  }
+  h3 { font-size: 11pt; color: #181818; margin: 12pt 0 4pt 0; page-break-after: avoid; }
+  p { margin: 0 0 6pt 0; }
+  ul, ol { margin: 0 0 8pt 0; padding-left: 18pt; }
+  li { margin-bottom: 3pt; }
+  .sub { color: #5A6472; font-size: 10pt; margin: 2pt 0 0 0; }
+  .meta {
+    background: #F4F7FC; border: 1px solid #DCE5F2; border-radius: 6pt;
+    padding: 10pt 14pt; margin: 12pt 0 8pt 0; font-size: 9.8pt;
+  }
+  .meta strong { color: #014CA9; }
+  .meta div { margin-bottom: 2pt; }
+  .note {
+    background: #FFF8E6; border: 1px solid #F2E2B0; border-radius: 6pt;
+    padding: 9pt 13pt; margin: 10pt 0; font-size: 9.8pt;
+  }
+  .note strong { color: #9A6B00; }
+  .callout {
+    background: #EAF3FF; border-left: 3px solid #014CA9; border-radius: 4pt;
+    padding: 9pt 13pt; margin: 10pt 0; font-size: 9.8pt;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 6pt 0 14pt 0; font-size: 9.6pt; page-break-inside: auto; }
+  thead { background: #014CA9; color: #fff; }
+  th, td { border: 1px solid #D8DEE8; padding: 5pt 7pt; vertical-align: top; text-align: left; }
+  th { font-weight: 600; font-size: 9.4pt; }
+  tbody tr:nth-child(even) { background: #F7F9FC; }
+  td.num { text-align: center; width: 22pt; color: #5A6472; font-weight: 600; }
+  td.result { text-align: center; width: 74pt; white-space: nowrap; color: #5A6472; }
+  tr { page-break-inside: avoid; }
+  .tag {
+    display: inline-block; font-size: 8pt; font-weight: 700; letter-spacing: .3px;
+    padding: 1pt 5pt; border-radius: 3pt; vertical-align: middle; white-space: nowrap;
+  }
+  .tag-new { background: #E3F6E8; color: #1B7A3D; border: 1px solid #BEE6C8; }
+  .tag-fix { background: #EAF3FF; color: #014CA9; border: 1px solid #C5DBF5; }
+  .tag-soon { background: #FBEEDD; color: #9A6B00; border: 1px solid #F0D6AC; }
+  .legend { font-size: 9.4pt; color: #5A6472; margin: 4pt 0 0 0; }
+  .footer { margin-top: 20pt; padding-top: 8pt; border-top: 1px solid #E3E8F0; font-size: 8.6pt; color: #8A93A0; }
+  a { color: #014CA9; }
+</style>
+</head>
+<body>
+
+<h1>Smiles Craft Mobile — Test Guide</h1>
+<p class="sub">What to check in this build: Cashier &amp; Reports, plus the fixes from the last feedback round.</p>
+
+<div class="meta">
+  <div><strong>Build:</strong> Milestone 4 preview (Cashier, Reports &amp; Feedback Fixes)</div>
+  <div><strong>App version:</strong> 1.3.0 &nbsp;·&nbsp; <strong>Platform:</strong> Android app file (APK)</div>
+  <div><strong>Prepared:</strong> 3 July 2026</div>
+  <div><strong>Environment:</strong> Connected to the live system — records you create here appear on the web app too.</div>
+</div>
+
+<h2>1. Before you start</h2>
+<ol>
+  <li><strong>Install the app file (the APK)</strong> from the link shared with you. If Android warns about installing outside the Play Store, allow it for this file.</li>
+  <li><strong>Sign in</strong> with your Smiles Craft clinic account — the same email and password you use on the web app.</li>
+  <li><strong>Use a real (or clearly-labelled test) patient.</strong> Because the app is connected to the live system, anything you register, book, or charge is saved and will also show on the web app. If you want to experiment freely, create a patient named e.g. <em>"Test Patient"</em> so it is easy to spot and remove later.</li>
+  <li><strong>Best on a real phone</strong> — your own phone is ideal. Notifications and the calendar gestures behave most realistically there.</li>
+</ol>
+
+<div class="callout">
+  <strong>How to record your feedback.</strong> For anything that looks wrong, please note four things so it can be reproduced quickly: <strong>(1)</strong> the screen, <strong>(2)</strong> the exact steps you took, <strong>(3)</strong> what you expected, <strong>(4)</strong> what actually happened — plus a screenshot if possible. There is a blank feedback table at the end of this guide you can fill in.
+</div>
+
+<h2>2. What's new &amp; fixed in this build</h2>
+<p>These are the areas that changed since your last review — worth focusing on first. Tags: <span class="tag tag-new">NEW</span> a new feature, <span class="tag tag-fix">FIX</span> something corrected, <span class="tag tag-soon">COMING SOON</span> full behaviour arrives in an upcoming update.</p>
+<table>
+  <thead><tr><th class="num">#</th><th>Area</th><th>What changed</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Cashier / Billing <span class="tag tag-new">NEW</span></td><td>View a patient's bill and their outstanding balance from the phone. (Recording a payment and printing a receipt are <span class="tag tag-soon">COMING SOON</span> — see section 15.)</td></tr>
+    <tr><td class="num">2</td><td>Reports <span class="tag tag-new">NEW</span> <span class="tag tag-fix">FIX</span></td><td>Income Statement, Revenue by Clinician and Cancellation by Reason. Figures now display correctly as proper amounts, the period buttons are pills (not large circles), and report names read normally.</td></tr>
+    <tr><td class="num">3</td><td>Money totals <span class="tag tag-fix">FIX</span></td><td>All amounts across billing and reports now add up correctly and display as proper currency.</td></tr>
+    <tr><td class="num">4</td><td>Patient Registration <span class="tag tag-fix">FIX</span></td><td>The Clinician field is hidden for single-clinician clinics (the doctor is still filled in automatically behind the scenes).</td></tr>
+    <tr><td class="num">5</td><td>New Appointment &amp; Edit <span class="tag tag-fix">FIX</span></td><td>Date is chosen from a calendar pop-up; the "Send WhatsApp confirmation" toggle now sits inside a bold blue-outlined box.</td></tr>
+    <tr><td class="num">6</td><td>Calendar <span class="tag tag-fix">FIX</span></td><td>Day view follows the clinic's configured slot length (e.g. 30 minutes); overlapping appointments under "All Doctors" show side-by-side; cancelled appointments are locked.</td></tr>
+    <tr><td class="num">7</td><td>Appointment menu <span class="tag tag-new">NEW</span></td><td>"Book another at this time" now carries over the same clinician, date and time.</td></tr>
+    <tr><td class="num">8</td><td>Home greeting <span class="tag tag-fix">FIX</span></td><td>Now a simple "Hi Dr {Name}" — no repeated title.</td></tr>
+    <tr><td class="num">9</td><td>Notifications <span class="tag tag-fix">FIX</span></td><td>Trimmed to reschedules, cancellations and confirmations only.</td></tr>
+    <tr><td class="num">10</td><td>Future WhatsApp <span class="tag tag-fix">FIX</span></td><td>The message-template list now loads in the scheduler.</td></tr>
+    <tr><td class="num">11</td><td>Switching clinics <span class="tag tag-fix">FIX</span></td><td>Logging out and back in as a different clinic starts from a clean slate.</td></tr>
+    <tr><td class="num">12</td><td>Connection messages <span class="tag tag-fix">FIX</span></td><td>If your phone briefly loses its connection, you now see a clear message instead of a blank screen.</td></tr>
+  </tbody>
+</table>
+
+<p class="legend">In the checklists below, mark each row <strong>Pass</strong> or <strong>Fail</strong>. Use the feedback table at the end to describe anything that failed.</p>
+
+<h2>3. Sign in &amp; account</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Sign in</td><td>Enter your correct email and password → Sign in.</td><td>You reach the Home dashboard.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Wrong password</td><td>Enter a wrong password → Sign in.</td><td>A clear "wrong credentials" message appears; you stay on the sign-in screen.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">3</td><td>Remember me</td><td>Tick "Remember me", sign in, close and reopen the app.</td><td>Your email is remembered on the sign-in screen.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">4</td><td>Forgot password</td><td>Tap "Forgot password", enter your email, submit.</td><td>A confirmation message appears (reset email sent).</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">5</td><td>Log out</td><td>Open Profile → Log out.</td><td>You return to the sign-in screen.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>4. Home dashboard</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Greeting</td><td>Look at the top of Home.</td><td>Reads "Hi Dr {your name}!" — with the title shown once (no "Dr Dr").</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Today's date</td><td>Check the date under the greeting.</td><td>Shows today's date correctly.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">3</td><td>Today's appointments</td><td>Review the list on Home.</td><td>Shows today's appointments matching the web app.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">4</td><td>Notifications bell</td><td>Have a colleague reschedule, cancel or confirm an appointment; watch the bell.</td><td>A red dot appears; tapping the bell shows the notification. (Confirmation notices can also arrive when an appointment is confirmed on the web app.)</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">5</td><td>Profile button</td><td>Tap your profile icon.</td><td>Opens Profile &amp; Settings with your name and role.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>5. Calendar</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Slot length</td><td>Open Day view.</td><td>The time rows match your clinic's slot length (e.g. 30-minute rows), not fixed 1-hour rows.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Day / Week switch</td><td>Switch between Day and Week.</td><td>Both render your appointments correctly.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">3</td><td>Navigate days</td><td>Swipe left / right; tap "Today".</td><td>Moves between days; "Today" jumps back and highlights today.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">4</td><td>Tap an empty slot</td><td>Tap an open time slot.</td><td>New Appointment opens with that date and time pre-filled.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">5</td><td>Overlapping appointments</td><td>With "All Doctors" selected, view a time where two doctors both have an appointment.</td><td>Both appointments show side-by-side (not stacked or hidden).</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">6</td><td>Unconfirmed colour</td><td>Find an unconfirmed appointment.</td><td>Unconfirmed appointments all appear in the same yellow colour.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">7</td><td>Drag to reschedule</td><td>Press and drag an active appointment to a new time.</td><td>It moves and the new time is saved (and shows on the web app).</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>6. Appointment menu (tap an appointment)</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Details</td><td>Tap an appointment.</td><td>Patient name, time, procedure and clinician are correct.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Cancel</td><td>Tap Cancel → pick a reason → confirm.</td><td>The appointment is cancelled; it updates on the calendar and web app.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">3</td><td>Cancelled is locked</td><td>Open the menu on a cancelled appointment.</td><td>Only "Change cancel reason" is offered; it cannot be dragged.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">4</td><td>Change cancel reason</td><td>On a cancelled appointment, tap "Change cancel reason", pick a new one, tap "Update reason".</td><td>The reason updates.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">5</td><td>Book another at this time</td><td>On an active appointment, tap "Book another at this time".</td><td>New Appointment opens with the <strong>same date, time and clinician</strong> already filled in.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">6</td><td>Edit / Reschedule</td><td>Tap Edit / Reschedule.</td><td>Opens the edit screen pre-filled with the appointment's details.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">7</td><td>Confirm <span class="tag tag-soon">COMING SOON</span></td><td>Look for the Confirm action.</td><td>Shown as not-yet-available. (A confirmation can still come through when an appointment is confirmed on the web app — only the manual Confirm button on the phone is coming later.)</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>7. New appointment</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Clinician field</td><td>Open New Appointment in a single-doctor clinic.</td><td>The clinician is shown/filled automatically (labelled "Clinician"), with no unnecessary dropdown.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Date picker</td><td>Tap the Date field.</td><td>A calendar pop-up opens and you can select the appointment date.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">3</td><td>Start / End time</td><td>Set start and end time.</td><td>Times accept your input; end must be after start.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">4</td><td>WhatsApp toggle</td><td>Find "Send WhatsApp confirmation".</td><td>The toggle sits inside a bold blue-outlined box.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">5</td><td>Find patient</td><td>Search and select a patient.</td><td>Search returns matches; selecting fills the patient in.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">6</td><td>Book &amp; verify</td><td>Book the appointment, then filter the calendar by that clinician.</td><td>The appointment appears under that clinician (not only under "All Doctors").</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">7</td><td>Double booking</td><td>Book a second appointment at the same time as an existing one.</td><td>Allowed; both appear.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>8. Edit / reschedule appointment</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Pre-filled</td><td>Open Edit on an appointment.</td><td>All fields match the current appointment.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Change time</td><td>Change start/end time → Save.</td><td>The calendar shows the new time immediately.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">3</td><td>Date picker &amp; WhatsApp toggle</td><td>Check the Date field and WhatsApp toggle.</td><td>Same calendar pop-up, and the toggle sits inside a bold blue-outlined box (as in New Appointment).</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">4</td><td>Delete</td><td>Delete the appointment.</td><td>Removed from the calendar and web app.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>9. Patient registration</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Required fields</td><td>Try to save with Name / Family / Phone empty.</td><td>Clear validation messages; cannot save until filled.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Clinician hidden</td><td>Register a patient in a single-doctor clinic.</td><td>No clinician dropdown is shown; the patient still saves under the correct doctor.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">3</td><td>Date of birth</td><td>Tap the Date of Birth field.</td><td>A calendar pop-up opens; picking a date fills in the date of birth.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">4</td><td>Duplicate phone</td><td>Register with a phone already in use.</td><td>A confirmation dialog asks whether to continue.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">5</td><td>Register &amp; find</td><td>Save, then search for the new patient.</td><td>The patient appears in search and on the web app.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">6</td><td>Age shows</td><td>Open the new patient's card.</td><td>Age is calculated and shown from the date of birth.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>10. Patients list &amp; search</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Search</td><td>Search by name and by phone.</td><td>Matching patients are listed.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Patient card</td><td>Open a patient card.</td><td>Name, phone, age and allergy show correctly.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">3</td><td>Edit patient <span class="tag tag-soon">COMING SOON</span></td><td>Tap the three-dots (⋮) menu on a patient card and look at the Edit item.</td><td>The Edit item is greyed out with a note that it arrives in an upcoming update — it should not show an error.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>11. Treatment &amp; Orders</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Open Orders</td><td>From an appointment's menu, tap Orders.</td><td>The Treatment &amp; Orders screen opens.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Procedure &amp; price</td><td>Pick a procedure from the dropdown.</td><td>Only priced procedures appear; the price fills in automatically.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">3</td><td>Tooth field</td><td>Check whether a Tooth field appears.</td><td>Shown only for specialties that use tooth numbers.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">4</td><td>Add a row</td><td>Set discount / status / notes → Add.</td><td>The row moves to the "waiting validation" list; the net amount is correct.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">5</td><td>Update a pending procedure</td><td>On an existing pending procedure, change its status.</td><td>The status control works and updates the procedure.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">6</td><td>Submit</td><td>Tap Submit.</td><td>Saved; the patient then appears in the Cashier queue and in Clinical History.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>12. Plan of Care</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Add a plan</td><td>From an appointment's menu → Plan of Care → type text → Save.</td><td>Saved successfully.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>See it in history</td><td>Open Clinical History → Plan of Care for that patient.</td><td>The plan you entered is listed.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>13. Schedule future WhatsApp</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Template list</td><td>From an appointment's menu → Future WhatsApp → open the template dropdown.</td><td>The list of message templates loads (not empty).</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Pick date</td><td>Choose a future date.</td><td>Date is accepted.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">3</td><td>Submit</td><td>Submit the reminder.</td><td>Saved; it appears under the web app's Send WhatsApp section.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>14. Clinical history</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Visits</td><td>Open Clinical History → Visits for a patient.</td><td>Past visits/procedures are listed with correct amounts.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Plan of Care</td><td>Open the Plan of Care tab.</td><td>Saved plans are listed.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>15. Cashier &amp; billing <span class="tag tag-new">NEW</span></h2>
+<p class="legend">You can view bills and outstanding balances in this build. <strong>Recording a payment and printing a receipt are being finalised</strong> — the bill screen shows a short note about this, so it's expected for now.</p>
+<table>
+  <thead><tr><th class="num">#</th><th>What to test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Today's cashier queue</td><td>Open the Cashier / Billing tab.</td><td>Today's patients with charges are listed.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Bill detail</td><td>Open a patient's bill.</td><td>Procedures, amounts and totals are shown correctly as proper currency (correct sums). A short note under the button says payment recording is coming in an upcoming update.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">3</td><td>Record payment <span class="tag tag-soon">COMING SOON</span></td><td>Open a bill and tap "Record Payment".</td><td>The Record Payment screen opens (choose items to pay, an amount, a method — Cash, Card or Transfer). Full recording is being finalised in an upcoming update, so please don't rely on it yet.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">4</td><td>Receipt <span class="tag tag-soon">COMING SOON</span></td><td>—</td><td>Receipts are produced once payment recording is switched on (coming in an upcoming update).</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">5</td><td>Outstanding by patient</td><td>Open "Outstanding by Patient", search a patient.</td><td>Their outstanding items and total are shown and add up correctly.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">6</td><td>All unpaid bills</td><td>Open "All Unpaid Bills".</td><td>The clinic-wide unpaid list appears. If instead you see a "Couldn't load the unpaid bills" message with a Retry button, that's a known item being finalised — just note it and move on.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>16. Reports <span class="tag tag-new">NEW</span> <span class="tag tag-fix">FIX</span></h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Report names &amp; buttons</td><td>Open the Reports tab.</td><td>Report names read normally ("Income Statement", "Revenue by Clinician", "Cancellation by Reason"); the period buttons are pill-shaped (not large circles).</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Income Statement</td><td>Open Income Statement; try a period.</td><td>Revenue, expenses and profit show as proper amounts (no broken or missing figures).</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">3</td><td>Revenue by Clinician</td><td>Open Revenue by Clinician.</td><td>Gross revenue, clinic share and provider share are correct per clinician.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">4</td><td>Cancellation by Reason</td><td>Open Cancellation by Reason.</td><td>Cancellation counts are grouped by reason and clinician.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">5</td><td>Period filter</td><td>Select one or more months.</td><td>The figures update for the chosen period(s).</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<h2>17. Notifications, profile &amp; general</h2>
+<table>
+  <thead><tr><th class="num">#</th><th>What to test</th><th>Steps</th><th>Expected result</th><th class="result">Result</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>Notifications list</td><td>Open the notifications screen.</td><td>Only reschedules, cancellations and confirmations appear (no "new booking added" noise).</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">2</td><td>Switch clinics</td><td>Log out, log in as a different clinic's user.</td><td>No leftover data from the previous account (fresh calendar, patients, filters).</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">3</td><td>Keyboard &amp; buttons</td><td>On registration, tap the Allergies field; in pop-up boxes, check the bottom buttons.</td><td>Fields stay visible above the keyboard; buttons sit above the phone's bottom navigation bar.</td><td class="result">Pass / Fail</td></tr>
+    <tr><td class="num">4</td><td>Connection message</td><td>If the internet briefly drops during an action.</td><td>A clear message appears — not a blank or frozen screen.</td><td class="result">Pass / Fail</td></tr>
+  </tbody>
+</table>
+
+<div class="note">
+  <strong>A few things arrive in an upcoming update</strong> (marked <span class="tag tag-soon">COMING SOON</span> above), so please don't treat these as problems in this build: <strong>Edit patient</strong> (greyed in the ⋮ menu), the manual <strong>Confirm appointment</strong> action, and <strong>recording payments / receipts</strong> in the cashier. They are already planned and will be switched on in a follow-up.
+</div>
+
+<h2>18. Your feedback</h2>
+<p>Please note anything that didn't pass, one row per issue.</p>
+<table>
+  <thead><tr><th class="num">#</th><th>Screen</th><th>What you did (steps)</th><th>What you expected vs. what happened</th><th class="result">Severity</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td class="result">&nbsp;</td></tr>
+    <tr><td class="num">2</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td class="result">&nbsp;</td></tr>
+    <tr><td class="num">3</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td class="result">&nbsp;</td></tr>
+    <tr><td class="num">4</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td class="result">&nbsp;</td></tr>
+    <tr><td class="num">5</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td class="result">&nbsp;</td></tr>
+    <tr><td class="num">6</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td class="result">&nbsp;</td></tr>
+  </tbody>
+</table>
+<p class="legend">Severity guide — <strong>High:</strong> blocks the task / wrong data. &nbsp;<strong>Medium:</strong> works but awkward. &nbsp;<strong>Low:</strong> cosmetic.</p>
+
+<div class="footer">
+  Smiles Craft Mobile — Test Guide · Milestone 4 preview · 3 July 2026 · connected to the live system.
+</div>
+
+</body>
+</html>
