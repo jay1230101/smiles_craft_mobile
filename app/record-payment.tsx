@@ -10,16 +10,10 @@ import { useRecordPayment } from '@/hooks/use-record-payment';
 import { ms, s } from '@/lib/responsive';
 import { useActiveBillStore } from '@/store/active-bill';
 import { colors, spacing, typography } from '@/theme';
-import type { BillEncounter, PaymentMethod } from '@/types/billing';
+import type { BillEncounter } from '@/types/billing';
 
 const HEADING_COLOR = '#1A202C';
 const SUBTITLE_COLOR = '#64748B';
-
-const PAYMENT_METHODS: { id: PaymentMethod; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { id: 'cash', label: 'Cash', icon: 'cash-outline' },
-  { id: 'card', label: 'Card', icon: 'card-outline' },
-  { id: 'bank_transfer', label: 'Transfer', icon: 'swap-horizontal-outline' },
-];
 
 export default function RecordPaymentScreen() {
   const router = useRouter();
@@ -32,7 +26,6 @@ export default function RecordPaymentScreen() {
 
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [amountText, setAmountText] = useState('');
-  const [method, setMethod] = useState<PaymentMethod>('cash');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const encounters = data?.encounters ?? [];
@@ -110,7 +103,6 @@ export default function RecordPaymentScreen() {
         patient_id: patientId,
         billID: selectedIds,
         amountPaid: amountValue,
-        method,
         doctorName,
         patient: data.patient,
         paidEncounters,
@@ -176,7 +168,10 @@ export default function RecordPaymentScreen() {
 
           <View style={styles.divider} />
 
-          <Text style={styles.sectionHeading}>Amount</Text>
+          {/* "(insert amount collected)" cues the cashier that this field is
+              editable — the default is the full outstanding total, but they can
+              type the amount actually collected for a partial payment. */}
+          <Text style={styles.sectionHeading}>Amount (insert amount collected)</Text>
           <View style={styles.amountRow}>
             <Text style={styles.amountSymbol}>$</Text>
             <TextInput
@@ -191,34 +186,6 @@ export default function RecordPaymentScreen() {
           <Text style={styles.amountHelper}>
             Selected total: {formatMoney(selectedRemaining)}
           </Text>
-
-          <Text style={styles.sectionHeading}>Method</Text>
-          <View style={styles.methodRow}>
-            {PAYMENT_METHODS.map((opt) => {
-              const active = method === opt.id;
-              return (
-                <Pressable
-                  key={opt.id}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  onPress={() => setMethod(opt.id)}
-                  style={({ pressed }) => [
-                    styles.methodChip,
-                    active && styles.methodChipActive,
-                    pressed && styles.pressed,
-                  ]}>
-                  <Ionicons
-                    name={opt.icon}
-                    size={ms(16)}
-                    color={active ? '#FFFFFF' : colors.primary[500]}
-                  />
-                  <Text style={[styles.methodLabel, active && styles.methodLabelActive]}>
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
 
           {errorMessage ? <Text style={styles.errorInline}>{errorMessage}</Text> : null}
 
@@ -367,32 +334,6 @@ const styles = StyleSheet.create({
   amountHelper: {
     ...typography.body.small,
     color: SUBTITLE_COLOR,
-  },
-  methodRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  methodChip: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    height: s(44),
-    borderRadius: s(22),
-    borderWidth: 1,
-    borderColor: colors.primary[500],
-    backgroundColor: colors.background.base,
-  },
-  methodChipActive: {
-    backgroundColor: colors.primary[500],
-  },
-  methodLabel: {
-    ...typography.label.large,
-    color: colors.primary[500],
-  },
-  methodLabelActive: {
-    color: '#FFFFFF',
   },
   errorInline: {
     ...typography.body.medium,

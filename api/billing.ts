@@ -1,3 +1,4 @@
+import { toNumber } from '@/lib/num';
 import { apiClient } from './client';
 import { endpoints } from './endpoints';
 import type {
@@ -11,6 +12,53 @@ import type {
   RecordPaymentInput,
   RecordPaymentResponse,
 } from '@/types/billing';
+
+// Money fields on these endpoints are typed `number` but the backend sends
+// MySQL DECIMAL as JSON strings, so coerce every one at the boundary (see
+// lib/num.ts). Without this, record-payment's `reduce(+).toFixed()` throws and
+// outstanding-by-patient sums render as concatenated strings ($180200 vs $380).
+function normalizeBillDetail(data: GetBillDetailResponse): GetBillDetailResponse {
+  return {
+    ...data,
+    encounters: Array.isArray(data?.encounters)
+      ? data.encounters.map((e) => ({
+          ...e,
+          fees: toNumber(e.fees),
+          discount: toNumber(e.discount),
+          netPrice: toNumber(e.netPrice),
+          previousPayment: toNumber(e.previousPayment),
+          remainingBalance: toNumber(e.remainingBalance),
+        }))
+      : [],
+    totals: data?.totals
+      ? {
+          ...data.totals,
+          totalBill: toNumber(data.totals.totalBill),
+          totalPreviousPayment: toNumber(data.totals.totalPreviousPayment),
+          totalRemainingBalance: toNumber(data.totals.totalRemainingBalance),
+        }
+      : data?.totals,
+  };
+}
+
+function normalizePatientBilling(
+  data: GetPatientBillingResponse,
+): GetPatientBillingResponse {
+  return {
+    ...data,
+    total_balance: toNumber(data?.total_balance),
+    procedures: Array.isArray(data?.procedures)
+      ? data.procedures.map((p) => ({
+          ...p,
+          fees: toNumber(p.fees),
+          net_price: toNumber(p.net_price),
+          discount: toNumber(p.discount),
+          amount_paid: toNumber(p.amount_paid),
+          remaining_balance: toNumber(p.remaining_balance),
+        }))
+      : [],
+  };
+}
 
 export async function getPendingBillsRequest(): Promise<GetPendingBillsResponse> {
   console.log('[billing] GET', endpoints.bills.pending);
@@ -46,7 +94,7 @@ export async function getBillDetailRequest(patientId: number): Promise<GetBillDe
   try {
     const { data } = await apiClient.get<GetBillDetailResponse>(path);
     console.log('[billing] detail response', data?.status, `encounters=${data?.encounters?.length ?? 0}`);
-    return data;
+    return normalizeBillDetail(data);
   } catch (err) {
     console.log('[billing] detail ERROR', err);
     throw err;
@@ -59,7 +107,7 @@ export async function getPatientBillingRequest(patientId: number): Promise<GetPa
   try {
     const { data } = await apiClient.get<GetPatientBillingResponse>(path);
     console.log('[billing] history response', data?.status, `procedures=${data?.procedures?.length ?? 0}`);
-    return data;
+    return normalizePatientBilling(data);
   } catch (err) {
     console.log('[billing] history ERROR', err);
     throw err;

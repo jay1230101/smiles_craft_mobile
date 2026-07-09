@@ -26,6 +26,9 @@ export function useRecordPayment() {
         queryClient.invalidateQueries({ queryKey: ['bills', 'current'] });
         queryClient.invalidateQueries({ queryKey: ['bills', 'detail', variables.patient_id] });
         queryClient.invalidateQueries({ queryKey: ['bills', 'history', variables.patient_id] });
+        // Clinic-wide All Unpaid Bills list — no bill socket event fires, so
+        // without this the paid bill lingers as unpaid until staleTime lapses.
+        queryClient.invalidateQueries({ queryKey: ['bills', 'pending'] });
       }
     },
   });
