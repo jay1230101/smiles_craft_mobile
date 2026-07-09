@@ -3,6 +3,8 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 
 import { AppointmentPopover } from '@/components/appointment-popover';
 import { DoctorPicker } from '@/components/doctor-picker';
@@ -17,6 +19,7 @@ import {
   deriveStatus,
   eventMatchesDoctor,
   eventsForDate,
+  formatDoctorName,
   formatEventTime,
   todayYMD,
 } from '@/lib/appointments';
@@ -94,6 +97,13 @@ export default function CalendarScreen() {
   // is applied. Everyone else (owner doctors, assistants, admins) gets the
   // picker with "All Doctors" as the default.
   const showDoctorPicker = !(user?.role === 'DOCTOR' && !user.is_owner);
+
+  // "All Doctors" is active only when the picker is relevant, no single doctor
+  // is selected, and the clinic actually has more than one doctor. In that mode
+  // the Day/Week cards surface the doctor's name so it's clear who each
+  // appointment belongs to.
+  const isAllDoctorsView =
+    showDoctorPicker && selectedDoctorId === null && doctors.length > 1;
 
   const allEvents = useMemo<BackendEvent[]>(() => {
     if (DEMO_MODE) return getMockCalendarEvents();
@@ -181,11 +191,53 @@ export default function CalendarScreen() {
     });
   };
 
-  const dateLabel = selectedDate.toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  // Day-view header uses the full weekday prefix ("Wed, June 30, 2026") per
+  // client feedback so the current day of the week is always visible. Week
+  // and Month views stay on the shorter format since the weekday isn't the
+  // primary anchor there.
+  const dateLabel =
+    view === 'Day'
+      ? selectedDate.toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+        })
+      : selectedDate.toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+        });
+
+  const isOnToday = useMemo(() => {
+    const now = new Date();
+    return (
+      selectedDate.getFullYear() === now.getFullYear() &&
+      selectedDate.getMonth() === now.getMonth() &&
+      selectedDate.getDate() === now.getDate()
+    );
+  }, [selectedDate]);
+
+  const jumpToToday = () => {
+    setSelectedDate(new Date());
+  };
+
+  // Horizontal swipe → advance the calendar by one unit in the active view
+  // (day / week / month). activeOffsetX only fires the gesture once the
+  // finger has moved ≥ 20dp horizontally, and failOffsetY bails as soon as
+  // vertical movement dominates — that keeps vertical scroll on the day
+  // timeline and the long-press drag on event cards working normally.
+  const SWIPE_TRIGGER = 60;
+  const swipeGesture = Gesture.Pan()
+    .activeOffsetX([-20, 20])
+    .failOffsetY([-15, 15])
+    .onEnd((e) => {
+      if (e.translationX <= -SWIPE_TRIGGER) {
+        runOnJS(goNext)();
+      } else if (e.translationX >= SWIPE_TRIGGER) {
+        runOnJS(goPrev)();
+      }
+    });
 
   return (
     <View style={styles.root}>
@@ -201,7 +253,7 @@ export default function CalendarScreen() {
           style={({ pressed }) => [styles.chevron, pressed && styles.pressed]}>
           <Ionicons name="chevron-back" size={s(20)} color={colors.neutral[500]} />
         </Pressable>
-        <Text style={styles.dateText}>{dateLabel}</Text>
+        <Text style={[styles.dateText, isOnToday && styles.dateTextToday]}>{dateLabel}</Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={view === 'Week' ? 'Next week' : view === 'Month' ? 'Next month' : 'Next day'}
@@ -211,6 +263,17 @@ export default function CalendarScreen() {
           <Ionicons name="chevron-forward" size={s(20)} color={colors.neutral[500]} />
         </Pressable>
       </View>
+
+      {!isOnToday ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Jump to today"
+          onPress={jumpToToday}
+          style={({ pressed }) => [styles.todayChip, pressed && styles.pressed]}>
+          <Ionicons name="today-outline" size={ms(14)} color={colors.primary[500]} />
+          <Text style={styles.todayChipLabel}>Today</Text>
+        </Pressable>
+      ) : null}
 
       {showDoctorPicker && doctors && doctors.length > 0 ? (
         <DoctorPicker
@@ -236,13 +299,16 @@ export default function CalendarScreen() {
         })}
       </View>
 
-      {view === 'Day' ? (
+      <GestureDetector gesture={swipeGesture}>
+        <View>
+          {view === 'Day' ? (
         <DraggableDayTimeline
           events={dayEvents}
           selectedDate={selectedDate}
           dayStartHour={dayStartHour}
           dayEndHour={dayEndHour}
           slotMinutes={slotMinutes}
+          allDoctorsView={isAllDoctorsView}
           onSelectEvent={setActiveEvent}
           onSelectEmpty={openNewAppointment}
           onReschedule={handleReschedule}
@@ -251,6 +317,7 @@ export default function CalendarScreen() {
         <WeekView
           events={events}
           selectedDate={selectedDate}
+          allDoctorsView={isAllDoctorsView}
           onSelectDate={setSelectedDate}
           onSelectEvent={setActiveEvent}
           onAddAppointment={() => openNewAppointment(dayStartHour)}
@@ -273,6 +340,8 @@ export default function CalendarScreen() {
           }}
         />
       )}
+        </View>
+      </GestureDetector>
 
       </Screen>
 
@@ -300,12 +369,14 @@ export default function CalendarScreen() {
 function WeekView({
   events,
   selectedDate,
+  allDoctorsView,
   onSelectDate,
   onSelectEvent,
   onAddAppointment,
 }: {
   events: BackendEvent[];
   selectedDate: Date;
+  allDoctorsView: boolean;
   onSelectDate: (date: Date) => void;
   onSelectEvent: (event: BackendEvent) => void;
   onAddAppointment: () => void;
@@ -374,6 +445,7 @@ function WeekView({
             <WeekCard
               key={String(e.extendedProps?.mainId ?? e.id)}
               event={e}
+              allDoctorsView={allDoctorsView}
               onPress={() => onSelectEvent(e)}
             />
           ))}
@@ -523,13 +595,24 @@ function uniqueStatusesFor(events: BackendEvent[]): AppointmentStatus[] {
 // a continuous-pixel y-axis so long-press drag-and-drop can reschedule
 // against real time geometry instead of discrete hour buckets.
 
-function WeekCard({ event, onPress }: { event: BackendEvent; onPress: () => void }) {
+function WeekCard({
+  event,
+  allDoctorsView,
+  onPress,
+}: {
+  event: BackendEvent;
+  allDoctorsView: boolean;
+  onPress: () => void;
+}) {
   const procedure = event.extendedProps?.procedure ?? '';
   const palette = paletteForEvent(event);
   const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
   const subtitle = procedure
     ? `${formatEventTime(event.start)} - ${procedure}`
     : formatEventTime(event.start);
+  // Week view keeps the start time and adds the doctor's name on its own line
+  // beneath it when viewing All Doctors (client request).
+  const doctor = allDoctorsView ? formatDoctorName(event.doctor) : '';
 
   return (
     <Pressable
@@ -546,6 +629,11 @@ function WeekCard({ event, onPress }: { event: BackendEvent; onPress: () => void
         {fullName || 'Unknown'}
       </Text>
       <Text style={styles.slotTime}>{subtitle}</Text>
+      {doctor ? (
+        <Text style={styles.slotDoctor} numberOfLines={1}>
+          {doctor}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -555,26 +643,6 @@ function WeekCard({ event, onPress }: { event: BackendEvent; onPress: () => void
 // (`colorForDoctor` in pages/Calendar/Calendar.jsx) so a given doctor's
 // colour stays identical across web and mobile. The card background is the
 // same colour at 12% opacity to keep the text readable.
-function doctorPalette(doctorName: string | null | undefined): {
-  border: string;
-  bg: string;
-  dot: string;
-} {
-  const name = (doctorName ?? '').trim() || 'Doctor';
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const r = (hash >> 0) & 0xff;
-  const g = (hash >> 8) & 0xff;
-  const b = (hash >> 16) & 0xff;
-  return {
-    border: `rgb(${r}, ${g}, ${b})`,
-    dot: `rgb(${r}, ${g}, ${b})`,
-    bg: `rgba(${r}, ${g}, ${b}, 0.12)`,
-  };
-}
-
 function statusPalette(status: AppointmentStatus): { border: string; bg: string; dot: string } {
   switch (status) {
     case 'confirmed':
@@ -583,19 +651,21 @@ function statusPalette(status: AppointmentStatus): { border: string; bg: string;
       return { border: colors.danger[500], bg: colors.danger[10], dot: colors.danger[500] };
     case 'unconfirmed':
     default:
-      return { border: colors.warning[400], bg: colors.warning[10], dot: colors.warning[400] };
+      // Same warning[500] the timeline uses so Day view and Week/Month cards
+      // render an identical yellow for unconfirmed status.
+      return { border: colors.warning[500], bg: colors.warning[10], dot: colors.warning[500] };
   }
 }
 
-// Confirmed = green, Cancelled = red — matches the web app's
-// .app-confirmed / .app_cancelled rules. Anything not explicitly
-// confirmed or cancelled falls back to the per-doctor palette.
+// Confirmed = green, Cancelled = red, Unconfirmed = yellow (single tone).
+// Unconfirmed used to fall through to a per-doctor hue palette which
+// cycled through emerald / amber / indigo / violet — the emerald looked
+// almost identical to the confirmed green, which the client flagged as
+// confusing (same status, different colors depending on the doctor's
+// name). Anchor all three statuses to the shared statusPalette so the
+// day-summary badges and the calendar cards line up 1:1.
 function paletteForEvent(event: BackendEvent): { border: string; bg: string; dot: string } {
-  const status = deriveStatus(event);
-  if (status === 'confirmed' || status === 'cancelled') {
-    return statusPalette(status);
-  }
-  return doctorPalette(event.doctor);
+  return statusPalette(deriveStatus(event));
 }
 
 // Reschedule helpers. Backend stores DOB as "DD-Month-YYYY" so re-sending
@@ -690,6 +760,33 @@ const styles = StyleSheet.create({
     ...typography.title.medium,
     fontFamily: 'Inter_600SemiBold',
     color: colors.neutral[500],
+    textAlign: 'center',
+  },
+  // Tints the header date when the user is viewing today, so the "you are
+  // on today" state is legible even without the separate Today chip.
+  dateTextToday: {
+    color: colors.primary[500],
+  },
+  // Compact chip beneath the date-nav row; only rendered when the user has
+  // navigated off today. Tapping it jumps back to the current date in the
+  // active view (Day/Week/Month).
+  todayChip: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.primary[500],
+    backgroundColor: colors.primary[0],
+  },
+  todayChipLabel: {
+    ...typography.label.large,
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: ms(12),
+    color: colors.primary[500],
   },
   tabBar: {
     flexDirection: 'row',
@@ -752,6 +849,12 @@ const styles = StyleSheet.create({
   },
   slotTime: {
     ...typography.body.medium,
+    color: colors.text.secondary,
+  },
+  // Doctor name line under the time in Week view's All-Doctors mode. Slightly
+  // smaller than the time line so it reads as a secondary detail.
+  slotDoctor: {
+    ...typography.body.small,
     color: colors.text.secondary,
   },
   weekView: {

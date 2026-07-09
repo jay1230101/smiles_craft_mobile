@@ -44,8 +44,10 @@ export function AppointmentCard({
           <Ionicons name="time-outline" size={s(14)} color={colors.text.secondary} />
           <Text style={styles.time}>{time}</Text>
         </View>
-        <Text style={styles.treatment}>{treatment}</Text>
-        <Text style={styles.doctor}>{doctor}</Text>
+        {/* Render these only when present — an empty procedure otherwise left a
+            blank line (plus the column gap) between the time and the doctor. */}
+        {treatment ? <Text style={styles.treatment}>{treatment}</Text> : null}
+        {doctor ? <Text style={styles.doctor}>{doctor}</Text> : null}
       </View>
     </Pressable>
   );

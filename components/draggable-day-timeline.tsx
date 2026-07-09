@@ -9,7 +9,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-import { deriveStatus, formatEventTime } from '@/lib/appointments';
+import { deriveStatus, formatDoctorName, formatEventTime } from '@/lib/appointments';
 import { ms, s } from '@/lib/responsive';
 import { colors, radius, spacing, typography } from '@/theme';
 import type { BackendEvent } from '@/types/appointments';
@@ -40,6 +40,11 @@ type Props = {
   // subdivisions, snap granularity, and tap-to-book default duration all
   // match the web app's behavior for the same clinic.
   slotMinutes: number;
+  // True when the "All Doctors" filter is active in a multi-doctor clinic.
+  // In that mode each card swaps its start/end time line for the doctor's
+  // name, since knowing *who* the appointment is with matters more than the
+  // exact time when several doctors' schedules share one column.
+  allDoctorsView?: boolean;
   onSelectEvent: (event: BackendEvent) => void;
   // hourFloat is the slot start expressed as hours-since-midnight (8.0, 8.5...).
   onSelectEmpty: (hourFloat: number) => void;
@@ -63,6 +68,7 @@ export function DraggableDayTimeline({
   dayStartHour,
   dayEndHour,
   slotMinutes,
+  allDoctorsView = false,
   onSelectEvent,
   onSelectEmpty,
   onReschedule,
@@ -206,6 +212,7 @@ export function DraggableDayTimeline({
             dayStartHour={dayStartHour}
             slotPx={slotPx}
             slotMinutes={safeSlotMinutes}
+            allDoctorsView={allDoctorsView}
             onTap={() => onSelectEvent(g.event)}
             onReschedule={onReschedule}
           />
@@ -222,6 +229,7 @@ function DraggableEventCard({
   dayStartHour,
   slotPx,
   slotMinutes,
+  allDoctorsView,
   onTap,
   onReschedule,
 }: {
@@ -231,6 +239,7 @@ function DraggableEventCard({
   dayStartHour: number;
   slotPx: number;
   slotMinutes: number;
+  allDoctorsView: boolean;
   onTap: () => void;
   onReschedule: (event: BackendEvent, newStart: Date) => void;
 }) {
@@ -265,16 +274,25 @@ function DraggableEventCard({
   const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
   const timeRange = `${formatEventTime(event.start)} - ${formatEventTime(event.end)}`;
   const treatment = event.extendedProps?.procedure ?? '';
-  const doctor = event.doctor ? `Dr. ${event.doctor}` : '';
+  const doctor = formatDoctorName(event.doctor);
+
+  // In "All Doctors" view the second line is the doctor's name instead of the
+  // time range (client request — the time is less important than *who* the
+  // patient is booked with when several doctors share one column). Otherwise
+  // it's the usual start–end time.
+  const secondaryLine = allDoctorsView && doctor ? doctor : timeRange;
 
   // Card heights are duration-driven, so a 30-min appointment is only ~34dp
   // tall — not enough vertical space for 4 lines of text. Without these
   // thresholds the bottom lines used to overflow past the card's painted
   // background and visually collide with the next hour's "Tap to book"
   // hint. Show progressively more detail as the card grows.
-  const showTime = height >= s(34);
+  const showSecondary = height >= s(34) && !!secondaryLine;
   const showTreatment = height >= s(54) && !!treatment;
-  const showDoctor = height >= s(70) && !!doctor;
+  // The dedicated bottom doctor line only appears in per-doctor / single-
+  // doctor views, where the doctor isn't already the second line. In
+  // All-Doctors view the doctor name is the second line, so we don't repeat it.
+  const showDoctor = height >= s(70) && !!doctor && !allDoctorsView;
   const isCancelled = deriveStatus(event) === 'cancelled';
 
   const panGesture = Gesture.Pan()
@@ -337,9 +355,9 @@ function DraggableEventCard({
         <Text style={styles.eventName} numberOfLines={1}>
           {fullName || 'Unknown'}
         </Text>
-        {showTime ? (
+        {showSecondary ? (
           <Text style={styles.eventTime} numberOfLines={1}>
-            {timeRange}
+            {secondaryLine}
           </Text>
         ) : null}
         {showTreatment ? (
@@ -365,18 +383,13 @@ function paletteForEvent(event: BackendEvent): { border: string; bg: string; dot
   if (status === 'cancelled') {
     return { border: colors.danger[500], bg: colors.danger[10], dot: colors.danger[500] };
   }
-  // Per-doctor palette — keep in sync with the calendar's existing
-  // doctorPalette, but redefine here so this component is self-contained.
-  // Cycling four hues by first-letter index gives stable colors per doctor
-  // without needing an external store.
-  const hue = (event.doctor || '').trim().toLowerCase().charCodeAt(0) % 4;
-  const palettes = [
-    { border: '#3B82F6', bg: '#EFF6FF', dot: '#3B82F6' },
-    { border: '#8B5CF6', bg: '#F5F3FF', dot: '#8B5CF6' },
-    { border: '#F59E0B', bg: '#FFFBEB', dot: '#F59E0B' },
-    { border: '#10B981', bg: '#ECFDF5', dot: '#10B981' },
-  ];
-  return palettes[hue] || palettes[0];
+  // Unconfirmed → single canonical yellow so every unconfirmed card reads
+  // as unconfirmed regardless of which clinician owns it. Matches the
+  // yellow "Unconfirmed" pill on the Home dashboard (Today's Summary).
+  // The previous doctor-hue fallback was cycling four colors and by
+  // coincidence produced an emerald tone that looked identical to the
+  // confirmed green — which the client flagged as confusing.
+  return { border: colors.warning[500], bg: colors.warning[10], dot: colors.warning[500] };
 }
 
 function formatMinutes(minutesSinceMidnight: number): string {
