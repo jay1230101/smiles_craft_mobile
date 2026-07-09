@@ -82,6 +82,12 @@ export default function ScheduleWhatsAppScreen() {
     try {
       const res = await storeReminder.mutateAsync({
         patientId: event.patientId,
+        // The backend resolves the reminder's doctor from the appointment when
+        // bookingEncounterId is present (BookingEncounter.doctor_id). Without
+        // it, store_reminders falls back to requiring a `doctor` id inside each
+        // reminder and returns "Doctor missing …". mainId is that booking id
+        // (same value the web app sends).
+        bookingEncounterId: event.extendedProps.mainId,
         [templateName]: { checked: true, date: iso },
       });
       if (res.status === 'success') {
@@ -148,8 +154,6 @@ export default function ScheduleWhatsAppScreen() {
         {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
       </View>
 
-      {serverError ? <Text style={styles.errorText}>{serverError}</Text> : null}
-
       <View style={styles.actions}>
         <Button
           label="Cancel"
@@ -177,6 +181,15 @@ export default function ScheduleWhatsAppScreen() {
           setSuccessOpen(false);
           goBack();
         }}
+      />
+
+      <ConfirmDialog
+        visible={serverError !== null}
+        variant="danger"
+        title="Couldn't schedule reminder"
+        message={serverError ?? ''}
+        confirmLabel="OK"
+        onConfirm={() => setServerError(null)}
       />
     </Screen>
   );

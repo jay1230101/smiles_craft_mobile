@@ -17,6 +17,7 @@ import { TextInput } from '@/components/text-input';
 import { usePendingProcedures } from '@/hooks/use-pending-procedures';
 import { useProcedureInit } from '@/hooks/use-procedure-init';
 import { useSubmitTreatmentPlan } from '@/hooks/use-submit-treatment-plan';
+import { formatDoctorName } from '@/lib/appointments';
 import { ms, s } from '@/lib/responsive';
 import { useActiveAppointmentStore } from '@/store/active-appointment';
 import { useAuthStore } from '@/store/auth';
@@ -31,6 +32,11 @@ import type {
 
 const HEADING_COLOR = '#1A202C';
 const SUBTITLE_COLOR = '#64748B';
+
+// Non-dental specialties (show_tooth === false) have no status picker; their
+// procedures are recorded as completed. Matches the backend's own fallback
+// (`status = item.get("status") or "Completed"` in /treatment-plan).
+const DEFAULT_NON_DENTAL_STATUS = 'Completed';
 
 export default function OrdersScreen() {
   const router = useRouter();
@@ -133,7 +139,9 @@ export default function OrdersScreen() {
       setFormError('Price must be a positive number');
       return;
     }
-    if (!status) {
+    // Status is only asked for (and required) on dental specialties. Non-dental
+    // specialties record procedures as completed by default.
+    if (showTooth && !status) {
       setFormError('Please select a status');
       return;
     }
@@ -142,6 +150,7 @@ export default function OrdersScreen() {
       return;
     }
     const selectedTooth = init?.toothlist.find((t) => t.code === toothCode);
+    const rowStatus = showTooth ? status ?? '' : DEFAULT_NON_DENTAL_STATUS;
 
     const row: StagedProcedure = {
       key: `${selectedProcedure.procedure_id}-${Date.now()}-${staged.length}`,
@@ -150,7 +159,7 @@ export default function OrdersScreen() {
       procPrice: numericPrice,
       selectedTooth: selectedTooth?.description ?? '',
       discount: numericDiscount,
-      status,
+      status: rowStatus,
       visitNotes,
       currency: selectedProcedure.currency,
     };
@@ -172,7 +181,12 @@ export default function OrdersScreen() {
       setSubmitError('Add at least one procedure or change a status before submitting.');
       return;
     }
-    const doctorName = user?.user_name ?? event.doctor ?? '';
+    // The clinician on the order is the doctor the appointment was booked with
+    // — NOT the logged-in user. An owner can open Orders for another doctor's
+    // appointment, so using user_name here would stamp every resulting bill
+    // with the owner's name (wrong provider in All Unpaid Bills / cashier).
+    // Fall back to user_name only when the appointment has no doctor assigned.
+    const doctorName = event.doctor || user?.user_name || '';
     const clinicName = init?.procedures[0]?.clinic_name ?? '';
     const currency = init?.procedures[0]?.currency ?? 'USD';
     const mainId = event.extendedProps?.mainId ?? Number(event.id);
@@ -242,6 +256,38 @@ export default function OrdersScreen() {
     );
   }
 
+  // These three controls are laid out differently for dental vs. non-dental
+  // specialties (see below), so they're defined once here to avoid duplicating
+  // their props across both branches.
+  const procedureField = (
+    <Select<string>
+      label="Select Procedure"
+      placeholder="Search procedure…"
+      value={procedureId}
+      options={procedureOptions}
+      onChange={(v) => setProcedureId(v)}
+    />
+  );
+  const priceField = (
+    <TextInput
+      label="Price"
+      placeholder="0"
+      value={price}
+      onChangeText={setPrice}
+      keyboardType="decimal-pad"
+      editable={false}
+    />
+  );
+  const discountField = (
+    <TextInput
+      label="Discount"
+      placeholder="0"
+      value={discount}
+      onChangeText={setDiscount}
+      keyboardType="decimal-pad"
+    />
+  );
+
   return (
     <Screen contentContainerStyle={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -259,57 +305,45 @@ export default function OrdersScreen() {
       </View>
 
       <View style={styles.readOnlyRow}>
-        <ReadOnlyField label="Clinician" value={user?.user_name ?? event.doctor ?? '—'} />
+        <ReadOnlyField
+          label="Clinician"
+          value={formatDoctorName(event.doctor || user?.user_name) || '—'}
+        />
         <ReadOnlyField label="Visit Date" value={today} />
       </View>
 
       <View style={styles.formBlock}>
-        <View style={styles.row}>
-          <View style={styles.flex2}>
-            <Select<string>
-              label="Select Procedure"
-              placeholder="Search procedure…"
-              value={procedureId}
-              options={procedureOptions}
-              onChange={(v) => setProcedureId(v)}
-            />
-          </View>
-          <View style={styles.flex1}>
-            <TextInput
-              label="Price"
-              placeholder="0"
-              value={price}
-              onChangeText={setPrice}
-              keyboardType="decimal-pad"
-              editable={false}
-            />
-          </View>
-        </View>
-
-        <View style={styles.row}>
-          {showTooth ? (
-            <View style={styles.flex2}>
-              <Select<number>
-                label="Select Tooth"
-                placeholder="Select tooth…"
-                value={toothCode}
-                options={toothOptions}
-                onChange={(v) => setToothCode(v)}
-              />
+        {showTooth ? (
+          <>
+            {/* Dental: Procedure + Price, then Tooth + Discount. */}
+            <View style={styles.row}>
+              <View style={styles.flex2}>{procedureField}</View>
+              <View style={styles.flex1}>{priceField}</View>
             </View>
-          ) : (
-            <View style={styles.flex2} />
-          )}
-          <View style={styles.flex1}>
-            <TextInput
-              label="Discount"
-              placeholder="0"
-              value={discount}
-              onChangeText={setDiscount}
-              keyboardType="decimal-pad"
-            />
-          </View>
-        </View>
+            <View style={styles.row}>
+              <View style={styles.flex2}>
+                <Select<number>
+                  label="Select Tooth"
+                  placeholder="Select tooth…"
+                  value={toothCode}
+                  options={toothOptions}
+                  onChange={(v) => setToothCode(v)}
+                />
+              </View>
+              <View style={styles.flex1}>{discountField}</View>
+            </View>
+          </>
+        ) : (
+          <>
+            {/* Non-dental: no tooth field, so Procedure spans full width and
+                Price + Discount share a row — no blank column before Discount. */}
+            {procedureField}
+            <View style={styles.row}>
+              <View style={styles.flex1}>{priceField}</View>
+              <View style={styles.flex1}>{discountField}</View>
+            </View>
+          </>
+        )}
 
         <View style={styles.netPriceRow}>
           <Text style={styles.netPriceLabel}>Net Price</Text>
@@ -318,13 +352,17 @@ export default function OrdersScreen() {
           </Text>
         </View>
 
-        <Select<string>
-          label="Select Status"
-          placeholder="Select status…"
-          value={status}
-          options={statusOptions}
-          onChange={(v) => setStatus(v)}
-        />
+        {/* Status only applies to dental specialties. Non-dental procedures
+            are recorded as completed by default, so the picker is hidden. */}
+        {showTooth ? (
+          <Select<string>
+            label="Select Status"
+            placeholder="Select status…"
+            value={status}
+            options={statusOptions}
+            onChange={(v) => setStatus(v)}
+          />
+        ) : null}
 
         <TextInput
           label="Visit Notes"
