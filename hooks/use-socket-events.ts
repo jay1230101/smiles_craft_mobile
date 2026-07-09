@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 
 import { connectSocket, disconnectSocket, type ServerEvent } from '@/api/socket';
 import { DEMO_MODE, getMockNotifications } from '@/lib/mock-appointments';
 import { useAuthStore } from '@/store/auth';
 import { useNotificationsStore } from '@/store/notifications';
+import type { BackendEvent } from '@/types/appointments';
 import type { NotificationKind } from '@/types/notifications';
 
 const APPOINTMENT_EVENTS: ServerEvent[] = [
@@ -73,7 +74,13 @@ export function useSocketEvents() {
     const makeAppointmentHandler = (event: ServerEvent) => (payload: unknown) => {
       invalidateAppointments();
       if (NOTIFY_EVENTS.has(event)) {
-        pushNotification(buildNotification(event, payload));
+        // The confirm/cancel socket events only carry `{ id }` — no patient
+        // name — so the bell used to read "An appointment was cancelled."
+        // Backfill the name + visit date from the cached appointment (matched
+        // by mainId) so the message names who cancelled/confirmed, mirroring
+        // the backend push notification.
+        const enriched = enrichAppointmentPayload(payload, queryClient);
+        pushNotification(buildNotification(event, enriched));
       }
     };
     const makePatientHandler = (event: ServerEvent) => (payload: unknown) => {
@@ -110,15 +117,41 @@ function buildNotification(event: ServerEvent, payload: unknown) {
 
 function titleAndBody(event: ServerEvent, payload: unknown): { title: string; body: string } {
   const name = extractPatientName(payload);
+  const visitDate = extractVisitDate(payload);
   switch (event) {
     case 'newAppointment':
       return { title: 'New appointment', body: name ? `Booked for ${name}.` : 'A new appointment has been booked.' };
+    // Update / confirm / cancel bodies mirror the backend push wording
+    // (views.py) and name the patient. visitDate is the appointment's date —
+    // the NEW date for a reschedule (the update payload carries it), else the
+    // appointment's scheduled date (backfilled from cache for confirm/cancel).
     case 'updateAppointment':
-      return { title: 'Appointment updated', body: name ? `${name}'s appointment was updated.` : 'An appointment was updated.' };
+      return {
+        title: 'Appointment updated',
+        body: name
+          ? visitDate
+            ? `${name}'s appointment rescheduled to ${visitDate}`
+            : `${name}'s appointment was updated.`
+          : 'An appointment was updated.',
+      };
     case 'confirmedAppointment':
-      return { title: 'Appointment confirmed', body: name ? `${name} confirmed their appointment.` : 'Appointment confirmed.' };
+      return {
+        title: 'Appointment confirmed',
+        body: name
+          ? visitDate
+            ? `${name} confirmed appointment for ${visitDate}`
+            : `${name} confirmed their appointment.`
+          : 'Appointment confirmed.',
+      };
     case 'cancelledAppointment':
-      return { title: 'Appointment cancelled', body: name ? `${name}'s appointment was cancelled.` : 'An appointment was cancelled.' };
+      return {
+        title: 'Appointment cancelled',
+        body: name
+          ? visitDate
+            ? `${name} cancelled their ${visitDate} appointment`
+            : `${name}'s appointment was cancelled.`
+          : 'An appointment was cancelled.',
+      };
     case 'bookingDeleted':
       return { title: 'Booking removed', body: 'A booking was deleted.' };
     case 'patientAdded':
@@ -130,6 +163,44 @@ function titleAndBody(event: ServerEvent, payload: unknown): { title: string; bo
     default:
       return { title: 'Update', body: 'Clinic data changed.' };
   }
+}
+
+// The confirm/cancel socket payloads are just `{ id, confirmed|cancelled }`.
+// Look the appointment up in the cached /getAllEvents list (matched on the
+// booking id, which the backend exposes as extendedProps.mainId) and fold its
+// name + visit_date into the payload so titleAndBody can name the patient.
+function enrichAppointmentPayload(payload: unknown, queryClient: QueryClient): unknown {
+  const base =
+    payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {};
+  if (typeof base.name === 'string' && base.name.trim() !== '') return base;
+
+  const cached = findCachedEventByMainId(queryClient, base.id);
+  if (!cached) return base;
+  return {
+    ...base,
+    name: cached.name,
+    family: cached.family,
+    visit_date: cached.visit_date,
+  };
+}
+
+function findCachedEventByMainId(
+  queryClient: QueryClient,
+  id: unknown,
+): BackendEvent | undefined {
+  if (id == null) return undefined;
+  const events = queryClient.getQueryData<BackendEvent[]>(['appointments', 'all-events']);
+  if (!Array.isArray(events)) return undefined;
+  const target = String(id);
+  return events.find(
+    (e) => String(e.extendedProps?.mainId) === target || String(e.id) === target,
+  );
+}
+
+function extractVisitDate(payload: unknown): string {
+  if (!payload || typeof payload !== 'object') return '';
+  const v = (payload as Record<string, unknown>).visit_date;
+  return typeof v === 'string' ? v : '';
 }
 
 function extractId(payload: unknown): string {

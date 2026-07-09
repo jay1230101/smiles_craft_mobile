@@ -1,3 +1,5 @@
+import '@/lib/console-guard';
+
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -18,6 +20,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { setUnauthorizedHandler } from '@/api/client';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSocketEvents } from '@/hooks/use-socket-events';
+import { PushBridge } from '@/lib/push-bridge';
 import { queryClient } from '@/lib/query-client';
 import { useAuthStore } from '@/store/auth';
 
@@ -70,6 +73,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <SocketBridge />
+          <PushBridge />
           <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
             <Stack>
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
@@ -126,7 +130,6 @@ export default function RootLayout() {
             name="outstanding-by-patient"
             options={{ headerShown: false, presentation: 'modal' }}
           />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
             <StatusBar style="auto" />
           </ThemeProvider>
