@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Smiles Craft — Backend Issues to Fix (13 July 2026)</title>
+<style>
+  :root{
+    --bg:#ffffff; --text:#1a202c; --muted:#5b6675; --border:#e4e8ee;
+    --accent:#014ca9; --accent-soft:#eef4fc; --code-bg:#f5f7fa;
+    --warn:#b45309; --warn-soft:#fef6e7; --danger:#b91c1c;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.6; font-size:16px;
+  }
+  .wrap{max-width:820px; margin:0 auto; padding:40px 24px 80px}
+  header.doc{border-bottom:3px solid var(--accent); padding-bottom:18px; margin-bottom:8px}
+  .eyebrow{text-transform:uppercase; letter-spacing:.09em; font-size:12px; font-weight:700; color:var(--accent); margin:0 0 6px}
+  h1{font-size:27px; line-height:1.25; margin:0 0 8px; letter-spacing:-.01em}
+  .meta{color:var(--muted); font-size:14px; margin:0}
+  .meta code{background:var(--code-bg); padding:1px 6px; border-radius:4px; font-size:13px}
+  .callout{background:var(--accent-soft); border:1px solid var(--border); border-left:4px solid var(--accent);
+    border-radius:8px; padding:16px 20px; margin:24px 0; font-size:15.5px}
+  .callout strong{color:var(--text)}
+  h2{font-size:20px; margin:38px 0 10px; letter-spacing:-.005em}
+  h2 .n{color:var(--accent); font-weight:700; margin-right:8px}
+  h3{font-size:16px; margin:22px 0 6px}
+  p{margin:12px 0}
+  ul{margin:12px 0; padding-left:22px}
+  li{margin:7px 0}
+  strong{font-weight:600}
+  a{color:var(--accent)}
+  code{background:var(--code-bg); padding:1px 6px; border-radius:5px; font-size:13.5px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  pre{background:var(--code-bg); border:1px solid var(--border); border-radius:8px; padding:14px 16px;
+    overflow-x:auto; margin:14px 0}
+  pre code{background:none; padding:0; font-size:13px; line-height:1.55; white-space:pre}
+  .scroll-x{overflow-x:auto; margin:14px 0}
+  table{width:100%; border-collapse:collapse; font-size:14.5px; min-width:540px}
+  th,td{text-align:left; padding:10px 12px; border:1px solid var(--border); vertical-align:top}
+  th{background:var(--code-bg); font-weight:600}
+  td code{font-size:12.5px; white-space:nowrap}
+  .lead{color:var(--muted); font-size:16px; margin-top:16px}
+  .tagline{display:inline-block; font-size:12.5px; font-weight:700; padding:2px 9px; border-radius:999px;
+    background:var(--warn-soft); color:var(--warn); border:1px solid #f3d9a6}
+  footer.doc{border-top:1px solid var(--border); margin-top:44px; padding-top:18px; color:var(--muted); font-size:14px}
+  @media print{
+    body{font-size:12pt; color:#000}
+    .wrap{padding:0}
+    a{color:#000; text-decoration:none}
+    pre,code,th{background:#f2f2f2 !important}
+    h2{page-break-after:avoid}
+    table,pre{page-break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="doc">
+    <p class="eyebrow">Smiles Craft · Technical Note</p>
+    <h1>Backend Issues to Fix</h1>
+    <p class="meta">
+      Prepared 13 July 2026 &nbsp;·&nbsp; For the backend developer &nbsp;·&nbsp;
+      Component: Flask API (<code>dental_clinic_26_02_2028/backend/views.py</code>)
+    </p>
+  </header>
+
+  <div class="callout">
+    The reported <strong>&ldquo;All Unpaid Bills — couldn&rsquo;t load&rdquo;</strong> error is a
+    <strong>server-side (backend) bug, not the mobile app.</strong> While diagnosing it we swept the rest
+    of the backend and found the <em>same</em> defect in several endpoints — a couple of which also affect
+    the app&rsquo;s cashier and appointment screens. <strong>The mobile app is unaffected:</strong> it shows a
+    clean error and a Retry button instead of crashing. Every fix below is backend-side.
+  </div>
+
+  <p class="lead">
+    The common defect: a database lookup (<code>...first()</code> / <code>...get()</code>) is used
+    <strong>without first checking the record exists</strong>, or <code>.strftime()</code> is called on a date
+    that can be empty. When the record is missing (e.g. a deleted patient) or the date is empty, the request
+    raises an error &rarr; <strong>HTTP 500</strong>.
+  </p>
+
+  <h2 id="reported"><span class="n">1.</span>The reported issue — <code>/getPendingBills</code></h2>
+  <p>The endpoint that lists every unpaid bill returns 500, so the whole list fails to load. It uses each
+     bill&rsquo;s patient without checking the patient still exists:</p>
+  <pre><code>for bill in all_pending_bills:
+    patient = PatientRegistrationInfo.query.filter_by(id=bill.patientId).first()
+    patient_full_name = f"{patient.name} {patient.father} {patient.family}"  # crashes if patient is None
+    patient_phone_number = patient.phone</code></pre>
+  <p>When a patient who still has an <strong>unpaid balance</strong> is <strong>deleted</strong>, their bill is
+     left behind (see §3). That orphaned bill has no patient &rarr; <code>patient</code> is <code>None</code>
+     &rarr; the whole endpoint crashes.</p>
+  <h3>Fix — skip orphaned bills</h3>
+  <pre><code>for bill in all_pending_bills:
+    patient = PatientRegistrationInfo.query.filter_by(id=bill.patientId).first()
+    if not patient:
+        continue
+    ...</code></pre>
+
+  <h2 id="p1"><span class="n">2.</span>Priority&nbsp;1 — same bug, in endpoints the app depends on</h2>
+  <p>Identical pattern; fix the same way (guard the lookup, or guard the date). Line numbers are approximate —
+     search for the route name.</p>
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Route</th><th>Defect</th><th>When it fails</th></tr></thead>
+    <tbody>
+      <tr><td><code>getCurrentBills</code> (~3130)</td><td>uses <code>bill.patient.name</code> with no <code>None</code> check</td><td><strong>the cashier &ldquo;Patients in Clinic&rdquo; list</strong> — crashes the moment a patient with a charge dated <em>today</em> is deleted</td></tr>
+      <tr><td><code>/bill/&lt;id&gt;</code> (~3210)</td><td><code>bill.statusDate.strftime()</code> on an empty date</td><td>bill detail, if an encounter has no status date</td></tr>
+      <tr><td><code>/patient/&lt;id&gt;/billing</code> (~942)</td><td>same <code>.strftime()</code> on an empty date</td><td>patient billing history</td></tr>
+      <tr><td><code>/register-patient</code> — edit path (~2496)</td><td><code>registration.name = ...</code> on a <code>None</code> record</td><td>editing a patient id that no longer exists</td></tr>
+      <tr><td><code>/init-procedure-screen</code> (~2296)</td><td><code>UserRole...first().id</code> on a <code>None</code> record</td><td>Orders screen, if a role has no matching row</td></tr>
+      <tr><td><code>/encounter</code> — appt create/update (~2711, 2716)</td><td><code>strptime(None)</code> / <code>isoparse(None)</code></td><td>a booking submitted without a date</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2 id="rootcause"><span class="n">3.</span>Root cause of the orphaned bills — <code>/delete_patient</code></h2>
+  <p>Deleting a patient (~line 2205) removes the patient record but <strong>not</strong> their related rows —
+     treatment encounters, reminders, and documents have no delete-cascade in the data model. So a deleted
+     patient who still owed money leaves an orphaned bill, which then crashes the two billing lists above.</p>
+  <p><strong>Fix (choose one):</strong></p>
+  <ul>
+    <li>Add <code>cascade="all, delete-orphan"</code> to the patient&rsquo;s <code>treatment_encounters</code>,
+        <code>reminders</code>, and <code>patient_documents</code> relationships, <strong>or</strong></li>
+    <li>Block deleting a patient who still has an outstanding balance, <strong>or</strong></li>
+    <li>Delete/settle the child rows inside the <code>/delete_patient</code> route.</li>
+  </ul>
+  <p>Cleaning up the existing orphaned bill(s) in the database will also make <strong>All Unpaid Bills</strong>
+     load again immediately, even before the code fix ships.</p>
+
+  <h2 id="p2"><span class="n">4.</span>Priority&nbsp;2 — other backend errors <span class="tagline">not app-facing, but real</span></h2>
+  <ul>
+    <li><strong><code>/whatsapp</code> inbound webhook</strong> (~1411 / ~1525): a helper is called with a
+        parameter name it doesn&rsquo;t accept, so <strong>every inbound patient WhatsApp message errors and is
+        never saved</strong> — a broken feature worth fixing.</li>
+    <li><strong><code>/delete-reminder</code></strong> (~3238): deleting a reminder that doesn&rsquo;t exist
+        errors; the route is also missing authentication.</li>
+    <li><strong><code>/login</code></strong> (~491): a request missing email/password returns a 500 instead of
+        a clean &ldquo;invalid credentials&rdquo; response.</li>
+    <li><strong><code>/add-user</code></strong> (~2050), <strong><code>/react</code></strong> (~2256),
+        <strong><code>/system-change-pass</code></strong> (~2155): the same unguarded-lookup pattern.</li>
+    <li><strong><code>/register-patient</code></strong> (~2451): an invalid date of birth crashes instead of
+        returning a validation error.</li>
+    <li>Non-crash: <strong><code>/cancel-appt</code></strong> (~3754) sends the cancellation notification to
+        the wrong target — likely a copy/paste of the wrong id.</li>
+  </ul>
+
+  <h2 id="pattern"><span class="n">5.</span>The fix pattern (applies to all of the above)</h2>
+  <ul>
+    <li>After every lookup, guard it: <code>if not X: return jsonify({"status":"error","message":"Not found"}), 404</code></li>
+    <li>Guard date formatting: <code>value.strftime(...) if value else None</code></li>
+    <li>Wrap date parsing in <code>try/except</code> and return a validation error on bad input.</li>
+    <li>Add delete-cascades (or block deletes) so orphaned rows stop being created.</li>
+  </ul>
+  <p>None of this requires a schema change beyond the relationship cascade settings.</p>
+
+  <footer class="doc">
+    Mobile app: unaffected — it surfaces a clean error rather than crashing. Happy to walk through any item on a short call.
+  </footer>
+</div>
+</body>
+</html>
