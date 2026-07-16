@@ -4,7 +4,6 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { Screen } from '@/components/screen';
 import { useBillDetail } from '@/hooks/use-bill-detail';
-import { DEMO_MODE } from '@/lib/mock-appointments';
 import { ms, s } from '@/lib/responsive';
 import { useActiveBillStore } from '@/store/active-bill';
 import { colors, spacing, typography } from '@/theme';
@@ -118,12 +117,6 @@ export default function BillDetailScreen() {
               <Text style={styles.primaryLabel}>Record Payment</Text>
             </Pressable>
           </View>
-
-          {!DEMO_MODE ? (
-            <Text style={styles.backendNote}>
-              Payment recording becomes active with the next backend update.
-            </Text>
-          ) : null}
         </>
       )}
     </Screen>
@@ -141,7 +134,7 @@ function EncounterCard({ encounter }: { encounter: BillEncounter }) {
       </View>
       <View style={styles.cardMetaRow}>
         <Text style={styles.cardMeta}>{encounter.doctor}</Text>
-        <Text style={styles.cardMeta}>{encounter.date}</Text>
+        <Text style={styles.cardMeta}>{encounter.date ?? '—'}</Text>
       </View>
       <View style={styles.cardLine}>
         <Text style={styles.cardLabel}>Fees</Text>
@@ -397,10 +390,5 @@ const styles = StyleSheet.create({
     ...typography.label.large,
     fontFamily: 'Inter_600SemiBold',
     color: '#FFFFFF',
-  },
-  backendNote: {
-    ...typography.body.small,
-    color: ROW_LABEL_COLOR,
-    textAlign: 'center',
   },
 });

@@ -51,7 +51,9 @@ export type BillEncounter = {
   remainingBalance: number;
   doctor: string;
   status: string;
-  date: string;
+  // Backend now returns null when the encounter has no status date
+  // (guarded .strftime), so this is nullable.
+  date: string | null;
 };
 
 export type BillTotals = {
@@ -74,7 +76,7 @@ export type PatientBillingProcedure = {
   id: number;
   procedure: string;
   status: string;
-  status_date: string;
+  status_date: string | null;
   fees: number;
   net_price: number;
   discount: number;
