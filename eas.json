@@ -1,5 +1,8 @@
 {
-  "cli": { "version": ">= 13.0.0" },
+  "cli": {
+    "version": ">= 13.0.0",
+    "appVersionSource": "remote"
+  },
   "build": {
     "development": {
       "developmentClient": true,
@@ -18,10 +21,20 @@
       }
     },
     "production": {
+      "autoIncrement": true,
       "android": { "buildType": "app-bundle" },
       "env": {
         "APP_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://www.smilescraft.com"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascApiKeyPath": "./AuthKey_5UCASK39X3.p8",
+        "ascApiKeyId": "5UCASK39X3",
+        "ascApiKeyIssuerId": "430b4c06-9214-43f8-807a-82cfab7e2208"
       }
     }
   }
