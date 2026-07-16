@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
@@ -22,6 +22,17 @@ export default function BillingScreen() {
   const { data, isLoading, isError, refetch, isRefetching } = useCurrentBills();
   const setPatient = useActiveBillStore((s) => s.setPatient);
   const [query, setQuery] = useState('');
+
+  // Collecting a payment discharges the patient, but that discharge emits no
+  // clinic-room socket event (the web removes the row from its own local state
+  // in BillDetails.jsx). So whenever this tab regains focus, refetch the
+  // authoritative /getCurrentBills list — otherwise a patient paid off on the
+  // web (or another device) lingers here until the user logs out and back in.
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
 
   const filtered = useMemo(() => {
     const list = data ?? [];

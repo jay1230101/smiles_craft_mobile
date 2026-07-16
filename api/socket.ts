@@ -11,6 +11,7 @@ export type ServerEvent =
   | 'patientDeleted'
   | 'bookingDeleted'
   | 'updateBills'
+  | 'removeFromBills'
   | 'getPendingBills'
   | 'editedUser'
   | 'getAddUsers';
