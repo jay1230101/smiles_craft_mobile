@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -46,13 +47,27 @@ export default function RegisterScreen() {
 
   const confirmDelete = async () => {
     if (!pendingDelete) return;
+    const label = `${pendingDelete.name} ${pendingDelete.family ?? ''}`.trim();
     try {
-      await deletePatient.mutateAsync({ id: pendingDelete.id });
-    } catch {
-      // Surface a server error inline if needed; for now the mutation just
-      // bubbles the error and the dialog stays open until the user dismisses.
+      const result = await deletePatient.mutateAsync({ id: pendingDelete.id });
+      setPendingDelete(null);
+      // The backend blocks deleting a patient who still has linked records
+      // (appointments, treatments, reminders, documents) — it returns ok:false
+      // rather than removing anything, so tell the user why nothing happened.
+      if (!result.ok) {
+        Alert.alert(
+          'Unable to delete patient',
+          result.message ||
+            `${label || 'This patient'} has linked records and can’t be deleted.`,
+        );
+      }
+    } catch (err) {
+      setPendingDelete(null);
+      Alert.alert(
+        'Unable to delete patient',
+        err instanceof Error ? err.message : 'Please try again.',
+      );
     }
-    setPendingDelete(null);
   };
 
   const filteredPatients = useMemo(() => {

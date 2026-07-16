@@ -29,7 +29,10 @@ export function useUpdatePatient() {
       return updatePatientRequest(payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['patients', 'list'] });
+      // Broad key so the registered list AND any active search results refresh
+      // (mirrors register/delete). The backend also emits `patientEdited`, which
+      // invalidates the same key on every other logged-in device.
+      queryClient.invalidateQueries({ queryKey: ['patients'] });
     },
   });
 }

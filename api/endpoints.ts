@@ -20,8 +20,9 @@ export const endpoints = {
   patients: {
     list: '/registeredPatients',
     search: '/search-patient',
+    // /register-patient doubles as the edit route (pass registrationId); the
+    // backend has no separate update endpoint. See api/patients.ts.
     register: '/register-patient',
-    update: '/update-patient',
     delete: '/delete_patient',
   },
   genders: {

@@ -121,6 +121,10 @@ function EditForm({
       id: patient.id,
       name: values.name.trim(),
       family: values.family.trim(),
+      // Preserve fields the mobile form doesn't edit so the backend doesn't
+      // blank them (see UpdatePatientRequest / updatePatientRequest).
+      father: patient.father,
+      email: patient.email,
       dob: values.dob?.trim() ? dobToBackend(values.dob.trim()) : undefined,
       phone: `${country.dial}${localPhone}`,
       gender: values.gender || undefined,
@@ -327,12 +331,33 @@ function EditForm({
 }
 
 // Backend returns DOB in YYYY-MM-DD; the form wants DD-MM-YYYY.
+const DOB_MONTHS = [
+  'january', 'february', 'march', 'april', 'may', 'june',
+  'july', 'august', 'september', 'october', 'november', 'december',
+];
+
+// Convert a stored DOB into the form's "DD-MM-YYYY" value.
 function backendDobToForm(input?: string): string {
   if (!input) return '';
-  const m = input.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return '';
-  const [, yyyy, mm, dd] = m;
-  return `${dd}-${mm}-${yyyy}`;
+  // ISO "YYYY-MM-DD".
+  const iso = input.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) {
+    const [, yyyy, mm, dd] = iso;
+    return `${dd}-${mm}-${yyyy}`;
+  }
+  // Backend storage format "DD-Month-YYYY" (e.g. "06-June-1979"). This is what
+  // /registeredPatients returns for every patient — the backend writes DOB via
+  // strftime("%d-%B-%Y"). Without this branch the edit form shows an empty DOB
+  // and saving blanks the patient's date of birth.
+  const named = input.match(/^(\d{1,2})-([A-Za-z]+)-(\d{4})$/);
+  if (named) {
+    const [, dd, monthName, yyyy] = named;
+    const idx = DOB_MONTHS.indexOf(monthName.toLowerCase());
+    if (idx >= 0) {
+      return `${dd.padStart(2, '0')}-${String(idx + 1).padStart(2, '0')}-${yyyy}`;
+    }
+  }
+  return '';
 }
 
 const styles = StyleSheet.create({
