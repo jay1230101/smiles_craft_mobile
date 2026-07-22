@@ -1,3 +1,5 @@
+import { toNumber } from '@/lib/num';
+
 import { apiClient } from './client';
 import { endpoints } from './endpoints';
 import type {
@@ -25,19 +27,36 @@ export async function getPatientsRequest(): Promise<PatientListItem[]> {
    
   console.log('[patients] GET', endpoints.patients.list);
   try {
-    const { data } = await apiClient.get<PatientListItem[]>(endpoints.patients.list);
+    const { data } = await apiClient.get<PatientListItemWire[]>(endpoints.patients.list);
      
     console.log(
       '[patients] response',
       Array.isArray(data) ? `array(${data.length})` : typeof data,
       data,
     );
-    return Array.isArray(data) ? data : [];
+    return Array.isArray(data) ? data.map(normalizePatient) : [];
   } catch (err) {
-     
+
     console.log('[patients] ERROR', err);
     throw err;
   }
+}
+
+// PatientRegistrationInfo.doctor_id is a String column (models.py:255), so
+// /registeredPatients returns it as "64" rather than 64 even though our type
+// declares a number. The edit form matches that value against the clinician
+// options, whose values are the numeric User ids — a string never matches, so
+// the Clinician field rendered blank on every patient. Coerce here (same
+// boundary fix as resourceId in api/appointments.ts) and leave it absent when
+// the patient genuinely has no clinician, so the form keeps its own 0 default.
+type PatientListItemWire = Omit<PatientListItem, 'doctor_id'> & {
+  doctor_id?: number | string | null;
+};
+
+function normalizePatient(p: PatientListItemWire): PatientListItem {
+  const raw = p.doctor_id;
+  const hasDoctor = raw !== null && raw !== undefined && String(raw).trim() !== '';
+  return { ...p, doctor_id: hasDoctor ? toNumber(raw) : undefined };
 }
 
 export async function updatePatientRequest(

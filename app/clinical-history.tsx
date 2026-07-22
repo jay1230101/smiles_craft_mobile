@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { Screen } from '@/components/screen';
 import { usePlanOfCareHistory } from '@/hooks/use-plan-of-care';
 import { useVisitsHistory } from '@/hooks/use-visits-history';
+import { formatDoctorName } from '@/lib/appointments';
 import { ms, s } from '@/lib/responsive';
 import { useActiveAppointmentStore } from '@/store/active-appointment';
 import { colors, radius, spacing, typography } from '@/theme';
@@ -102,7 +103,7 @@ function VisitCard({ visit }: { visit: VisitsHistoryItem }) {
         <Text style={styles.cardDate}>{visit.visitDate}</Text>
       </View>
       <Text style={styles.cardMeta}>
-        {visit.toothNumber || 'No tooth'} · Dr. {visit.doctorName}
+        {visit.toothNumber || 'No tooth'} · {formatDoctorName(visit.doctorName) || '—'}
       </Text>
       <View style={styles.cardRow}>
         <Stat label="Fees" value={String(visit.fees)} />
@@ -153,7 +154,7 @@ function PlanCard({ plan }: { plan: PlanOfCareItem }) {
         <Text style={styles.cardTitle}>Plan of Care</Text>
         <Text style={styles.cardDate}>{plan.visitDate}</Text>
       </View>
-      <Text style={styles.cardMeta}>Dr. {plan.doctorName}</Text>
+      <Text style={styles.cardMeta}>{formatDoctorName(plan.doctorName) || '—'}</Text>
       <Text style={styles.cardBody}>{plan.planOfCare}</Text>
     </View>
   );

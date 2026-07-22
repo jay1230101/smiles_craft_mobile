@@ -6,6 +6,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
+import { formatDoctorName } from '@/lib/appointments';
 import { usePeriods } from '@/hooks/use-periods';
 import { useReportData } from '@/hooks/use-report-data';
 import { useReportsList } from '@/hooks/use-reports-list';
@@ -241,8 +242,12 @@ function RevenueByClinicianView({ rows }: { rows: RevenueByClinicianRow[] }) {
             </View>
             {providerRows.map((r) => (
               <View key={`${period}-${r.provider_id}`} style={styles.providerRow}>
+                {/* Some User.name rows carry the "Dr" title and some don't, so
+                    the report returns a mix ("Dr Mireille El rahi" next to
+                    "Nelly Gemayel"). Route it through the shared helper so the
+                    title is never missing — it's a no-op when one is present. */}
                 <Text style={styles.providerName} numberOfLines={1}>
-                  {r.provider_name}
+                  {formatDoctorName(r.provider_name) || '—'}
                 </Text>
                 <View style={styles.providerAmountRow}>
                   <Text style={styles.providerShare}>{formatMoney(r.provider_share)} doctor</Text>
@@ -273,7 +278,9 @@ function CancellationView({ rows }: { rows: CancellationRow[] }) {
               <View key={`${period}-${r.doctor_id}-${r.reason_id}-${idx}`} style={styles.cancellationRow}>
                 <View style={styles.cancellationText}>
                   <Text style={styles.cancellationReason}>{r.cancel_reason}</Text>
-                  <Text style={styles.cancellationDoctor}>{r.doctor_name}</Text>
+                  <Text style={styles.cancellationDoctor}>
+                    {formatDoctorName(r.doctor_name) || '—'}
+                  </Text>
                 </View>
                 <View style={styles.cancellationCount}>
                   <Ionicons name="close-circle" size={ms(14)} color={colors.danger[500]} />

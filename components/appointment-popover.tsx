@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -70,7 +71,6 @@ export function AppointmentPopover({ event, onClose }: Props) {
 
   const status = deriveStatus(event);
   const isCancelled = status === 'cancelled';
-  const isConfirmed = status === 'confirmed';
 
   const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
   const timeRange = `${formatEventTime(event.start)} - ${formatEventTime(event.end)}`;
@@ -137,7 +137,7 @@ export function AppointmentPopover({ event, onClose }: Props) {
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={[styles.sheet, { paddingBottom: sheetBottomPadding }]} onPress={() => {}}>
+        <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.handle} />
 
           <View style={styles.header}>
@@ -157,7 +157,16 @@ export function AppointmentPopover({ event, onClose }: Props) {
             <StatusPill status={status} />
           </View>
 
-          {pane === 'details' ? (
+          {/* The action list can be taller than the sheet's maxHeight (many
+              actions + large accessibility fonts + Android gesture inset), so
+              make it scrollable — otherwise the last rows clip off-screen with
+              no way to reach them. */}
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: sheetBottomPadding }]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled">
+            {pane === 'details' ? (
             <>
               <View style={styles.detailsBlock}>
                 <DetailRow icon="time-outline" label="Time" value={timeRange} />
@@ -234,17 +243,15 @@ export function AppointmentPopover({ event, onClose }: Props) {
                         router.push('/clinical-history' as never);
                       }}
                     />
+                    {/* No staff-facing confirm action by design: an appointment
+                        is confirmed only when the patient taps Confirm in the
+                        WhatsApp reminder (views.py:1506 is the sole writer of
+                        patient_confirmed). The status pill above reflects that. */}
                     <ActionButton
                       icon="close-circle-outline"
                       label="Cancel appointment"
                       variant="danger"
                       onPress={() => setPane('cancel')}
-                    />
-                    <ActionButton
-                      icon="checkmark-circle-outline"
-                      label={isConfirmed ? 'Confirmed' : 'Confirm appointment'}
-                      helper="Manual confirm needs a backend update"
-                      disabled
                     />
                   </>
                 )}
@@ -294,6 +301,7 @@ export function AppointmentPopover({ event, onClose }: Props) {
               </View>
             </View>
           )}
+          </ScrollView>
         </Pressable>
       </Pressable>
     </Modal>
@@ -396,9 +404,19 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.xxl,
+    // Bottom padding lives on the ScrollView content so the last action can
+    // scroll clear of the Android gesture bar; the sheet itself ends flush.
+    paddingBottom: 0,
     paddingHorizontal: spacing.xl,
     maxHeight: '90%',
+    gap: spacing.md,
+  },
+  // flexShrink lets the list shrink within the sheet's maxHeight and scroll
+  // instead of forcing the sheet past its cap and clipping the tail.
+  scroll: {
+    flexShrink: 1,
+  },
+  scrollContent: {
     gap: spacing.md,
   },
   handle: {

@@ -1,4 +1,4 @@
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
@@ -54,6 +54,15 @@ function isRealDevice(): boolean {
   return Device.isDevice;
 }
 
+function isExpoGo(): boolean {
+  // Remote push was removed from Expo Go in SDK 53 — calling
+  // getExpoPushTokenAsync() there throws AND prints a red error overlay that
+  // can never succeed until the app runs as a development/production build.
+  // Detect Expo Go so we skip remote registration entirely (local
+  // notifications still work; only the remote token fetch is unavailable).
+  return Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+}
+
 export async function ensureAndroidChannel(): Promise<void> {
   if (Platform.OS !== 'android') return;
   // A dedicated channel lets us tune importance + vibration without
@@ -102,6 +111,15 @@ export async function registerForPushNotifications(): Promise<void> {
   try {
     if (!isRealDevice()) {
       console.log('[push] skipping register — simulator/emulator');
+      return;
+    }
+
+    if (isExpoGo()) {
+      // Expo Go can't obtain a remote push token (removed in SDK 53). Set up
+      // the Android channel so local notifications still behave, but skip the
+      // token fetch + backend registration that would otherwise throw.
+      await ensureAndroidChannel();
+      console.log('[push] skipping remote register — Expo Go');
       return;
     }
 
