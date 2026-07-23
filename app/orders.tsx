@@ -103,7 +103,15 @@ export default function OrdersScreen() {
 
   const showTooth = init?.show_tooth ?? true;
   const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
-  const today = todayYmd();
+  // The order belongs to the appointment's date, not the day someone happens to
+  // be entering it — the web reads the same field off the selected event
+  // (OrdersModal.jsx:205). Stamping today instead recorded a 26 July visit as
+  // 22 July, which also put the encounter in the wrong day's cashier queue and
+  // revenue report. Fall back to today only if the event arrives without a
+  // usable date, matching the popover's guard on the same field.
+  const visitDate = /^\d{4}-\d{2}-\d{2}$/.test(event.visit_date ?? '')
+    ? event.visit_date
+    : todayYmd();
   const selectedProcedure = init?.procedures.find((p) => p.procedure_id === procedureId);
   const currency = selectedProcedure?.currency ?? init?.procedures[0]?.currency ?? '';
   const numericPrice = Number(price);
@@ -199,7 +207,7 @@ export default function OrdersScreen() {
       discount: row.discount,
       status: row.status,
       visitNotes: row.visitNotes,
-      visit_date: today,
+      visit_date: visitDate,
       bookingAppointmentId: mainId,
       doctorName,
       currency: row.currency || currency,
@@ -309,7 +317,7 @@ export default function OrdersScreen() {
           label="Clinician"
           value={formatDoctorName(event.doctor || user?.user_name) || '—'}
         />
-        <ReadOnlyField label="Visit Date" value={today} />
+        <ReadOnlyField label="Visit Date" value={visitDate} />
       </View>
 
       <View style={styles.formBlock}>

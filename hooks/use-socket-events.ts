@@ -21,11 +21,12 @@ const PATIENT_EVENTS: ServerEvent[] = ['patientAdded', 'patientEdited', 'patient
 // Cashier "Patients in Clinic" list (billing tab). The backend broadcasts these
 // to the same clinic/doctor room this socket already joins:
 //   - updateBills     -> a patient entered the cashier queue (new charges)
-//   - removeFromBills -> a patient's charges were cleared/deleted
-// Mirrors the web's BillingContext. A plain payment (discharge) emits no
-// clinic-room event, so the billing tab also refetches on focus
-// (app/(tabs)/billing.tsx) to catch that case. These are background list
-// syncs, so they invalidate the cache but never raise a notification.
+//   - removeFromBills -> a patient left it: charges cleared/deleted, or the
+//                        last open charge for today was paid and discharged
+// Mirrors the web's BillingContext. The billing tab also refetches on focus
+// (app/(tabs)/billing.tsx), which covers anything that lands while the socket
+// is disconnected. These are background list syncs, so they invalidate the
+// cache but never raise a notification.
 const BILLING_EVENTS: ServerEvent[] = ['updateBills', 'removeFromBills'];
 
 // Per client feedback (2026-06-29 #9): the notifications feed is too noisy.

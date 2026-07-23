@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
@@ -48,7 +48,7 @@ export default function CalendarScreen() {
   const setSelectedDoctorId = useDoctorFilterStore((s) => s.setSelectedDoctorId);
   const bottomTabHeight = useBottomTabBarHeight();
   const safeBottomPadding = Math.max(bottomTabHeight, 80) + spacing.xxl;
-  const { data: liveEvents } = useAllEvents();
+  const { data: liveEvents, refetch: refetchEvents } = useAllEvents();
   const { data: mappedDoctors } = useMappedDoctors();
   const { data: schedule } = useClinicSchedule();
   const slotMinutes = schedule?.slotMinutes ?? 60;
@@ -56,6 +56,18 @@ export default function CalendarScreen() {
   const dayEndHour = schedule?.endHour ?? DAY_END_HOUR;
   const user = useAuthStore((s) => s.user);
   const updateAppointment = useUpdateAppointment();
+
+  // Socket events keep the calendar live for anything done through the app, but
+  // they can't cover everything: a booking removed directly in the database
+  // emits nothing, and any event sent while the socket was down is simply lost.
+  // This tab never unmounts, so without a focus refetch those cases persisted
+  // until the user signed out and back in. Same pattern as the billing and
+  // reports tabs.
+  useFocusEffect(
+    useCallback(() => {
+      refetchEvents();
+    }, [refetchEvents]),
+  );
 
   // DoctorPicker still expects a Doctor shape. MappedDoctor has a single
   // `name` field (the full display name) — fit it into Doctor by putting
