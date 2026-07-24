@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
+import { useClinicInfo } from '@/hooks/use-clinic-info';
 import { ms, s } from '@/lib/responsive';
 import { useActiveBillStore } from '@/store/active-bill';
 import { colors, spacing, typography } from '@/theme';
@@ -19,6 +20,9 @@ export default function ReceiptScreen() {
   const receipt = useActiveBillStore((s) => s.receipt);
   const clear = useActiveBillStore((s) => s.clear);
   const [sharing, setSharing] = useState(false);
+  // Title the receipt with the actual clinic name (e.g. "Hamdan Clinic"),
+  // not the SaaS product name. Falls back to "Smiles Craft" until it loads.
+  const clinicName = useClinicInfo().data?.clinicName ?? 'Smiles Craft';
 
   if (!receipt) {
     return <Redirect href="/(tabs)/billing" />;
@@ -32,7 +36,7 @@ export default function ReceiptScreen() {
   const share = async () => {
     setSharing(true);
     try {
-      const html = renderReceiptHtml(receipt);
+      const html = renderReceiptHtml(receipt, clinicName);
       const { uri } = await Print.printToFileAsync({ html });
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
@@ -64,7 +68,7 @@ export default function ReceiptScreen() {
       </View>
 
       <View style={styles.receiptCard}>
-        <Text style={styles.receiptHeader}>Smiles Craft Dental Clinic</Text>
+        <Text style={styles.receiptHeader}>{clinicName}</Text>
         <Text style={styles.receiptSub}>Payment Receipt</Text>
 
         <View style={styles.divider} />
@@ -154,7 +158,8 @@ function formatDate(iso: string): string {
 // Inline HTML template rendered by expo-print into a PDF. Kept simple and
 // dependency-free so it prints cleanly across iOS and Android print
 // pipelines without needing custom fonts.
-function renderReceiptHtml(receipt: BillReceiptData): string {
+function renderReceiptHtml(receipt: BillReceiptData, clinicName: string): string {
+  const clinic = escapeHtml(clinicName || 'Smiles Craft');
   const patientName = `${receipt.patient.name} ${receipt.patient.family}`.trim() || 'Patient';
   const rows = receipt.lineItems
     .map(
@@ -189,7 +194,7 @@ function renderReceiptHtml(receipt: BillReceiptData): string {
         </style>
       </head>
       <body>
-        <h1>Smiles Craft Dental Clinic</h1>
+        <h1>${clinic}</h1>
         <h2>Payment Receipt</h2>
 
         <div class="meta"><strong>Receipt #</strong> ${escapeHtml(receipt.receiptNumber)}</div>
@@ -220,7 +225,7 @@ function renderReceiptHtml(receipt: BillReceiptData): string {
           </tfoot>
         </table>
 
-        <div class="footer">Thank you — Smiles Craft</div>
+        <div class="footer">Thank you — ${clinic}</div>
       </body>
     </html>
   `;

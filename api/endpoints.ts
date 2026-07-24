@@ -8,6 +8,12 @@ export const endpoints = {
     list: '/getAllEvents',
     schedule: '/getClinicSchedule',
   },
+  clinic: {
+    // For a non-systemadmin user this returns { clinicName, currency,
+    // clinic_id } for their own clinic — the same call the web's billing
+    // context uses to title receipts.
+    info: '/getClinics',
+  },
   appointments: {
     cancellationReasons: '/cancellation-reasons',
     cancel: '/cancel-appt',
