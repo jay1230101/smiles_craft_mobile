@@ -10,7 +10,6 @@ import { useRecordPayment } from '@/hooks/use-record-payment';
 import { ms, s } from '@/lib/responsive';
 import { useActiveBillStore } from '@/store/active-bill';
 import { colors, spacing, typography } from '@/theme';
-import type { BillEncounter } from '@/types/billing';
 
 const HEADING_COLOR = '#1A202C';
 const SUBTITLE_COLOR = '#64748B';
@@ -63,12 +62,6 @@ export default function RecordPaymentScreen() {
   if (patientId === null) {
     return <Redirect href="/(tabs)/billing" />;
   }
-
-  const toggleEncounter = (enc: BillEncounter) => {
-    setSelectedIds((prev) =>
-      prev.includes(enc.id) ? prev.filter((id) => id !== enc.id) : [...prev, enc.id],
-    );
-  };
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
@@ -148,9 +141,16 @@ export default function RecordPaymentScreen() {
           <View style={styles.list}>
             {encounters.map((enc) => (
               <View key={enc.id} style={styles.encounterRow}>
+                {/* Read-only tick: every bill line is always included in the
+                    payment. Letting the user uncheck a line was confusing —
+                    the row hid from the total but the Amount field didn't
+                    follow, so it looked like nothing happened. The bill is
+                    settled as a whole; partial payments are done by editing
+                    the Amount, not by deselecting lines. */}
                 <Checkbox
                   value={selectedIds.includes(enc.id)}
-                  onChange={() => toggleEncounter(enc)}
+                  onChange={() => {}}
+                  disabled
                 />
                 <View style={styles.encounterText}>
                   <Text style={styles.encounterTitle} numberOfLines={2}>
