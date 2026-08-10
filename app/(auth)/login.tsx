@@ -96,7 +96,7 @@ export default function LoginScreen() {
 
       <View style={styles.headerBlock}>
         <Text style={styles.title}>Welcome Back!</Text>
-        <Text style={styles.subtitle}>Sign in to continue to Smile Craft</Text>
+        <Text style={styles.subtitle}>Sign in to continue to Smiles Craft</Text>
       </View>
 
       <View style={styles.formBlock}>
