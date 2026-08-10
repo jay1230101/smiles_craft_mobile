@@ -73,6 +73,7 @@ export function AppointmentPopover({ event, onClose }: Props) {
   const isCancelled = status === 'cancelled';
 
   const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
+  const medicalHistory = (event.extendedProps?.medical_history ?? '').trim();
   const timeRange = `${formatEventTime(event.start)} - ${formatEventTime(event.end)}`;
   const procedure = event.extendedProps?.procedure ?? '';
   const doctor = formatDoctorName(event.doctor);
@@ -152,6 +153,15 @@ export function AppointmentPopover({ event, onClose }: Props) {
               <Ionicons name="close" size={s(22)} color={colors.neutral[500]} />
             </Pressable>
           </View>
+
+          {/* Patient's medical history in red, directly under the name, so
+              staff see allergies/conditions at a glance when they open an
+              appointment. */}
+          {medicalHistory ? (
+            <Text style={styles.medicalHistory} numberOfLines={2}>
+              {medicalHistory}
+            </Text>
+          ) : null}
 
           <View style={styles.statusRow}>
             <StatusPill status={status} />
@@ -438,6 +448,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     color: colors.neutral[500],
     flex: 1,
+  },
+  medicalHistory: {
+    ...typography.body.medium,
+    fontFamily: 'Inter_600SemiBold',
+    color: colors.danger[500],
+    marginTop: -spacing.xs,
   },
   closeBtn: {
     width: s(36),

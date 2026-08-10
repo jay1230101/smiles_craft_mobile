@@ -273,10 +273,10 @@ export default function PatientRegisterScreen() {
           name="allergy"
           render={({ field, fieldState }) => (
             <TextInput
-              label="Allergies (Optional)"
+              label="Medical History (Optional)"
               placeholder=""
               autoCapitalize="sentences"
-              maxLength={50}
+              maxLength={20}
               value={field.value ?? ''}
               onChangeText={field.onChange}
               onBlur={field.onBlur}

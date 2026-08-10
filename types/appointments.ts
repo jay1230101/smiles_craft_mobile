@@ -17,6 +17,11 @@ export type BackendEvent = {
     isAppointmentConfirmed: boolean;
     isAppointmentCancelled: boolean;
     mainId: number;
+    // Patient's medical history (stored in the `allergy` column server-side).
+    // /getAllEvents and the socket appointment events already carry it as
+    // `medical_history`; shown in red under the patient name on the popover
+    // and clinical-history screens.
+    medical_history?: string | null;
   };
 };
 

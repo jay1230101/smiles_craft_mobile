@@ -29,6 +29,7 @@ export default function ClinicalHistoryScreen() {
   }
 
   const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
+  const medicalHistory = (event.extendedProps?.medical_history ?? '').trim();
 
   const goBack = () => {
     clearEvent();
@@ -49,6 +50,11 @@ export default function ClinicalHistoryScreen() {
         <View style={styles.headerText}>
           <Text style={styles.title}>Clinical History</Text>
           <Text style={styles.subtitle}>{fullName || 'Patient'}</Text>
+          {medicalHistory ? (
+            <Text style={styles.medicalHistory} numberOfLines={2}>
+              {medicalHistory}
+            </Text>
+          ) : null}
         </View>
       </View>
 
@@ -233,6 +239,13 @@ const styles = StyleSheet.create({
     color: SUBTITLE_COLOR,
     fontSize: ms(14),
     lineHeight: ms(20),
+  },
+  medicalHistory: {
+    ...typography.body.medium,
+    fontFamily: 'Inter_600SemiBold',
+    color: colors.danger[500],
+    fontSize: ms(13),
+    marginTop: 2,
   },
   tabsRow: {
     flexDirection: 'row',

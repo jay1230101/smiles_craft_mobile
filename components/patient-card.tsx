@@ -86,7 +86,7 @@ export function PatientCard({ patient, onEdit, onDelete }: Props) {
 
           {patient.allergy ? (
             <Text style={styles.allergy} numberOfLines={2}>
-              Allergies: {patient.allergy}
+              Medical History: {patient.allergy}
             </Text>
           ) : null}
         </View>
