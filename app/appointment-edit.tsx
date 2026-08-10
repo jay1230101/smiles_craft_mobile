@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog';
 import { DateField } from '@/components/date-field';
 import { Screen } from '@/components/screen';
 import { TextInput } from '@/components/text-input';
+import { TimeField } from '@/components/time-field';
 import { useDeleteAppointment } from '@/hooks/use-delete-appointment';
 import { useSearchPatients } from '@/hooks/use-search-patients';
 import { useUpdateAppointment } from '@/hooks/use-update-appointment';
@@ -23,7 +24,6 @@ import {
   ddMmYyyyToIso,
   ensureLeadingPlus,
   formatDobDisplay,
-  formatTimeMask,
   normalizeDob,
   parseTime,
   TIME_REGEX,
@@ -377,14 +377,11 @@ function EditForm({
             control={control}
             name="startTime"
             render={({ field, fieldState }) => (
-              <TextInput
+              <TimeField
                 containerStyle={styles.flex}
                 label="Start *"
-                placeholder="HH:MM"
-                keyboardType="number-pad"
                 value={field.value}
-                onChangeText={(t) => field.onChange(formatTimeMask(t))}
-                onBlur={field.onBlur}
+                onChange={field.onChange}
                 error={fieldState.error?.message}
               />
             )}
@@ -393,14 +390,11 @@ function EditForm({
             control={control}
             name="endTime"
             render={({ field, fieldState }) => (
-              <TextInput
+              <TimeField
                 containerStyle={styles.flex}
                 label="End *"
-                placeholder="HH:MM"
-                keyboardType="number-pad"
                 value={field.value}
-                onChangeText={(t) => field.onChange(formatTimeMask(t))}
-                onBlur={field.onBlur}
+                onChange={field.onChange}
                 error={fieldState.error?.message}
               />
             )}

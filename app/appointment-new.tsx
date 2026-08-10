@@ -13,6 +13,7 @@ import { DateField } from '@/components/date-field';
 import { Screen } from '@/components/screen';
 import { Select, type SelectOption } from '@/components/select';
 import { TextInput } from '@/components/text-input';
+import { TimeField } from '@/components/time-field';
 import { useCreateAppointment } from '@/hooks/use-create-appointment';
 import { useMappedDoctors } from '@/hooks/use-mapped-doctors';
 import { useSearchPatients } from '@/hooks/use-search-patients';
@@ -26,7 +27,6 @@ import {
   ddMmYyyyToIso,
   ensureLeadingPlus,
   formatDobDisplay,
-  formatTimeMask,
   normalizeDob,
   parseTime,
   TIME_REGEX,
@@ -388,14 +388,11 @@ export default function AppointmentNewScreen() {
             control={control}
             name="startTime"
             render={({ field, fieldState }) => (
-              <TextInput
+              <TimeField
                 containerStyle={styles.flex}
                 label="Start *"
-                placeholder="HH:MM"
-                keyboardType="number-pad"
                 value={field.value}
-                onChangeText={(t) => field.onChange(formatTimeMask(t))}
-                onBlur={field.onBlur}
+                onChange={field.onChange}
                 error={fieldState.error?.message}
               />
             )}
@@ -404,14 +401,11 @@ export default function AppointmentNewScreen() {
             control={control}
             name="endTime"
             render={({ field, fieldState }) => (
-              <TextInput
+              <TimeField
                 containerStyle={styles.flex}
                 label="End *"
-                placeholder="HH:MM"
-                keyboardType="number-pad"
                 value={field.value}
-                onChangeText={(t) => field.onChange(formatTimeMask(t))}
-                onBlur={field.onBlur}
+                onChange={field.onChange}
                 error={fieldState.error?.message}
               />
             )}
