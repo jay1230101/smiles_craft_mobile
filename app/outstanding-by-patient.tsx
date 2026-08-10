@@ -231,9 +231,9 @@ function PatientBillingBody({
     return (
       <View style={styles.center}>
         <Ionicons name="receipt-outline" size={ms(36)} color={SUBTITLE_COLOR} />
-        <Text style={styles.emptyTitle}>No billing history</Text>
+        <Text style={styles.emptyTitle}>No Outstanding Balance</Text>
         <Text style={styles.emptyBody}>
-          This patient has no billed procedures yet.
+          This patient has no outstanding balance.
         </Text>
       </View>
     );
