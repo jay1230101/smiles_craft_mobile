@@ -162,7 +162,12 @@ export default function CalendarScreen() {
               proc: event.extendedProps?.procedure ?? '',
               resourceId: Number(event.resourceId),
               doctor_name: event.doctor ?? '',
-              booking_reminder: false,
+              // Dragging an appointment to a new slot is a reschedule, so tell
+              // the backend to send the patient a fresh WhatsApp confirmation
+              // (booking_reminder=true is the same flag the web reschedule
+              // uses; the backend skips the send when nothing actually
+              // changed, so this never double-notifies).
+              booking_reminder: true,
             };
             try {
               const res = await updateAppointment.mutateAsync(payload);
