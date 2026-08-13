@@ -22,6 +22,13 @@ export type BackendEvent = {
     // `medical_history`; shown in red under the patient name on the popover
     // and clinical-history screens.
     medical_history?: string | null;
+    // Specialty-driven field visibility, derived server-side from the
+    // appointment doctor's specialty config (get_encounters in views.py). The
+    // Orders screen uses show_tooth_number to decide whether to show the
+    // dental tooth/status fields — a physiotherapist, say, has it false.
+    // Same flags the web's OrdersModal reads.
+    show_tooth_number?: boolean;
+    show_esthetic_field?: boolean;
   };
 };
 

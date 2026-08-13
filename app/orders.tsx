@@ -101,7 +101,16 @@ export default function OrdersScreen() {
     return <Redirect href="/(tabs)/calendar" />;
   }
 
-  const showTooth = init?.show_tooth ?? true;
+  // Whether to show the dental tooth/status fields is driven by the appointment
+  // DOCTOR's specialty, not the procedure init. The backend already stamps
+  // `show_tooth_number` on every event (get_encounters in views.py) from the
+  // doctor's specialty config, and the web's OrdersModal reads that exact flag.
+  // The old `init.show_tooth` came from /init-procedure-screen, which never
+  // returns it, so it silently defaulted to true and dentistry fields showed
+  // for every specialty (e.g. physiotherapy). Read it off the event instead;
+  // default to false so a missing flag hides the dental-only fields rather than
+  // wrongly showing them.
+  const showTooth = event.extendedProps?.show_tooth_number ?? false;
   const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
   // The order belongs to the appointment's date, not the day someone happens to
   // be entering it — the web reads the same field off the selected event
@@ -428,28 +437,34 @@ export default function OrdersScreen() {
         </View>
       ) : null}
 
-      <View style={styles.tableBlock}>
-        <Text style={styles.sectionTitle}>Pending procedures</Text>
-        {pendingLoading ? (
-          <View style={styles.loading}>
-            <ActivityIndicator color={colors.primary[500]} />
-          </View>
-        ) : (pending?.procedures ?? []).length === 0 ? (
-          <Text style={styles.emptyText}>No pending procedures for this patient.</Text>
-        ) : (
-          <View style={styles.pendingList}>
-            {(pending?.procedures ?? []).map((p) => (
-              <PendingCard
-                key={p.encounterId}
-                pending={p}
-                statusOptions={statusOptions}
-                selectedUpdate={statusUpdates[p.encounterId] ?? null}
-                onSelectUpdate={(v) => setStatusUpdate(p.encounterId, v)}
-              />
-            ))}
-          </View>
-        )}
-      </View>
+      {/* Pending procedures are a dental-workflow concept (in-process tooth
+          treatments awaiting a status update), so only show the section for
+          specialties that use the tooth chart — hidden for physiotherapy,
+          esthetics, etc. Same specialty gate as the tooth/status fields. */}
+      {showTooth ? (
+        <View style={styles.tableBlock}>
+          <Text style={styles.sectionTitle}>Pending procedures</Text>
+          {pendingLoading ? (
+            <View style={styles.loading}>
+              <ActivityIndicator color={colors.primary[500]} />
+            </View>
+          ) : (pending?.procedures ?? []).length === 0 ? (
+            <Text style={styles.emptyText}>No pending procedures for this patient.</Text>
+          ) : (
+            <View style={styles.pendingList}>
+              {(pending?.procedures ?? []).map((p) => (
+                <PendingCard
+                  key={p.encounterId}
+                  pending={p}
+                  statusOptions={statusOptions}
+                  selectedUpdate={statusUpdates[p.encounterId] ?? null}
+                  onSelectUpdate={(v) => setStatusUpdate(p.encounterId, v)}
+                />
+              ))}
+            </View>
+          )}
+        </View>
+      ) : null}
 
       {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
 
