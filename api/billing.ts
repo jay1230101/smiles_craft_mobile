@@ -81,7 +81,18 @@ export async function getCurrentBillsRequest(): Promise<GetCurrentBillsResponse>
   try {
     const { data } = await apiClient.get<GetCurrentBillsResponse>(endpoints.bills.current);
     console.log('[billing] current response', Array.isArray(data) ? `array(${data.length})` : typeof data);
-    return Array.isArray(data) ? data : [];
+    if (!Array.isArray(data)) return [];
+    // /getCurrentBills returns one row PER encounter, not per patient, so a
+    // patient with 3 procedures today comes back 3 times — which rendered as 3
+    // identical cashier rows (and a "3 patients" count) and looked like triple
+    // charging. Collapse to one row per patient; opening it already shows all
+    // their procedures. Mirrors the web's dedupe-by-patientId in BillingContext.
+    const seen = new Set<number | string>();
+    return data.filter((entry) => {
+      if (seen.has(entry.patientId)) return false;
+      seen.add(entry.patientId);
+      return true;
+    });
   } catch (err) {
     console.log('[billing] current ERROR', err);
     throw err;
