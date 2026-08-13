@@ -4,7 +4,7 @@ import { s } from '@/lib/responsive';
 
 const logo = require('@/assets/images/brand/smilecraft-wordmark.png');
 
-const ASPECT = 592 / 174;
+const ASPECT = 1400 / 351;
 
 type BrandLogoProps = {
   size?: 'small' | 'medium' | 'large';
