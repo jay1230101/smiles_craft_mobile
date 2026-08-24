@@ -1,28 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, useRouter } from 'expo-router';
-import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
-import { usePlanOfCareHistory } from '@/hooks/use-plan-of-care';
 import { useVisitsHistory } from '@/hooks/use-visits-history';
 import { formatDoctorName } from '@/lib/appointments';
 import { ms, s } from '@/lib/responsive';
 import { useActiveAppointmentStore } from '@/store/active-appointment';
 import { colors, radius, spacing, typography } from '@/theme';
-import type { PlanOfCareItem, VisitsHistoryItem } from '@/types/orders';
+import type { VisitsHistoryItem } from '@/types/orders';
 
 const HEADING_COLOR = '#1A202C';
 const SUBTITLE_COLOR = '#64748B';
-
-type Tab = 'visits' | 'plan';
 
 export default function ClinicalHistoryScreen() {
   const router = useRouter();
   const event = useActiveAppointmentStore((s) => s.event);
   const clearEvent = useActiveAppointmentStore((s) => s.clear);
-
-  const [tab, setTab] = useState<Tab>('visits');
 
   if (!event) {
     return <Redirect href="/(tabs)/calendar" />;
@@ -58,16 +52,7 @@ export default function ClinicalHistoryScreen() {
         </View>
       </View>
 
-      <View style={styles.tabsRow}>
-        <TabPill label="Visits" active={tab === 'visits'} onPress={() => setTab('visits')} />
-        <TabPill label="Plan of Care" active={tab === 'plan'} onPress={() => setTab('plan')} />
-      </View>
-
-      {tab === 'visits' ? (
-        <VisitsTab patientId={event.patientId} />
-      ) : (
-        <PlanTab patientId={event.patientId} />
-      )}
+      <VisitsTab patientId={event.patientId} />
     </Screen>
   );
 }
@@ -123,70 +108,6 @@ function VisitCard({ visit }: { visit: VisitsHistoryItem }) {
         </Text>
       ) : null}
     </View>
-  );
-}
-
-function PlanTab({ patientId }: { patientId: number }) {
-  const { data, isLoading, isError, error } = usePlanOfCareHistory(patientId);
-
-  if (isLoading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.primary[500]} />
-      </View>
-    );
-  }
-  if (isError) {
-    return (
-      <Text style={styles.errorText}>{error instanceof Error ? error.message : 'Could not load plans.'}</Text>
-    );
-  }
-  if (!data || data.length === 0) {
-    return <Text style={styles.emptyText}>No plans of care for this patient.</Text>;
-  }
-  return (
-    <View style={styles.list}>
-      {data.map((p) => (
-        <PlanCard key={p.id} plan={p} />
-      ))}
-    </View>
-  );
-}
-
-function PlanCard({ plan }: { plan: PlanOfCareItem }) {
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardHead}>
-        <Text style={styles.cardTitle}>Plan of Care</Text>
-        <Text style={styles.cardDate}>{plan.visitDate}</Text>
-      </View>
-      <Text style={styles.cardMeta}>{formatDoctorName(plan.doctorName) || '—'}</Text>
-      <Text style={styles.cardBody}>{plan.planOfCare}</Text>
-    </View>
-  );
-}
-
-function TabPill({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="tab"
-      accessibilityState={{ selected: active }}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.tab,
-        active && styles.tabActive,
-        pressed && styles.pressed,
-      ]}>
-      <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -247,31 +168,6 @@ const styles = StyleSheet.create({
     fontSize: ms(13),
     marginTop: 2,
   },
-  tabsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    backgroundColor: colors.background.surface,
-    padding: spacing.xs,
-    borderRadius: radius.pill,
-    alignSelf: 'stretch',
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: s(10),
-    borderRadius: radius.pill,
-  },
-  tabActive: {
-    backgroundColor: colors.background.base,
-  },
-  tabLabel: {
-    ...typography.label.large,
-    color: colors.text.secondary,
-  },
-  tabLabelActive: {
-    color: colors.primary[500],
-    fontFamily: 'Inter_600SemiBold',
-  },
   center: {
     paddingVertical: spacing.xxl,
     alignItems: 'center',
@@ -328,10 +224,6 @@ const styles = StyleSheet.create({
     color: colors.neutral[500],
     marginTop: spacing.xs,
     fontStyle: 'italic',
-  },
-  cardBody: {
-    ...typography.body.medium,
-    color: colors.neutral[500],
   },
   stat: {
     minWidth: s(60),

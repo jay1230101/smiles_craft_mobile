@@ -74,10 +74,6 @@ export function AppointmentPopover({ event, onClose }: Props) {
 
   const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
   const medicalHistory = (event.extendedProps?.medical_history ?? '').trim();
-  // Plan of Care is a dentistry-only workflow, so only offer it for specialties
-  // that use the tooth chart (same flag the Orders screen gates its dental
-  // fields on). Physiotherapy, esthetics, etc. don't see it — matching the web.
-  const isDentalSpecialty = event.extendedProps?.show_tooth_number ?? false;
   const timeRange = `${formatEventTime(event.start)} - ${formatEventTime(event.end)}`;
   const procedure = event.extendedProps?.procedure ?? '';
   const doctor = formatDoctorName(event.doctor);
@@ -221,17 +217,6 @@ export function AppointmentPopover({ event, onClose }: Props) {
                         router.push('/orders' as never);
                       }}
                     />
-                    {isDentalSpecialty ? (
-                      <ActionButton
-                        icon="medkit-outline"
-                        label="New Plan of Care"
-                        onPress={() => {
-                          setActiveEvent(event);
-                          onClose();
-                          router.push('/plan-of-care' as never);
-                        }}
-                      />
-                    ) : null}
                     <ActionButton
                       icon="chatbubbles-outline"
                       label="Schedule Future WhatsApp"

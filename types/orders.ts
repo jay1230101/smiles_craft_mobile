@@ -150,25 +150,6 @@ export type VisitsHistoryResponse = {
   data: VisitsHistoryItem[];
 };
 
-export type PlanOfCareItem = {
-  id: number;
-  planOfCare: string;
-  bookingId: number;
-  visitDate: string;
-  doctorName: string;
-};
-
-export type SavePlanOfCareRequest = {
-  text: string;
-  bookingId: number;
-  patientId: number;
-};
-
-export type SavePlanOfCareResponse = {
-  status: string;
-  message: string;
-};
-
 export type WhatsAppTemplate = {
   id: number | string;
   name: string;

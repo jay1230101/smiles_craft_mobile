@@ -1,6 +1,5 @@
 import type {
   PendingProcedure,
-  PlanOfCareItem,
   ProcedureCatalogItem,
   StatusItem,
   ToothItem,
@@ -118,17 +117,6 @@ export const MOCK_VISITS_HISTORY: VisitsHistoryItem[] = [
     amountPaid: 60,
     remainingBalance: 0,
     visit_notes: 'Routine cleaning.',
-    doctorName: 'Mireille El rahi',
-  },
-];
-
-export const MOCK_PLAN_OF_CARE: PlanOfCareItem[] = [
-  {
-    id: 1,
-    planOfCare:
-      'Follow-up in 6 weeks for second root-canal session. Continue saltwater rinses twice daily. Reinforce flossing.',
-    bookingId: 0,
-    visitDate: '11 June 2026',
     doctorName: 'Mireille El rahi',
   },
 ];

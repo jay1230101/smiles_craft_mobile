@@ -55,10 +55,6 @@ export const endpoints = {
     submit: '/treatment-plan',
     visits: '/getVisitsHistory',
   },
-  planOfCare: {
-    save: '/planOfCare',
-    list: '/get-plan-care',
-  },
   reminders: {
     templates: '/getActiveTemplates',
     store: '/store_reminders',

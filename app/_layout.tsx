@@ -99,10 +99,6 @@ export default function RootLayout() {
             options={{ headerShown: false, presentation: 'modal' }}
           />
           <Stack.Screen
-            name="plan-of-care"
-            options={{ headerShown: false, presentation: 'modal' }}
-          />
-          <Stack.Screen
             name="schedule-whatsapp"
             options={{ headerShown: false, presentation: 'modal' }}
           />
