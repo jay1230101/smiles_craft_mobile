@@ -194,12 +194,25 @@ export function AppointmentPopover({ event, onClose }: Props) {
 
               <View style={styles.actionsBlock}>
                 {isCancelled ? (
-                  <ActionButton
-                    icon="create-outline"
-                    label="Change cancel reason"
-                    helper="Update the reason this appointment was cancelled"
-                    onPress={() => setPane('cancel')}
-                  />
+                  <>
+                    {/* A cancelled slot is free again, so still allow booking a
+                        new appointment in it (same double-booking flow as an
+                        active appointment). Previously the cancelled state only
+                        offered "Change cancel reason", leaving no way to reuse
+                        the slot from here. */}
+                    <ActionButton
+                      icon="duplicate-outline"
+                      label="Book another at this time"
+                      helper="Book a new appointment in this slot"
+                      onPress={bookAnotherHere}
+                    />
+                    <ActionButton
+                      icon="create-outline"
+                      label="Change cancel reason"
+                      helper="Update the reason this appointment was cancelled"
+                      onPress={() => setPane('cancel')}
+                    />
+                  </>
                 ) : (
                   <>
                     <ActionButton
