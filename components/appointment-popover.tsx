@@ -1,21 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button } from '@/components/button';
-import { Select, type SelectOption } from '@/components/select';
-import { useCancelAppointment } from '@/hooks/use-cancel-appointment';
-import { useCancellationReasons } from '@/hooks/use-cancellation-reasons';
 import { deriveStatus, formatDoctorName, formatEventTime } from '@/lib/appointments';
 import { ms, s } from '@/lib/responsive';
 import { useActiveAppointmentStore } from '@/store/active-appointment';
@@ -29,17 +16,9 @@ type Props = {
   onClose: () => void;
 };
 
-type Pane = 'details' | 'cancel';
-
 export function AppointmentPopover({ event, onClose }: Props) {
   const visible = !!event;
-  const [pane, setPane] = useState<Pane>('details');
-  const [reasonId, setReasonId] = useState<number | null>(null);
-  const [reasonError, setReasonError] = useState<string | null>(null);
-  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
-  const { data: reasons, isLoading: reasonsLoading } = useCancellationReasons();
-  const cancelAppt = useCancelAppointment();
   const router = useRouter();
   const setEditEvent = useEditEventStore((s) => s.setEvent);
   const setActiveEvent = useActiveAppointmentStore((s) => s.setEvent);
@@ -52,33 +31,18 @@ export function AppointmentPopover({ event, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const sheetBottomPadding = insets.bottom + spacing.xxl;
 
-  // Reset internal state every time a new event is opened.
-  useEffect(() => {
-    if (visible) {
-      setPane('details');
-      setReasonId(null);
-      setReasonError(null);
-      setActionMessage(null);
-    }
-  }, [visible, event?.extendedProps?.mainId]);
-
-  const reasonOptions: SelectOption<number>[] = useMemo(
-    () => (reasons ?? []).map((r) => ({ value: r.id, label: r.reason })),
-    [reasons],
-  );
-
   if (!event) return null;
 
+  // Cancelled appointments never reach this popover — the calendar swallows
+  // taps on them (matching the web app), so there is no cancel/reschedule
+  // action here at all.
   const status = deriveStatus(event);
-  const isCancelled = status === 'cancelled';
 
   const fullName = `${(event.name ?? '').trim()} ${(event.family ?? '').trim()}`.trim();
   const medicalHistory = (event.extendedProps?.medical_history ?? '').trim();
   const timeRange = `${formatEventTime(event.start)} - ${formatEventTime(event.end)}`;
   const procedure = event.extendedProps?.procedure ?? '';
   const doctor = formatDoctorName(event.doctor);
-  const mainId = event.extendedProps?.mainId ?? Number(event.id);
-  const patientId = event.patientId;
   const doctorId = event.resourceId;
 
   const bookAnotherHere = () => {
@@ -104,35 +68,6 @@ export function AppointmentPopover({ event, onClose }: Props) {
     });
     onClose();
     router.push('/appointment-new' as never);
-  };
-
-  const submitCancel = async () => {
-    if (!reasonId) {
-      setReasonError('Pick a cancellation reason');
-      return;
-    }
-    setReasonError(null);
-    setActionMessage(null);
-    try {
-      const res = await cancelAppt.mutateAsync({
-        patientId,
-        bookingId: mainId,
-        doctorId,
-        reason: reasonId,
-      });
-      if (res.status === 'success') {
-        setActionMessage(isCancelled ? 'Reason updated.' : 'Appointment cancelled.');
-        setTimeout(() => onClose(), 700);
-      } else {
-        setReasonError(
-          res.message ||
-            (isCancelled ? 'Could not update reason.' : 'Could not cancel appointment.'),
-        );
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Could not cancel appointment.';
-      setReasonError(message);
-    }
   };
 
   return (
@@ -176,145 +111,64 @@ export function AppointmentPopover({ event, onClose }: Props) {
             contentContainerStyle={[styles.scrollContent, { paddingBottom: sheetBottomPadding }]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
-            {pane === 'details' ? (
-            <>
-              <View style={styles.detailsBlock}>
-                <DetailRow icon="time-outline" label="Time" value={timeRange} />
-                {procedure ? (
-                  <DetailRow icon="medical-outline" label="Treatment" value={procedure} />
-                ) : null}
-                {doctor ? (
-                  <DetailRow icon="person-outline" label="Doctor" value={doctor} />
-                ) : null}
-              </View>
-
-              {actionMessage ? (
-                <Text style={styles.successText}>{actionMessage}</Text>
+            <View style={styles.detailsBlock}>
+              <DetailRow icon="time-outline" label="Time" value={timeRange} />
+              {procedure ? (
+                <DetailRow icon="medical-outline" label="Treatment" value={procedure} />
               ) : null}
-
-              <View style={styles.actionsBlock}>
-                {isCancelled ? (
-                  <>
-                    {/* A cancelled slot is free again, so still allow booking a
-                        new appointment in it (same double-booking flow as an
-                        active appointment). Previously the cancelled state only
-                        offered "Change cancel reason", leaving no way to reuse
-                        the slot from here. */}
-                    <ActionButton
-                      icon="duplicate-outline"
-                      label="Book another at this time"
-                      helper="Book a new appointment in this slot"
-                      onPress={bookAnotherHere}
-                    />
-                    <ActionButton
-                      icon="create-outline"
-                      label="Change cancel reason"
-                      helper="Update the reason this appointment was cancelled"
-                      onPress={() => setPane('cancel')}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <ActionButton
-                      icon="duplicate-outline"
-                      label="Book another at this time"
-                      helper="Book a second appointment in the same slot"
-                      onPress={bookAnotherHere}
-                    />
-                    <ActionButton
-                      icon="add-circle-outline"
-                      label="Orders"
-                      onPress={() => {
-                        setActiveEvent(event);
-                        onClose();
-                        router.push('/orders' as never);
-                      }}
-                    />
-                    <ActionButton
-                      icon="chatbubbles-outline"
-                      label="Schedule Future WhatsApp"
-                      onPress={() => {
-                        setActiveEvent(event);
-                        onClose();
-                        router.push('/schedule-whatsapp' as never);
-                      }}
-                    />
-                    <ActionButton
-                      icon="create-outline"
-                      label="Edit / Reschedule"
-                      onPress={() => {
-                        setEditEvent(event);
-                        onClose();
-                        router.push('/appointment-edit' as never);
-                      }}
-                    />
-                    <ActionButton
-                      icon="library-outline"
-                      label="Clinical history"
-                      onPress={() => {
-                        setActiveEvent(event);
-                        onClose();
-                        router.push('/clinical-history' as never);
-                      }}
-                    />
-                    {/* No staff-facing confirm action by design: an appointment
-                        is confirmed only when the patient taps Confirm in the
-                        WhatsApp reminder (views.py:1506 is the sole writer of
-                        patient_confirmed). The status pill above reflects that. */}
-                    <ActionButton
-                      icon="close-circle-outline"
-                      label="Cancel appointment"
-                      variant="danger"
-                      onPress={() => setPane('cancel')}
-                    />
-                  </>
-                )}
-              </View>
-            </>
-          ) : (
-            <View style={styles.cancelPane}>
-              <Text style={styles.panePrompt}>
-                {isCancelled
-                  ? 'Update the cancellation reason for this appointment.'
-                  : 'Why are you cancelling this appointment?'}
-              </Text>
-
-              {reasonsLoading ? (
-                <View style={styles.loadingRow}>
-                  <ActivityIndicator color={colors.primary[500]} />
-                </View>
-              ) : (
-                <Select<number>
-                  label="Cancellation reason *"
-                  placeholder="Select a reason"
-                  value={reasonId}
-                  options={reasonOptions}
-                  onChange={(v) => {
-                    setReasonId(v);
-                    setReasonError(null);
-                  }}
-                  error={reasonError}
-                />
-              )}
-
-              <View style={styles.cancelActions}>
-                <Button
-                  label="Back"
-                  variant="secondary"
-                  onPress={() => setPane('details')}
-                  fullWidth={false}
-                  style={styles.flex}
-                />
-                <Button
-                  label={isCancelled ? 'Update reason' : 'Cancel appointment'}
-                  loading={cancelAppt.isPending}
-                  onPress={submitCancel}
-                  fullWidth={false}
-                  style={styles.flex}
-                />
-              </View>
+              {doctor ? (
+                <DetailRow icon="person-outline" label="Doctor" value={doctor} />
+              ) : null}
             </View>
-          )}
+
+            <View style={styles.actionsBlock}>
+              <ActionButton
+                icon="duplicate-outline"
+                label="Book another at this time"
+                helper="Book a second appointment in the same slot"
+                onPress={bookAnotherHere}
+              />
+              <ActionButton
+                icon="add-circle-outline"
+                label="Orders"
+                onPress={() => {
+                  setActiveEvent(event);
+                  onClose();
+                  router.push('/orders' as never);
+                }}
+              />
+              <ActionButton
+                icon="chatbubbles-outline"
+                label="Schedule Future WhatsApp"
+                onPress={() => {
+                  setActiveEvent(event);
+                  onClose();
+                  router.push('/schedule-whatsapp' as never);
+                }}
+              />
+              <ActionButton
+                icon="create-outline"
+                label="Edit / Reschedule"
+                onPress={() => {
+                  setEditEvent(event);
+                  onClose();
+                  router.push('/appointment-edit' as never);
+                }}
+              />
+              <ActionButton
+                icon="library-outline"
+                label="Clinical history"
+                onPress={() => {
+                  setActiveEvent(event);
+                  onClose();
+                  router.push('/clinical-history' as never);
+                }}
+              />
+              {/* No staff-facing confirm or cancel action by design: an
+                  appointment is confirmed / cancelled only by the patient via
+                  the WhatsApp reminder (views.py:1506 is the sole writer of
+                  patient_confirmed). The status pill above reflects that. */}
+            </View>
           </ScrollView>
         </Pressable>
       </Pressable>
@@ -503,11 +357,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     color: colors.neutral[500],
   },
-  successText: {
-    ...typography.body.medium,
-    color: colors.success[500],
-    textAlign: 'center',
-  },
   actionsBlock: {
     gap: spacing.xs,
     marginTop: spacing.sm,
@@ -538,26 +387,5 @@ const styles = StyleSheet.create({
   actionHelper: {
     ...typography.body.small,
     color: colors.text.secondary,
-  },
-  cancelPane: {
-    gap: spacing.lg,
-    marginTop: spacing.md,
-  },
-  panePrompt: {
-    ...typography.body.large,
-    color: colors.neutral[500],
-  },
-  loadingRow: {
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
-  },
-  cancelActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  flex: {
-    flex: 1,
   },
 });

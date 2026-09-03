@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
@@ -15,7 +14,6 @@ import { colors, spacing, typography } from '@/theme';
 import {
   formatPeriodLabel,
   kindFromReportName,
-  type CancellationRow,
   type IncomeStatementRow,
   type Period,
   type ReportKind,
@@ -40,7 +38,14 @@ export default function ReportsScreen() {
     }, [queryClient]),
   );
 
-  const { data: reportsList, isLoading: isListLoading } = useReportsList();
+  const { data: rawReportsList, isLoading: isListLoading } = useReportsList();
+  // Cancellations are handled entirely by the patient via WhatsApp now, so the
+  // doctor-facing cancellation report was retired from the app. Hide it even
+  // if the backend still lists the report.
+  const reportsList = useMemo(
+    () => (rawReportsList ?? []).filter((r) => kindFromReportName(r.name) !== 'cancellation'),
+    [rawReportsList],
+  );
   const { data: allPeriods, isLoading: isPeriodsLoading } = usePeriods();
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
   const [selectedPeriods, setSelectedPeriods] = useState<Period[]>([]);
@@ -185,9 +190,6 @@ function ReportBody({
   if (data.report === 'revenue_clinician') {
     return <RevenueByClinicianView rows={data.data} />;
   }
-  if (data.report === 'cancellation') {
-    return <CancellationView rows={data.data} />;
-  }
   // Defensive: backend returned an unknown report kind. Surface a clear
   // message rather than rendering nothing — easier to triage in the field.
   return (
@@ -252,39 +254,6 @@ function RevenueByClinicianView({ rows }: { rows: RevenueByClinicianRow[] }) {
                 <View style={styles.providerAmountRow}>
                   <Text style={styles.providerShare}>{formatMoney(r.provider_share)} doctor</Text>
                   <Text style={styles.providerClinic}>{formatMoney(r.clinic_share)} clinic</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
-function CancellationView({ rows }: { rows: CancellationRow[] }) {
-  const grouped = useMemo(() => groupBy(rows, (r) => r.period), [rows]);
-  return (
-    <View style={styles.cards}>
-      {Object.entries(grouped).map(([period, periodRows]) => {
-        const total = periodRows.reduce((sum, r) => sum + r.Total_cancellations, 0);
-        return (
-          <View key={period} style={styles.card}>
-            <View style={styles.cardHeadRow}>
-              <Text style={styles.cardPeriod}>{formatPeriodLabel(period)}</Text>
-              <Text style={styles.cardTotal}>{total} total</Text>
-            </View>
-            {periodRows.map((r, idx) => (
-              <View key={`${period}-${r.doctor_id}-${r.reason_id}-${idx}`} style={styles.cancellationRow}>
-                <View style={styles.cancellationText}>
-                  <Text style={styles.cancellationReason}>{r.cancel_reason}</Text>
-                  <Text style={styles.cancellationDoctor}>
-                    {formatDoctorName(r.doctor_name) || '—'}
-                  </Text>
-                </View>
-                <View style={styles.cancellationCount}>
-                  <Ionicons name="close-circle" size={ms(14)} color={colors.danger[500]} />
-                  <Text style={styles.cancellationCountText}>{r.Total_cancellations}</Text>
                 </View>
               </View>
             ))}
@@ -516,37 +485,5 @@ const styles = StyleSheet.create({
   providerClinic: {
     ...typography.body.small,
     color: SUBTITLE_COLOR,
-  },
-  cancellationRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border.subtle,
-    gap: spacing.md,
-  },
-  cancellationText: {
-    flex: 1,
-    gap: 2,
-  },
-  cancellationReason: {
-    ...typography.body.medium,
-    fontFamily: 'Inter_600SemiBold',
-    color: HEADING_COLOR,
-  },
-  cancellationDoctor: {
-    ...typography.body.small,
-    color: SUBTITLE_COLOR,
-  },
-  cancellationCount: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  cancellationCountText: {
-    ...typography.label.large,
-    fontFamily: 'Inter_700Bold',
-    color: colors.danger[500],
   },
 });

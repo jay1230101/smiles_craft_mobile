@@ -48,6 +48,14 @@ export default function CalendarScreen() {
   const setSelectedDoctorId = useDoctorFilterStore((s) => s.setSelectedDoctorId);
   const bottomTabHeight = useBottomTabBarHeight();
   const safeBottomPadding = Math.max(bottomTabHeight, 80) + spacing.xxl;
+
+  // Patient-cancelled appointments render red and are read-only in the web
+  // app — tapping one does nothing there. Mirror that: swallow the tap so no
+  // popover opens for a cancelled event, whichever view it came from.
+  const handleSelectEvent = useCallback((event: BackendEvent) => {
+    if (deriveStatus(event) === 'cancelled') return;
+    setActiveEvent(event);
+  }, []);
   const { data: liveEvents, refetch: refetchEvents } = useAllEvents();
   const { data: mappedDoctors } = useMappedDoctors();
   const { data: schedule } = useClinicSchedule();
@@ -71,8 +79,8 @@ export default function CalendarScreen() {
 
   // DoctorPicker still expects a Doctor shape. MappedDoctor has a single
   // `name` field (the full display name) — fit it into Doctor by putting
-  // the full name in `name` and leaving `family` blank. The picker renders
-  // `Dr. ${name} ${family}` which collapses to `Dr. ${name}`.
+  // the full name in `name` and leaving `family` blank. The picker shows the
+  // name verbatim (no forced "Dr" honorific).
   const doctors: Doctor[] = useMemo(
     () => (mappedDoctors ?? []).map((d) => ({ id: d.id, name: d.name, family: '' })),
     [mappedDoctors],
@@ -326,7 +334,7 @@ export default function CalendarScreen() {
           dayEndHour={dayEndHour}
           slotMinutes={slotMinutes}
           allDoctorsView={isAllDoctorsView}
-          onSelectEvent={setActiveEvent}
+          onSelectEvent={handleSelectEvent}
           onSelectEmpty={openNewAppointment}
           onReschedule={handleReschedule}
         />
@@ -336,7 +344,7 @@ export default function CalendarScreen() {
           selectedDate={selectedDate}
           allDoctorsView={isAllDoctorsView}
           onSelectDate={setSelectedDate}
-          onSelectEvent={setActiveEvent}
+          onSelectEvent={handleSelectEvent}
           onAddAppointment={() => openNewAppointment(dayStartHour)}
         />
       ) : (
