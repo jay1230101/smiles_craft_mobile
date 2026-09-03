@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Modal,
   Platform,
@@ -47,10 +47,14 @@ export function DateField({
   containerStyle,
 }: Props) {
   const [open, setOpen] = useState(false);
-  // Track an in-flight selection separately on iOS so the "Done" button
-  // commits the choice. On Android the native dialog already has its own
-  // OK/Cancel, so we just react to the event directly.
-  const [draft, setDraft] = useState<Date | null>(null);
+  // The value handed to the iOS picker when the sheet opens. It is captured
+  // ONCE and never updated while the user is scrubbing dates: re-rendering the
+  // native picker with a fresh value mid-interaction makes it jump around and
+  // can hard-crash the app under the New Architecture. So the live selection
+  // lives in a ref and only the starting value is ever passed as a prop; the
+  // "Done" button commits the ref.
+  const pickerValueRef = useRef<Date>(new Date(1995, 0, 1));
+  const selectionRef = useRef<Date>(new Date(1995, 0, 1));
   const insets = useSafeAreaInsets();
   const showError = !!error;
 
@@ -59,7 +63,8 @@ export function DateField({
   const min = minimumDate ?? new Date(new Date().getFullYear() - 120, 0, 1);
 
   const openPicker = () => {
-    setDraft(initial);
+    pickerValueRef.current = initial;
+    selectionRef.current = initial;
     setOpen(true);
   };
 
@@ -76,9 +81,9 @@ export function DateField({
         commit(selected);
       }
     } else if (selected) {
-      // iOS spinner / inline updates the draft as the user scrolls; we
-      // commit on the Done button.
-      setDraft(selected);
+      // Record only — no setState, so the picker never re-renders (and never
+      // resets) while the user is still picking. Committed on "Done".
+      selectionRef.current = selected;
     }
   };
 
@@ -139,7 +144,7 @@ export function DateField({
                     <Text style={styles.iosTitle}>{label || 'Select date'}</Text>
                     <Pressable
                       onPress={() => {
-                        if (draft) commit(draft);
+                        commit(selectionRef.current);
                         setOpen(false);
                       }}
                       hitSlop={10}>
@@ -153,7 +158,7 @@ export function DateField({
                     // inside this Modal even with an explicit height.
                     // Inline renders reliably and matches modern iOS UX.
                     display="inline"
-                    value={draft ?? initial}
+                    value={pickerValueRef.current}
                     maximumDate={max}
                     minimumDate={min}
                     onChange={onChangeNative}

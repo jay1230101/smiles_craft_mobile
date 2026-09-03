@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Modal,
   Platform,
@@ -47,14 +47,25 @@ export function TimeField({
   containerStyle,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState<Date | null>(null);
+  // The value handed to the iOS picker when the sheet opens. It is captured
+  // ONCE and never updated while the wheel is spinning: re-rendering a native
+  // iOS spinner with a fresh value mid-scroll makes it fight the user's finger
+  // (erratic hour / AM-PM jumps) and can hard-crash the app under the New
+  // Architecture. So the live selection lives in a ref and only the starting
+  // value is ever passed as a prop.
+  const pickerValueRef = useRef<Date>(defaultTime());
+  const selectionRef = useRef<Date>(defaultTime());
   const insets = useSafeAreaInsets();
   const showError = !!error;
 
   const initial = parseHhMm(value) ?? defaultTime();
 
   const openPicker = () => {
-    setDraft(initial);
+    // Snap to the minute interval up front — iOS throws if the picker opens on
+    // a minute that is not a multiple of minuteInterval.
+    const start = snapToInterval(initial, minuteInterval);
+    pickerValueRef.current = start;
+    selectionRef.current = start;
     setOpen(true);
   };
 
@@ -69,7 +80,9 @@ export function TimeField({
         commit(selected);
       }
     } else if (selected) {
-      setDraft(selected);
+      // Record only — no setState, so the picker never re-renders (and never
+      // resets) while the user is still scrolling. Committed on "Done".
+      selectionRef.current = selected;
     }
   };
 
@@ -126,7 +139,7 @@ export function TimeField({
                     <Text style={styles.iosTitle}>{label || 'Select time'}</Text>
                     <Pressable
                       onPress={() => {
-                        if (draft) commit(draft);
+                        commit(selectionRef.current);
                         setOpen(false);
                       }}
                       hitSlop={10}>
@@ -138,7 +151,7 @@ export function TimeField({
                     display="spinner"
                     is24Hour={false}
                     minuteInterval={minuteInterval}
-                    value={draft ?? initial}
+                    value={pickerValueRef.current}
                     onChange={onChangeNative}
                     themeVariant="light"
                     style={styles.iosPicker}
@@ -168,6 +181,15 @@ function defaultTime(): Date {
   const d = new Date();
   d.setMinutes(0, 0, 0);
   return d;
+}
+
+// Round to the nearest minuteInterval so the iOS picker never opens on a
+// minute it considers invalid (e.g. 8:23 with a 5-minute interval).
+function snapToInterval(d: Date, interval?: number): Date {
+  if (!interval || interval <= 1) return d;
+  const snapped = new Date(d);
+  snapped.setMinutes(Math.round(snapped.getMinutes() / interval) * interval, 0, 0);
+  return snapped;
 }
 
 function formatHhMm24(d: Date): string {
