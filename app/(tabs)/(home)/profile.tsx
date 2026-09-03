@@ -262,12 +262,13 @@ function initialsOf(name?: string | null): string {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-function displayName(name?: string, role?: Role): string {
+function displayName(name?: string, _role?: Role): string {
   const trimmed = (name ?? '').trim();
   if (!trimmed) return 'Account';
-  // Honorific guard matches "Dr" with an optional period so a backend name
-  // like "Dr Rami Hamdan" doesn't become "Dr. Dr Rami Hamdan".
-  if (role === 'DOCTOR' && !/^Dr\.?\s/i.test(trimmed)) return `Dr. ${trimmed}`;
+  // Show the name exactly as entered on the web "Add Clinic User" form. The
+  // "Dr" honorific is optional there — not every clinician with the doctor
+  // role is addressed as "Dr" (e.g. physiotherapists) — so we never force
+  // one on; whatever the name carries is what we display.
   return trimmed;
 }
 

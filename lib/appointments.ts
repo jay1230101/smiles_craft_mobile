@@ -68,14 +68,13 @@ export function formatEventTime(start: string | null | undefined): string {
   return start;
 }
 
-// Doctor names from the backend sometimes already carry an honorific
-// (e.g. "Dr Rami Hamdan"). Prepend "Dr." only when one isn't already
-// present so labels never read "Dr. Dr Rami Hamdan". Returns '' for an
-// empty/absent name so callers can fall back to their own placeholder.
+// Show the clinician name exactly as it was entered on the web "Add Clinic
+// User" form. The "Dr" honorific is optional there — some clinicians (e.g.
+// physiotherapists) are not doctors — so we never force one on. We only
+// normalise whitespace; the caller falls back to its own placeholder when
+// the name is empty.
 export function formatDoctorName(raw?: string | null): string {
-  const name = (raw ?? '').trim();
-  if (!name) return '';
-  return /^Dr\.?\s/i.test(name) ? name : `Dr. ${name}`;
+  return (raw ?? '').trim();
 }
 
 export function formatInitials(name?: string, family?: string): string {

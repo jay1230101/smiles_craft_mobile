@@ -32,8 +32,8 @@ export function DoctorPicker({ doctors, selectedDoctorId, onSelect }: Props) {
         />
         {doctors.map((d) => {
           const name = `${(d.name ?? '').trim()} ${(d.family ?? '').trim()}`.trim();
-          // formatDoctorName prepends "Dr." only when the backend name doesn't
-          // already carry one, so chips never read "Dr. Dr Rami Hamdan".
+          // Show the clinician name exactly as stored — the "Dr" honorific is
+          // optional and only appears when the name itself carries it.
           const label = formatDoctorName(name) || 'Doctor';
           return (
             <Chip
