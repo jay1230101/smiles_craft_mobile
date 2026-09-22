@@ -53,10 +53,12 @@ export default function RecordPaymentScreen() {
     return Number.isFinite(n) && n >= 0 ? n : 0;
   }, [amountText]);
 
+  // Zero is a valid collected amount (e.g. recording a visit where nothing was
+  // collected), so the gate only rejects negatives and overpayments — not 0.
   const canSubmit =
     !recordPayment.isPending &&
     selectedIds.length > 0 &&
-    amountValue > 0 &&
+    amountValue >= 0 &&
     amountValue <= selectedRemaining + 0.001;
 
   if (patientId === null) {
@@ -72,10 +74,6 @@ export default function RecordPaymentScreen() {
     setErrorMessage(null);
     if (selectedIds.length === 0) {
       setErrorMessage('Select at least one bill line to pay.');
-      return;
-    }
-    if (amountValue <= 0) {
-      setErrorMessage('Enter a payment amount greater than zero.');
       return;
     }
     if (amountValue > selectedRemaining + 0.001) {
