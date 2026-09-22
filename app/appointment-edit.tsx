@@ -136,11 +136,10 @@ function EditForm({
       startTime: start ? formatHhMm(start) : '',
       endTime: end ? formatHhMm(end) : '',
       notes: event.extendedProps?.procedure ?? '',
-      // This screen is Edit / Reschedule, so default the WhatsApp reminder ON —
-      // a reschedule should notify the patient of the new time. The staff can
-      // still toggle it off (e.g. when only fixing a typo), and the backend
-      // won't send anything if the appointment didn't actually change.
-      bookingReminder: true,
+      // Default the WhatsApp reminder OFF on edit: an edit is often just a small
+      // correction, so staff opt in to notifying the patient by ticking the box
+      // when they actually want a new WhatsApp sent.
+      bookingReminder: false,
     };
   }, [event]);
 
