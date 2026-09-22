@@ -223,17 +223,16 @@ function computeRemainingAfter(input: RecordPaymentInput): number {
 }
 
 function buildReceipt(input: RecordPaymentInput): BillReceiptData {
-  let amountLeft = input.amountPaid;
-  const lineItems: BillReceiptData['lineItems'] = [];
-  for (const enc of input.paidEncounters) {
-    const applied = Math.min(enc.remainingBalance, Math.max(0, amountLeft));
-    amountLeft -= applied;
-    lineItems.push({
-      procedure: enc.procedure,
-      toothNumber: enc.toothNumber || undefined,
-      amount: applied,
-    });
-  }
+  // Each line item shows that procedure's OWN outstanding charge, not a
+  // waterfall slice of the paid amount. The old code allocated the payment
+  // procedure-by-procedure, so a payment that fit inside the first bill's
+  // balance dumped the whole amount onto line 1 and showed 0 for the rest.
+  const totalOwed = input.paidEncounters.reduce((sum, enc) => sum + enc.remainingBalance, 0);
+  const lineItems: BillReceiptData['lineItems'] = input.paidEncounters.map((enc) => ({
+    procedure: enc.procedure,
+    toothNumber: enc.toothNumber || undefined,
+    amount: enc.remainingBalance,
+  }));
 
   return {
     // Receipt number convention matches what the web prints (the latest
@@ -243,7 +242,9 @@ function buildReceipt(input: RecordPaymentInput): BillReceiptData {
     date: new Date().toISOString(),
     patient: input.patient,
     lineItems,
-    amountPaid: input.amountPaid - Math.max(0, amountLeft),
+    // Cap the shown paid figure at the total owed (an overpayment is not
+    // credited beyond the balance), matching the previous behaviour.
+    amountPaid: Math.min(input.amountPaid, totalOwed),
     remainingBalance: computeRemainingAfter(input),
     currency: input.currency || 'USD',
   };

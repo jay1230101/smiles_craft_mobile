@@ -229,20 +229,24 @@ export function applyMockPayment(input: RecordPaymentInput): RecordPaymentRespon
   if (!encounters || encounters.length === 0) {
     return { status: 'error', message: 'No outstanding bills for this patient.' };
   }
+  const selected = encounters.filter((enc) => input.billID.includes(enc.id));
+  // Receipt line items show each procedure's OWN outstanding charge, captured
+  // BEFORE the payment is applied — not a waterfall slice of the paid amount
+  // (which put the whole payment on the first line and 0 on the rest).
+  const lineItems: BillReceiptData['lineItems'] = selected.map((enc) => ({
+    procedure: enc.procedure,
+    toothNumber: enc.toothNumber,
+    amount: enc.remainingBalance,
+  }));
+  // Apply the payment across the selected bills so the demo store's balances
+  // drop realistically.
   let remaining = input.amountPaid;
-  const lineItems: BillReceiptData['lineItems'] = [];
-  for (const enc of encounters) {
+  for (const enc of selected) {
     if (remaining <= 0) break;
-    if (!input.billID.includes(enc.id)) continue;
     const applied = Math.min(enc.remainingBalance, remaining);
     enc.previousPayment += applied;
     enc.remainingBalance -= applied;
     remaining -= applied;
-    lineItems.push({
-      procedure: enc.procedure,
-      toothNumber: enc.toothNumber,
-      amount: applied,
-    });
   }
   const patient = mockPatients[input.patient_id];
   const newRemaining = encounters.reduce((s, e) => s + e.remainingBalance, 0);
