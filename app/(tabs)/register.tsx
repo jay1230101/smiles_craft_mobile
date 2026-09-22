@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Pressable,
   StyleSheet,
   Text,
@@ -40,10 +41,23 @@ export default function RegisterScreen() {
     router.push('/patient-register' as never);
   };
 
-  const openEdit = (patient: PatientListItem) => {
-    setEditPatient(patient);
-    router.push('/patient-edit' as never);
-  };
+  // Stable callback so the memoized PatientCard rows don't re-render when the
+  // search box or an unrelated row changes.
+  const openEdit = useCallback(
+    (patient: PatientListItem) => {
+      setEditPatient(patient);
+      router.push('/patient-edit' as never);
+    },
+    [router, setEditPatient],
+  );
+
+  const keyExtractor = useCallback((p: PatientListItem) => String(p.id), []);
+  const renderItem = useCallback(
+    ({ item }: { item: PatientListItem }) => (
+      <PatientCard patient={item} onEdit={openEdit} onDelete={setPendingDelete} />
+    ),
+    [openEdit],
+  );
 
   const confirmDelete = async () => {
     if (!pendingDelete) return;
@@ -114,9 +128,7 @@ export default function RegisterScreen() {
   }
 
   return (
-    <Screen
-      contentContainerStyle={[styles.listContainer, { paddingBottom: safeBottomPadding }]}
-      edges={['top']}>
+    <Screen scrollable={false} contentContainerStyle={styles.listContainer} edges={['top']}>
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"
@@ -158,20 +170,28 @@ export default function RegisterScreen() {
         ) : null}
       </View>
 
-      <View style={styles.list}>
-        {filteredPatients.length === 0 ? (
+      {/* Virtualized: only the visible rows mount. A clinic can have thousands
+          of patients — rendering them all at once (a .map inside a ScrollView)
+          took ~20s to load and left every row mounted for the whole session,
+          which also slowed the other tabs. */}
+      <FlatList
+        data={filteredPatients}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        style={styles.flex}
+        contentContainerStyle={[styles.listContent, { paddingBottom: safeBottomPadding }]}
+        ItemSeparatorComponent={RowSeparator}
+        ListEmptyComponent={
           <Text style={styles.noResults}>No patients match “{query}”.</Text>
-        ) : (
-          filteredPatients.map((p) => (
-            <PatientCard
-              key={p.id}
-              patient={p}
-              onEdit={openEdit}
-              onDelete={setPendingDelete}
-            />
-          ))
-        )}
-      </View>
+        }
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        removeClippedSubviews
+      />
 
       <ConfirmDialog
         visible={pendingDelete !== null}
@@ -223,6 +243,10 @@ function EmptyState({
   );
 }
 
+function RowSeparator() {
+  return <View style={styles.rowSeparator} />;
+}
+
 function formatTotal(n: number): string {
   return n < 10 ? `0${n}` : String(n);
 }
@@ -246,6 +270,18 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingTop: spacing.sm,
     gap: spacing.lg,
+    // Cancel Screen's default bottom padding: the FlatList fills to the bottom
+    // and its own contentContainerStyle handles tab-bar clearance.
+    paddingBottom: 0,
+  },
+  flex: {
+    flex: 1,
+  },
+  listContent: {
+    flexGrow: 1,
+  },
+  rowSeparator: {
+    height: spacing.md,
   },
   header: {
     flexDirection: 'row',
@@ -306,9 +342,6 @@ const styles = StyleSheet.create({
     flex: 1,
     ...typography.body.medium,
     color: HEADING_COLOR,
-  },
-  list: {
-    gap: spacing.md,
   },
   noResults: {
     ...typography.body.medium,

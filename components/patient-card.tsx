@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRef, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -26,7 +26,10 @@ type Props = {
   onDelete?: (p: PatientListItem) => void;
 };
 
-export function PatientCard({ patient, onEdit, onDelete }: Props) {
+// Memoized: the Register screen renders this for a large patient list, so a
+// row must not re-render when an unrelated row's state (or the search box)
+// changes. Relies on stable `onEdit`/`onDelete` callbacks from the parent.
+function PatientCardBase({ patient, onEdit, onDelete }: Props) {
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const triggerRef = useRef<RNView>(null);
 
@@ -130,6 +133,8 @@ export function PatientCard({ patient, onEdit, onDelete }: Props) {
     </View>
   );
 }
+
+export const PatientCard = memo(PatientCardBase);
 
 function DetailCell({ label, value }: { label: string; value: string }) {
   return (
