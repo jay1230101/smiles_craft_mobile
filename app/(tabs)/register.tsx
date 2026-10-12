@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -31,11 +31,34 @@ export default function RegisterScreen() {
   const router = useRouter();
   const bottomTabHeight = useBottomTabBarHeight();
   const safeBottomPadding = Math.max(bottomTabHeight, 80) + spacing.xxl;
-  const { data: patients, isLoading, isError, refetch } = usePatients();
+  const [query, setQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  // Debounce the search box so each keystroke doesn't fire a server request.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(query.trim()), 350);
+    return () => clearTimeout(id);
+  }, [query]);
+
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = usePatients(debouncedSearch);
   const setEditPatient = useEditPatientStore((s) => s.setPatient);
   const deletePatient = useDeletePatient();
-  const [query, setQuery] = useState('');
   const [pendingDelete, setPendingDelete] = useState<PatientListItem | null>(null);
+
+  // The server paginates and searches; flatten the loaded pages into one list.
+  const patients = useMemo(() => data?.pages.flatMap((p) => p.patients) ?? [], [data]);
+  const total = data?.pages[0]?.total ?? 0;
+
+  const loadMore = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const openForm = () => {
     router.push('/patient-register' as never);
@@ -84,19 +107,6 @@ export default function RegisterScreen() {
     }
   };
 
-  const filteredPatients = useMemo(() => {
-    const list = patients ?? [];
-    const q = query.trim().toLowerCase();
-    if (!q) return list;
-    return list.filter((p) => {
-      const haystack = [p.name, p.family, p.phone, p.doctor_name]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(q);
-    });
-  }, [patients, query]);
-
   if (isLoading) {
     return (
       <Screen
@@ -120,10 +130,9 @@ export default function RegisterScreen() {
     );
   }
 
-  const total = patients?.length ?? 0;
-  const isEmpty = total === 0;
-
-  if (isEmpty) {
+  // Only the "no patients yet" empty state for a genuinely empty clinic — a
+  // search that matched nothing is handled by the list's empty component.
+  if (!debouncedSearch && total === 0 && patients.length === 0) {
     return <EmptyState onAdd={openForm} safeBottomPadding={safeBottomPadding} />;
   }
 
@@ -170,20 +179,30 @@ export default function RegisterScreen() {
         ) : null}
       </View>
 
-      {/* Virtualized: only the visible rows mount. A clinic can have thousands
-          of patients — rendering them all at once (a .map inside a ScrollView)
-          took ~20s to load and left every row mounted for the whole session,
-          which also slowed the other tabs. */}
+      {/* Virtualized + paginated: the server returns 50 patients per page and
+          searches server-side; more pages load as the user scrolls. Only the
+          visible rows mount. */}
       <FlatList
-        data={filteredPatients}
+        data={patients}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         style={styles.flex}
         contentContainerStyle={[styles.listContent, { paddingBottom: safeBottomPadding }]}
         ItemSeparatorComponent={RowSeparator}
         ListEmptyComponent={
-          <Text style={styles.noResults}>No patients match “{query}”.</Text>
+          <Text style={styles.noResults}>
+            {debouncedSearch ? `No patients match “${debouncedSearch}”.` : 'No patients.'}
+          </Text>
         }
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <View style={styles.footerLoader}>
+              <ActivityIndicator color={colors.primary[500]} />
+            </View>
+          ) : null
+        }
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.4}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
@@ -282,6 +301,10 @@ const styles = StyleSheet.create({
   },
   rowSeparator: {
     height: spacing.md,
+  },
+  footerLoader: {
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',

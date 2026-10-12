@@ -23,24 +23,42 @@ export async function registerPatientRequest(
   return data;
 }
 
-export async function getPatientsRequest(): Promise<PatientListItem[]> {
-   
-  console.log('[patients] GET', endpoints.patients.list);
-  try {
-    const { data } = await apiClient.get<PatientListItemWire[]>(endpoints.patients.list);
-     
-    console.log(
-      '[patients] response',
-      Array.isArray(data) ? `array(${data.length})` : typeof data,
-      data,
-    );
-    return Array.isArray(data) ? data.map(normalizePatient) : [];
-  } catch (err) {
+export type GetPatientsParams = { page: number; perPage?: number; search?: string };
+export type PatientsPage = {
+  patients: PatientListItem[];
+  total: number;
+  page: number;
+  perPage: number;
+};
 
-    console.log('[patients] ERROR', err);
-    throw err;
-  }
+// /registeredPatients is now paginated server-side (default 50/page) and does
+// its own search — it returns { patients, total, page, per_page }, NOT a flat
+// array. The caller pages through with `page` and passes `search` for the
+// server to filter (name / family / phone / file number).
+export async function getPatientsRequest(params: GetPatientsParams): Promise<PatientsPage> {
+  const { page, perPage = 50, search } = params;
+  const { data } = await apiClient.get<GetPatientsWire>(endpoints.patients.list, {
+    params: {
+      page,
+      per_page: perPage,
+      ...(search && search.trim() ? { search: search.trim() } : {}),
+    },
+  });
+  const rows = Array.isArray(data?.patients) ? data.patients : [];
+  return {
+    patients: rows.map(normalizePatient),
+    total: typeof data?.total === 'number' ? data.total : rows.length,
+    page: typeof data?.page === 'number' ? data.page : page,
+    perPage: typeof data?.per_page === 'number' ? data.per_page : perPage,
+  };
 }
+
+type GetPatientsWire = {
+  patients?: PatientListItemWire[];
+  total?: number;
+  page?: number;
+  per_page?: number;
+};
 
 // PatientRegistrationInfo.doctor_id is a String column (models.py:255), so
 // /registeredPatients returns it as "64" rather than 64 even though our type
