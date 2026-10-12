@@ -42,6 +42,13 @@
       ],
       "expo-secure-store",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Smiles Craft to access your photos to attach patient files and X-rays.",
+          "cameraPermission": "Allow Smiles Craft to use the camera to capture patient files and X-rays."
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/images/brand/icon-android.png",

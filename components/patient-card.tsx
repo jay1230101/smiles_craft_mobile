@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { memo, useRef, useState } from 'react';
 import {
   Modal,
@@ -30,6 +31,7 @@ type Props = {
 // row must not re-render when an unrelated row's state (or the search box)
 // changes. Relies on stable `onEdit`/`onDelete` callbacks from the parent.
 function PatientCardBase({ patient, onEdit, onDelete }: Props) {
+  const router = useRouter();
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const triggerRef = useRef<RNView>(null);
 
@@ -114,6 +116,23 @@ function PatientCardBase({ patient, onEdit, onDelete }: Props) {
                 style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}>
                 <Ionicons name="create-outline" size={ms(18)} color={colors.primary[500]} />
                 <Text style={[styles.menuLabel, { color: colors.primary[500] }]}>Edit</Text>
+              </Pressable>
+              <View style={styles.menuDivider} />
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  closeMenu();
+                  router.push({
+                    pathname: '/patient-files',
+                    params: {
+                      patientId: String(patient.id),
+                      patientName: [patient.name, patient.family].filter(Boolean).join(' '),
+                    },
+                  } as never);
+                }}
+                style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}>
+                <Ionicons name="folder-outline" size={ms(18)} color={HEADING_COLOR} />
+                <Text style={[styles.menuLabel, { color: HEADING_COLOR }]}>Files</Text>
               </Pressable>
               <View style={styles.menuDivider} />
               <Pressable
