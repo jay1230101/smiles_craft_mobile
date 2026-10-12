@@ -6,6 +6,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { AppointmentCard } from '@/components/appointment-card';
 import { DoctorPicker } from '@/components/doctor-picker';
 import { LinkText } from '@/components/link-text';
+import { ChatButton } from '@/components/chat-button';
 import { NotificationButton } from '@/components/notification-button';
 import { ProfileButton } from '@/components/profile-button';
 import { Screen } from '@/components/screen';
@@ -30,6 +31,7 @@ import {
 } from '@/lib/mock-appointments';
 import { useAuthStore } from '@/store/auth';
 import { useDoctorFilterStore } from '@/store/doctor-filter';
+import { useChatUnreadStore } from '@/store/chat-unread';
 import { useNotificationsStore } from '@/store/notifications';
 import { colors, spacing, typography } from '@/theme';
 
@@ -51,6 +53,7 @@ export default function HomeScreen() {
   const hasUnreadNotifications = useNotificationsStore((s) =>
     s.items.some((it) => !it.read),
   );
+  const chatUnread = useChatUnreadStore((s) => s.unread);
 
   // Same rule as the Calendar: non-owner doctors don't get the picker — they
   // only ever see their own appointments and any filter would be a no-op.
@@ -129,6 +132,10 @@ export default function HomeScreen() {
           <Text style={styles.dateLabel}>{dateLabel}</Text>
         </View>
         <View style={styles.headerActions}>
+          <ChatButton
+            unread={chatUnread}
+            onPress={() => router.push('/patient-chats' as never)}
+          />
           <NotificationButton
             hasUnread={hasUnreadNotifications}
             onPress={() => router.push('/(tabs)/(home)/notifications' as never)}

@@ -4,8 +4,10 @@ import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { connectSocket, disconnectSocket, type ServerEvent } from '@/api/socket';
 import { DEMO_MODE, getMockNotifications } from '@/lib/mock-appointments';
 import { useAuthStore } from '@/store/auth';
+import { useChatUnreadStore } from '@/store/chat-unread';
 import { useNotificationsStore } from '@/store/notifications';
 import type { BackendEvent } from '@/types/appointments';
+import type { ChatThread, IncomingChatEvent } from '@/types/chats';
 import type { NotificationKind } from '@/types/notifications';
 
 const APPOINTMENT_EVENTS: ServerEvent[] = [
@@ -119,12 +121,95 @@ export function useSocketEvents() {
       return { event, handler: invalidateBills };
     });
 
+    // WhatsApp delivery-status changes (booking message + day-before reminder).
+    // Patch the matching cached appointment in place rather than invalidating —
+    // these fire several times per message (sent -> delivered -> read), so a
+    // full /getAllEvents refetch per callback would be a refetch storm. No
+    // notification is raised for these.
+    const whatsappBookingHandler = (payload: unknown) => {
+      const p = (payload ?? {}) as Record<string, unknown>;
+      updateEventWhatsApp(queryClient, p.id, {
+        isBookingWhatsappSent: !!p.bookingStatus,
+        bookingApptStatus: (p.deliveryStatus as string | null) ?? null,
+      });
+    };
+    const whatsappApptHandler = (payload: unknown) => {
+      const p = (payload ?? {}) as Record<string, unknown>;
+      updateEventWhatsApp(queryClient, p.id, {
+        isAppointmentWhatsappSent: !!p.apptStatus,
+        whatsappApptStatus: (p.apptdeliveryStatus as string | null) ?? null,
+      });
+    };
+    socket.on('WhatsAppBookingStatus', whatsappBookingHandler);
+    socket.on('WhatsAppApptStatus', whatsappApptHandler);
+
+    // New inbound patient chat message: bump the unread badge and prepend it to
+    // the cached thread list so the Patient Chats screen updates live.
+    const chatHandler = (payload: unknown) => {
+      const evt = (payload ?? {}) as IncomingChatEvent;
+      if (!evt.patient_phone) return;
+      useChatUnreadStore.getState().bump();
+      prependChatMessage(queryClient, evt);
+    };
+    socket.on('displayPatientWhatsApp', chatHandler);
+
     return () => {
       appointmentHandlers.forEach(({ event, handler }) => socket.off(event, handler));
       patientHandlers.forEach(({ event, handler }) => socket.off(event, handler));
       billingHandlers.forEach(({ event, handler }) => socket.off(event, handler));
+      socket.off('WhatsAppBookingStatus', whatsappBookingHandler);
+      socket.off('WhatsAppApptStatus', whatsappApptHandler);
+      socket.off('displayPatientWhatsApp', chatHandler);
     };
   }, [token, status, queryClient, pushNotification]);
+}
+
+// Patch a cached appointment's WhatsApp status fields in place (matched on the
+// booking id, exposed as extendedProps.mainId). Returns the same array when no
+// row matched so React Query skips a needless re-render.
+function updateEventWhatsApp(
+  queryClient: QueryClient,
+  id: unknown,
+  patch: Partial<BackendEvent['extendedProps']>,
+) {
+  if (id == null) return;
+  const target = String(id);
+  queryClient.setQueryData<BackendEvent[]>(['appointments', 'all-events'], (old) => {
+    if (!Array.isArray(old)) return old;
+    let changed = false;
+    const next = old.map((e) => {
+      if (String(e.extendedProps?.mainId) === target || String(e.id) === target) {
+        changed = true;
+        return { ...e, extendedProps: { ...e.extendedProps, ...patch } };
+      }
+      return e;
+    });
+    return changed ? next : old;
+  });
+}
+
+// Prepend an inbound chat message to the cached thread list (newest first) and
+// move its thread to the top — mirrors the web. No-op when the list hasn't been
+// fetched yet; the screen fetches fresh on open.
+function prependChatMessage(queryClient: QueryClient, evt: IncomingChatEvent) {
+  queryClient.setQueryData<ChatThread[]>(['chats'], (old) => {
+    if (!Array.isArray(old)) return old;
+    const msg = { message: evt.message, timestamp: evt.timestamp, direction: 'inbound' as const };
+    const idx = old.findIndex((t) => t.patient_phone === evt.patient_phone);
+    if (idx === -1) {
+      const thread: ChatThread = {
+        patient_phone: evt.patient_phone,
+        patient_name: evt.patient_name,
+        patient_id: evt.patient_id ?? null,
+        clinic_call_number: evt.clinic_call_number ?? null,
+        messages: [msg],
+      };
+      return [thread, ...old];
+    }
+    const existing = old[idx];
+    const updated: ChatThread = { ...existing, messages: [msg, ...existing.messages] };
+    return [updated, ...old.slice(0, idx), ...old.slice(idx + 1)];
+  });
 }
 
 function buildNotification(event: ServerEvent, payload: unknown) {

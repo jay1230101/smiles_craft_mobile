@@ -14,6 +14,12 @@ export type BackendEvent = {
     procedure: string | null;
     isBookingWhatsappSent: boolean;
     isAppointmentWhatsappSent: boolean;
+    // WhatsApp delivery status strings from Meta: 'sent' | 'delivered' | 'read'
+    // | 'failed' (or null until the first status callback). bookingApptStatus is
+    // the booking/confirmation message sent at booking time; whatsappApptStatus
+    // is the automatic day-before reminder. Same fields the web calendar reads.
+    bookingApptStatus?: string | null;
+    whatsappApptStatus?: string | null;
     isAppointmentConfirmed: boolean;
     isAppointmentCancelled: boolean;
     mainId: number;

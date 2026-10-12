@@ -35,13 +35,15 @@ export function PushBridge() {
         const data = response.notification.request.content.data as
           | { type?: string; bookingId?: number | string }
           | undefined;
-        // All four backend push types map to the calendar — either a
-        // reschedule, a cancellation, or a WhatsApp response on an
-        // existing appointment. Landing on the Calendar tab surfaces the
-        // change without needing per-appointment deep-link routing that
-        // we haven't built yet.
+        // A new-patient-chat push opens the Patient Chats screen; every other
+        // push type (reschedule, cancellation, WhatsApp confirm/cancel) is a
+        // calendar event, so those land on the Calendar tab.
         try {
-          router.push('/(tabs)/calendar' as never);
+          if (data?.type === 'patientChat') {
+            router.push('/patient-chats' as never);
+          } else {
+            router.push('/(tabs)/calendar' as never);
+          }
         } catch (err) {
           console.log('[push] tap navigation failed', { data, err });
         }

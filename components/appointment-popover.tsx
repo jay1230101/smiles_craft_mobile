@@ -121,6 +121,11 @@ export function AppointmentPopover({ event, onClose }: Props) {
               ) : null}
             </View>
 
+            {/* WhatsApp delivery status for the two messages the backend sends:
+                the booking confirmation and the automatic day-before reminder.
+                Mirrors the status the web calendar shows. */}
+            <WhatsAppStatusBlock ext={event.extendedProps} />
+
             <View style={styles.actionsBlock}>
               <ActionButton
                 icon="duplicate-outline"
@@ -240,6 +245,74 @@ function ActionButton({
   );
 }
 
+function WhatsAppStatusBlock({ ext }: { ext: BackendEvent['extendedProps'] }) {
+  return (
+    <View style={styles.waBlock}>
+      <View style={styles.waHeader}>
+        <Ionicons name="logo-whatsapp" size={s(16)} color={colors.success[500]} />
+        <Text style={styles.waTitle}>WhatsApp</Text>
+      </View>
+      <WaStatusRow
+        label="Booking confirmation"
+        sent={ext?.isBookingWhatsappSent}
+        status={ext?.bookingApptStatus}
+      />
+      <WaStatusRow
+        label="Appointment reminder"
+        sent={ext?.isAppointmentWhatsappSent}
+        status={ext?.whatsappApptStatus}
+      />
+    </View>
+  );
+}
+
+function WaStatusRow({
+  label,
+  sent,
+  status,
+}: {
+  label: string;
+  sent?: boolean;
+  status?: string | null;
+}) {
+  const style = waStatusStyle(sent, status);
+  return (
+    <View style={styles.waRow}>
+      <Text style={styles.waLabel} numberOfLines={1}>
+        {label}
+      </Text>
+      <View style={styles.waStatusWrap}>
+        <Ionicons name={style.icon} size={ms(15)} color={style.color} />
+        <Text style={[styles.waStatusText, { color: style.color }]}>{style.label}</Text>
+      </View>
+    </View>
+  );
+}
+
+// Map Meta's WhatsApp status strings to a label, colour and icon. Read uses the
+// brand blue + double tick; delivered a grey double tick; sent a single tick;
+// failed red. When no status string has arrived yet, show Pending (message was
+// sent, awaiting a callback) or Not sent.
+function waStatusStyle(
+  sent?: boolean,
+  status?: string | null,
+): { label: string; color: string; icon: keyof typeof Ionicons.glyphMap } {
+  switch ((status ?? '').toLowerCase()) {
+    case 'read':
+      return { label: 'Read', color: colors.primary[500], icon: 'checkmark-done' };
+    case 'delivered':
+      return { label: 'Delivered', color: colors.text.secondary, icon: 'checkmark-done' };
+    case 'sent':
+      return { label: 'Sent', color: colors.text.secondary, icon: 'checkmark' };
+    case 'failed':
+      return { label: 'Failed', color: colors.danger[500], icon: 'alert-circle' };
+    default:
+      return sent
+        ? { label: 'Pending', color: colors.text.secondary, icon: 'time-outline' }
+        : { label: 'Not sent', color: colors.text.secondary, icon: 'remove-circle-outline' };
+  }
+}
+
 function StatusPill({ status }: { status: 'confirmed' | 'cancelled' | 'unconfirmed' }) {
   const { bg, color, label } = statusStyle(status);
   return (
@@ -356,6 +429,47 @@ const styles = StyleSheet.create({
     ...typography.body.large,
     fontFamily: 'Inter_600SemiBold',
     color: colors.neutral[500],
+  },
+  waBlock: {
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+    marginTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.subtle,
+  },
+  waHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  waTitle: {
+    ...typography.label.small,
+    fontFamily: 'Inter_600SemiBold',
+    color: colors.text.secondary,
+    fontSize: ms(11),
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  waRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  waLabel: {
+    ...typography.body.medium,
+    color: colors.text.primary,
+    flexShrink: 1,
+  },
+  waStatusWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  waStatusText: {
+    ...typography.label.large,
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: ms(13),
   },
   actionsBlock: {
     gap: spacing.xs,

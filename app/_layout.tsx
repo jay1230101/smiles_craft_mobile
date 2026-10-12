@@ -126,6 +126,14 @@ export default function RootLayout() {
             name="outstanding-by-patient"
             options={{ headerShown: false, presentation: 'modal' }}
           />
+          <Stack.Screen
+            name="patient-chats"
+            options={{ headerShown: false, presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="patient-files"
+            options={{ headerShown: false, presentation: 'modal' }}
+          />
         </Stack>
             <StatusBar style="auto" />
           </ThemeProvider>

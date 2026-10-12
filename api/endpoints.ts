@@ -34,6 +34,21 @@ export const endpoints = {
   genders: {
     list: '/getGender',
   },
+  chats: {
+    // Inbound patient WhatsApp messages (read-only). Returns the last 30 days
+    // grouped into threads by patient phone. Live updates arrive on the
+    // `displayPatientWhatsApp` socket event.
+    list: '/getChats',
+  },
+  documents: {
+    // Patient files (X-rays + documents). upload: multipart (file, patientId,
+    // fileSize). list: POST { patient_id } -> array with presigned URLs.
+    upload: '/upload_documents',
+    list: '/view_docs',
+    // delete is PENDING a backend addition (no route exists yet) — see the
+    // backend note. The mobile delete UI calls this once it ships.
+    delete: '/delete_document',
+  },
   bills: {
     pending: '/getPendingBills',
     all: '/getAllBills',
