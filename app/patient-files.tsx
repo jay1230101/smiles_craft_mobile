@@ -31,6 +31,31 @@ const HEADING_COLOR = '#1A202C';
 const SUBTITLE_COLOR = '#64748B';
 const IMAGE_RE = /\.(webp|jpe?g|png|gif|bmp|tiff?)$/i;
 const PDF_RE = /\.pdf$/i;
+const VIDEO_RE = /\.(mp4|3gp|mov|m4v|avi|mkv|webm)$/i;
+
+// Upload size caps. Video mirrors the web's MAX_VIDEO_MB so a doctor can't push
+// a huge clip from the phone; the overall ceiling guards the backend, which
+// reads the whole file into memory to forward it to storage. Both are tunable
+// in one place if the clinic changes the web limits.
+const MAX_VIDEO_MB = 16;
+const MAX_UPLOAD_MB = 25;
+
+// Returns a user-facing message when the picked file is too large, else null.
+// Size can be 0/unknown from a picker; in that case we let the server decide
+// rather than block a legitimate upload.
+function tooLargeMessage(file: PickedFile): string | null {
+  const bytes = file.size ?? 0;
+  if (!bytes) return null;
+  const mb = bytes / (1024 * 1024);
+  const isVideo = VIDEO_RE.test(file.name) || (file.mimeType?.startsWith('video/') ?? false);
+  if (isVideo && mb > MAX_VIDEO_MB) {
+    return `Videos must be ${MAX_VIDEO_MB} MB or smaller. This one is ${mb.toFixed(1)} MB.`;
+  }
+  if (mb > MAX_UPLOAD_MB) {
+    return `Files must be ${MAX_UPLOAD_MB} MB or smaller. This one is ${mb.toFixed(1)} MB.`;
+  }
+  return null;
+}
 
 export default function PatientFilesScreen() {
   const router = useRouter();
@@ -42,16 +67,20 @@ export default function PatientFilesScreen() {
   const upload = useUploadDocument(patientId ?? 0);
   const remove = useDeleteDocument(patientId ?? 0);
   const [preview, setPreview] = useState<PatientDocument | null>(null);
+  const [sourceOpen, setSourceOpen] = useState(false);
 
   const files = data ?? [];
 
-  const addFile = () => {
-    Alert.alert('Add file', 'Choose a source', [
-      { text: 'Take photo', onPress: () => pickAndUpload('camera') },
-      { text: 'Photo library', onPress: () => pickAndUpload('library') },
-      { text: 'Browse files', onPress: () => pickAndUpload('file') },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+  // A custom sheet rather than Alert.alert: Android's native alert only renders
+  // three buttons, so a fourth "Cancel" was being dropped — leaving no way to
+  // back out of the source picker. This sheet always shows Cancel and also
+  // closes on backdrop tap / hardware back.
+  const addFile = () => setSourceOpen(true);
+
+  const chooseSource = (source: 'camera' | 'library' | 'file') => {
+    setSourceOpen(false);
+    // Let the sheet finish dismissing before the native picker opens.
+    setTimeout(() => pickAndUpload(source), 200);
   };
 
   const pickAndUpload = async (source: 'camera' | 'library' | 'file') => {
@@ -82,6 +111,11 @@ export default function PatientFilesScreen() {
         picked = normalizeDocAsset(res.assets[0]);
       }
       if (!picked) return;
+      const tooLarge = tooLargeMessage(picked);
+      if (tooLarge) {
+        Alert.alert('File too large', tooLarge);
+        return;
+      }
       await upload.mutateAsync(picked);
     } catch (err) {
       Alert.alert('Upload failed', err instanceof Error ? err.message : 'Please try again.');
@@ -192,6 +226,44 @@ export default function PatientFilesScreen() {
         />
       )}
 
+      {/* Source picker. Custom sheet so Cancel is always present (Android's
+          native alert caps at three buttons and silently drops the fourth). */}
+      <Modal
+        visible={sourceOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSourceOpen(false)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setSourceOpen(false)}>
+          <Pressable style={styles.sheet} onPress={() => {}}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Add file</Text>
+            <Text style={styles.sheetSubtitle}>Choose a source</Text>
+            <SheetOption
+              icon="folder-outline"
+              label="Browse files"
+              onPress={() => chooseSource('file')}
+            />
+            <SheetOption
+              icon="images-outline"
+              label="Photo library"
+              onPress={() => chooseSource('library')}
+            />
+            <SheetOption
+              icon="camera-outline"
+              label="Take photo"
+              onPress={() => chooseSource('camera')}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancel"
+              onPress={() => setSourceOpen(false)}
+              style={({ pressed }) => [styles.sheetCancel, pressed && styles.pressed]}>
+              <Text style={styles.sheetCancelText}>Cancel</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* Full-screen image preview (X-rays come back as images). */}
       <Modal visible={preview != null} transparent animationType="fade" onRequestClose={() => setPreview(null)}>
         <View style={styles.viewerBackdrop}>
@@ -245,6 +317,29 @@ function FileRow({
         style={({ pressed }) => [styles.deleteBtn, pressed && styles.pressed]}>
         <Ionicons name="trash-outline" size={ms(18)} color={colors.danger[500]} />
       </Pressable>
+    </Pressable>
+  );
+}
+
+function SheetOption({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [styles.sheetOption, pressed && styles.rowPressed]}>
+      <View style={styles.sheetOptionIcon}>
+        <Ionicons name={icon} size={ms(20)} color={colors.primary[500]} />
+      </View>
+      <Text style={styles.sheetOptionLabel}>{label}</Text>
     </Pressable>
   );
 }
@@ -382,5 +477,71 @@ const styles = StyleSheet.create({
     height: s(44),
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: colors.background.base,
+    borderTopLeftRadius: s(20),
+    borderTopRightRadius: s(20),
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xxl,
+    gap: spacing.xs,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: s(40),
+    height: s(4),
+    borderRadius: s(2),
+    backgroundColor: colors.border.default,
+    marginBottom: spacing.md,
+  },
+  sheetTitle: {
+    ...typography.title.large,
+    fontFamily: 'Inter_700Bold',
+    fontSize: ms(20),
+    color: HEADING_COLOR,
+  },
+  sheetSubtitle: {
+    ...typography.body.medium,
+    fontSize: ms(14),
+    color: SUBTITLE_COLOR,
+    marginBottom: spacing.sm,
+  },
+  sheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  sheetOptionIcon: {
+    width: s(40),
+    height: s(40),
+    borderRadius: s(10),
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetOptionLabel: {
+    ...typography.body.large,
+    fontFamily: 'Inter_600SemiBold',
+    color: HEADING_COLOR,
+  },
+  sheetCancel: {
+    marginTop: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: s(12),
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    alignItems: 'center',
+  },
+  sheetCancelText: {
+    ...typography.label.large,
+    fontFamily: 'Inter_600SemiBold',
+    color: HEADING_COLOR,
   },
 });

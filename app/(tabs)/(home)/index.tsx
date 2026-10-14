@@ -1,6 +1,6 @@
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { AppointmentCard } from '@/components/appointment-card';
@@ -13,6 +13,7 @@ import { Screen } from '@/components/screen';
 import { SummaryCard } from '@/components/summary-card';
 import { useAllEvents } from '@/hooks/use-appointments';
 import { useMappedDoctors } from '@/hooks/use-mapped-doctors';
+import { usePatientChats } from '@/hooks/use-patient-chats';
 import type { Doctor } from '@/types/doctors';
 import {
   eventToAppointmentItem,
@@ -31,7 +32,7 @@ import {
 } from '@/lib/mock-appointments';
 import { useAuthStore } from '@/store/auth';
 import { useDoctorFilterStore } from '@/store/doctor-filter';
-import { useChatUnreadStore } from '@/store/chat-unread';
+import { countChatUnread, useChatUnreadStore } from '@/store/chat-unread';
 import { useNotificationsStore } from '@/store/notifications';
 import { colors, spacing, typography } from '@/theme';
 
@@ -53,7 +54,31 @@ export default function HomeScreen() {
   const hasUnreadNotifications = useNotificationsStore((s) =>
     s.items.some((it) => !it.read),
   );
-  const chatUnread = useChatUnreadStore((s) => s.unread);
+  // "New messages" badge for the Chat button. Unread = threads whose newest
+  // message is newer than the last time the user opened Patient Chats. The
+  // marker is persisted + loaded on mount (hydrate), and baselined to the
+  // newest message on first ever load so we don't flash a badge for existing
+  // history. Live socket messages flow into this same ['chats'] cache.
+  const { data: chatThreads } = usePatientChats();
+  const chatHydrated = useChatUnreadStore((s) => s.hydrated);
+  const chatLastSeen = useChatUnreadStore((s) => s.lastSeenTs);
+  const hydrateChatSeen = useChatUnreadStore((s) => s.hydrate);
+  const baselineChatSeen = useChatUnreadStore((s) => s.baselineIfUnset);
+
+  useEffect(() => {
+    hydrateChatSeen();
+  }, [hydrateChatSeen]);
+
+  useEffect(() => {
+    if (chatHydrated && chatThreads && chatThreads.length > 0) {
+      baselineChatSeen(chatThreads);
+    }
+  }, [chatHydrated, chatThreads, baselineChatSeen]);
+
+  const chatUnread = useMemo(
+    () => (chatHydrated && chatThreads ? countChatUnread(chatThreads, chatLastSeen) : 0),
+    [chatHydrated, chatThreads, chatLastSeen],
+  );
 
   // Same rule as the Calendar: non-owner doctors don't get the picker — they
   // only ever see their own appointments and any filter would be a no-op.

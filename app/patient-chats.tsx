@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -24,18 +24,23 @@ const SUBTITLE_COLOR = '#64748B';
 export default function PatientChatsScreen() {
   const router = useRouter();
   const { data: threads, isLoading, isError, refetch, isRefetching } = usePatientChats();
-  const clearUnread = useChatUnreadStore((s) => s.clear);
+  const markSeen = useChatUnreadStore((s) => s.markSeen);
 
-  // Clear the "new messages" badge whenever this screen is looked at, and pull
-  // the freshest history.
+  // Pull the freshest history whenever this screen is looked at.
   useFocusEffect(
     useCallback(() => {
-      clearUnread();
       refetch();
-    }, [clearUnread, refetch]),
+    }, [refetch]),
   );
 
   const list = threads ?? [];
+
+  // Looking at the chat screen marks everything loaded as seen, which clears
+  // the home badge and persists the new marker (so it stays cleared after an
+  // app restart). Re-runs when a refetch brings newer messages into view.
+  useEffect(() => {
+    if (threads && threads.length > 0) markSeen(threads);
+  }, [threads, markSeen]);
 
   return (
     <Screen scrollable={false} contentContainerStyle={styles.container} edges={['top']}>

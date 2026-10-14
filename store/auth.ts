@@ -57,6 +57,13 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
         token,
         user: user as User,
       });
+      // Re-register this device on every app start, not just fresh logins.
+      // Most users stay signed in, so their session is restored here rather
+      // than through login() — without this they'd never get a push token
+      // (and the backend would have nothing to send to). The backend upserts
+      // by device/token, so repeat calls are harmless; it's best-effort and
+      // never blocks startup.
+      registerForPushNotifications();
     } else {
       await clearAuthStorage();
       set({ status: 'unauthenticated', token: null, user: null });

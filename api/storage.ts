@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 const TOKEN_KEY = 'sc_jwt';
 const USER_KEY = 'sc_user';
 const REMEMBERED_EMAIL_KEY = 'sc_remembered_email';
+const CHAT_SEEN_KEY = 'sc_chat_seen';
 
 const webMemory: Record<string, string | null> = {};
 
@@ -70,6 +71,16 @@ export const rememberedEmailStorage = {
   clear: () => removeItem(REMEMBERED_EMAIL_KEY),
 };
 
+// Last time the user viewed the Patient Chats screen, stored as a packed
+// YYYYMMDDHHMM marker so the "new messages" badge survives app restarts.
+// Cleared on logout so a different clinic's user starts from their own
+// baseline.
+export const chatSeenStorage = {
+  get: () => getItem(CHAT_SEEN_KEY),
+  set: (value: string) => setItem(CHAT_SEEN_KEY, value),
+  clear: () => removeItem(CHAT_SEEN_KEY),
+};
+
 export async function clearAuthStorage(): Promise<void> {
-  await Promise.all([tokenStorage.clear(), userStorage.clear()]);
+  await Promise.all([tokenStorage.clear(), userStorage.clear(), chatSeenStorage.clear()]);
 }

@@ -4,7 +4,6 @@ import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { connectSocket, disconnectSocket, type ServerEvent } from '@/api/socket';
 import { DEMO_MODE, getMockNotifications } from '@/lib/mock-appointments';
 import { useAuthStore } from '@/store/auth';
-import { useChatUnreadStore } from '@/store/chat-unread';
 import { useNotificationsStore } from '@/store/notifications';
 import type { BackendEvent } from '@/types/appointments';
 import type { ChatThread, IncomingChatEvent } from '@/types/chats';
@@ -143,12 +142,13 @@ export function useSocketEvents() {
     socket.on('WhatsAppBookingStatus', whatsappBookingHandler);
     socket.on('WhatsAppApptStatus', whatsappApptHandler);
 
-    // New inbound patient chat message: bump the unread badge and prepend it to
-    // the cached thread list so the Patient Chats screen updates live.
+    // New inbound patient chat message: prepend it to the cached thread list so
+    // the Patient Chats screen updates live. The home "new messages" badge is
+    // derived from this cache vs. the persisted last-seen marker (see
+    // store/chat-unread), so writing the cache is all that's needed here.
     const chatHandler = (payload: unknown) => {
       const evt = (payload ?? {}) as IncomingChatEvent;
       if (!evt.patient_phone) return;
-      useChatUnreadStore.getState().bump();
       prependChatMessage(queryClient, evt);
     };
     socket.on('displayPatientWhatsApp', chatHandler);
