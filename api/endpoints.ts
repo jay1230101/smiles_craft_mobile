@@ -4,6 +4,12 @@ export const endpoints = {
     logout: '/logout',
     forgotPassword: '/pass-token',
   },
+  access: {
+    // Per-role page permissions for the logged-in user's clinic, as a
+    // { page_key: 0|1 } map (doctor restrictions already applied server-side).
+    // Mirrors the web's ProtectedRoute, which checks the same Access table.
+    authorizedPages: '/getAuthorizedPages',
+  },
   calendar: {
     list: '/getAllEvents',
     schedule: '/getClinicSchedule',

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { Redirect, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect } from 'react';
 import {
   ActivityIndicator,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { Screen } from '@/components/screen';
+import { useAuthorizedPages } from '@/hooks/use-authorized-pages';
 import { usePatientChats } from '@/hooks/use-patient-chats';
 import { useChatUnreadStore } from '@/store/chat-unread';
 import { ms, s } from '@/lib/responsive';
@@ -25,6 +26,7 @@ export default function PatientChatsScreen() {
   const router = useRouter();
   const { data: threads, isLoading, isError, refetch, isRefetching } = usePatientChats();
   const markSeen = useChatUnreadStore((s) => s.markSeen);
+  const { can, firstAllowedTab } = useAuthorizedPages();
 
   // Pull the freshest history whenever this screen is looked at.
   useFocusEffect(
@@ -41,6 +43,12 @@ export default function PatientChatsScreen() {
   useEffect(() => {
     if (threads && threads.length > 0) markSeen(threads);
   }, [threads, markSeen]);
+
+  // Role isn't granted Patient Chats (e.g. a chat push tapped by a user who
+  // can't see chats): send them to their first allowed tab.
+  if (!can('patient_chats')) {
+    return <Redirect href={firstAllowedTab() ?? '/(tabs)/(home)'} />;
+  }
 
   return (
     <Screen scrollable={false} contentContainerStyle={styles.container} edges={['top']}>

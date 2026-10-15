@@ -1,5 +1,5 @@
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { useEffect, useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
@@ -12,6 +12,7 @@ import { ProfileButton } from '@/components/profile-button';
 import { Screen } from '@/components/screen';
 import { SummaryCard } from '@/components/summary-card';
 import { useAllEvents } from '@/hooks/use-appointments';
+import { useAuthorizedPages } from '@/hooks/use-authorized-pages';
 import { useMappedDoctors } from '@/hooks/use-mapped-doctors';
 import { usePatientChats } from '@/hooks/use-patient-chats';
 import type { Doctor } from '@/types/doctors';
@@ -80,6 +81,11 @@ export default function HomeScreen() {
     [chatHydrated, chatThreads, chatLastSeen],
   );
 
+  // Page permissions (same access the clinic admin set on the web). Gate the
+  // Chat button here and, if the user isn't allowed Home at all, send them to
+  // their first allowed tab.
+  const { can, firstAllowedTab } = useAuthorizedPages();
+
   // Same rule as the Calendar: non-owner doctors don't get the picker — they
   // only ever see their own appointments and any filter would be a no-op.
   const showDoctorPicker = !(user?.role === 'DOCTOR' && !user.is_owner);
@@ -147,6 +153,14 @@ export default function HomeScreen() {
   const showEmpty = !DEMO_MODE && !showLoading && !showError && appointments.length === 0;
   const showList = DEMO_MODE || (!showLoading && !showError && appointments.length > 0);
 
+  // This user's role isn't granted the Home/dashboard page: send them to their
+  // first allowed tab. (The tab bar already hides Home in that case; this
+  // covers the default landing + any direct navigation here.)
+  if (!can('dashboard')) {
+    const target = firstAllowedTab();
+    if (target) return <Redirect href={target} />;
+  }
+
   return (
     <Screen
       contentContainerStyle={[styles.container, { paddingBottom: safeBottomPadding }]}
@@ -157,10 +171,12 @@ export default function HomeScreen() {
           <Text style={styles.dateLabel}>{dateLabel}</Text>
         </View>
         <View style={styles.headerActions}>
-          <ChatButton
-            unread={chatUnread}
-            onPress={() => router.push('/patient-chats' as never)}
-          />
+          {can('patient_chats') ? (
+            <ChatButton
+              unread={chatUnread}
+              onPress={() => router.push('/patient-chats' as never)}
+            />
+          ) : null}
           <NotificationButton
             hasUnread={hasUnreadNotifications}
             onPress={() => router.push('/(tabs)/(home)/notifications' as never)}

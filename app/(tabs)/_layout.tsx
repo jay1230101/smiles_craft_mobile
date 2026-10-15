@@ -1,8 +1,9 @@
 import { Redirect, Tabs } from 'expo-router';
-import { Image, Platform, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Image, Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HapticTab } from '@/components/haptic-tab';
+import { useAuthorizedPages } from '@/hooks/use-authorized-pages';
 import { ms, s } from '@/lib/responsive';
 import { useAuthStore } from '@/store/auth';
 import { colors } from '@/theme';
@@ -42,18 +43,29 @@ function TabLabel({ focused, color, label }: { focused: boolean; color: string; 
 
 export default function TabLayout() {
   const status = useAuthStore((s) => s.status);
-  const user = useAuthStore((s) => s.user);
   const insets = useSafeAreaInsets();
+  // Page permissions set by the clinic admin on the web — the same access now
+  // applies on mobile. `can` fails open until the map loads / on error, so we
+  // gate the first paint on isLoading to avoid tabs appearing then vanishing.
+  const { can, isLoading } = useAuthorizedPages();
 
   if (status === 'unauthenticated') {
     return <Redirect href="/(auth)/login" />;
   }
 
-  // Non-owner Doctors get the full clinic-day tabs EXCEPT Reports
-  // (Home, Register, Calendar, Billing — but no Reports).
-  // Owner Doctors, Assistants, Admins, and SystemAdmins see all five tabs.
-  const isRestrictedDoctor = user?.role === 'DOCTOR' && !user.is_owner;
-  const canSeeReports = !isRestrictedDoctor;
+  if (isLoading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={colors.primary[500]} />
+      </View>
+    );
+  }
+
+  // Each tab is shown only when the user's role is granted that page. The
+  // backend already removes Reports (financial_reports) for non-owner doctors,
+  // so no separate role check is needed here. undefined => default (visible);
+  // null => hidden from the tab bar.
+  const tabHref = (allowed: boolean): undefined | null => (allowed ? undefined : null);
 
   // Content height of the tab bar (above the system gesture bar / home indicator).
   // SYSTEM_BAR_CLEARANCE adds a visible gap above the phone's nav/gesture bar
@@ -80,6 +92,7 @@ export default function TabLayout() {
         name="(home)"
         options={{
           title: 'Home',
+          href: tabHref(can('dashboard')),
           tabBarIcon: ({ color }) => <TabIcon name="home" color={color} />,
           tabBarLabel: ({ focused, color }) => (
             <TabLabel focused={focused} color={color} label="Home" />
@@ -90,6 +103,7 @@ export default function TabLayout() {
         name="register"
         options={{
           title: 'Register',
+          href: tabHref(can('register_patient')),
           tabBarIcon: ({ color }) => <TabIcon name="register" color={color} />,
           tabBarLabel: ({ focused, color }) => (
             <TabLabel focused={focused} color={color} label="Register" />
@@ -100,6 +114,7 @@ export default function TabLayout() {
         name="calendar"
         options={{
           title: 'Calendar',
+          href: tabHref(can('calendar')),
           tabBarIcon: ({ color }) => <TabIcon name="calendar" color={color} />,
           tabBarLabel: ({ focused, color }) => (
             <TabLabel focused={focused} color={color} label="Calendar" />
@@ -110,6 +125,7 @@ export default function TabLayout() {
         name="billing"
         options={{
           title: 'Billing',
+          href: tabHref(can('billing')),
           tabBarIcon: ({ color }) => <TabIcon name="billing" color={color} />,
           tabBarLabel: ({ focused, color }) => (
             <TabLabel focused={focused} color={color} label="Billing" />
@@ -120,7 +136,7 @@ export default function TabLayout() {
         name="reports"
         options={{
           title: 'Reports',
-          href: canSeeReports ? '/reports' : null,
+          href: can('financial_reports') ? '/reports' : null,
           tabBarIcon: ({ color }) => <TabIcon name="reports" color={color} />,
           tabBarLabel: ({ focused, color }) => (
             <TabLabel focused={focused} color={color} label="Reports" />
@@ -132,6 +148,12 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background.base,
+  },
   tabBar: {
     backgroundColor: colors.background.base,
     borderTopColor: colors.border.subtle,

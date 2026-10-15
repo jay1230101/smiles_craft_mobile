@@ -10,6 +10,7 @@ import {
   type View as RNView,
 } from 'react-native';
 
+import { useAuthorizedPages } from '@/hooks/use-authorized-pages';
 import { ms, s, screenWidth } from '@/lib/responsive';
 import { colors, spacing, typography } from '@/theme';
 import type { PatientListItem } from '@/types/patients';
@@ -34,6 +35,10 @@ function PatientCardBase({ patient, onEdit, onDelete }: Props) {
   const router = useRouter();
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const triggerRef = useRef<RNView>(null);
+  // Patient Files maps to the web's "documentation" page permission; hide the
+  // menu item when the role isn't granted it.
+  const { can } = useAuthorizedPages();
+  const canFiles = can('documentation');
 
   const initials = getInitials(patient.name, patient.family);
   const age = ageFromDob(patient.dob);
@@ -117,23 +122,27 @@ function PatientCardBase({ patient, onEdit, onDelete }: Props) {
                 <Ionicons name="create-outline" size={ms(18)} color={colors.primary[500]} />
                 <Text style={[styles.menuLabel, { color: colors.primary[500] }]}>Edit</Text>
               </Pressable>
-              <View style={styles.menuDivider} />
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  closeMenu();
-                  router.push({
-                    pathname: '/patient-files',
-                    params: {
-                      patientId: String(patient.id),
-                      patientName: [patient.name, patient.family].filter(Boolean).join(' '),
-                    },
-                  } as never);
-                }}
-                style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}>
-                <Ionicons name="folder-outline" size={ms(18)} color={HEADING_COLOR} />
-                <Text style={[styles.menuLabel, { color: HEADING_COLOR }]}>Files</Text>
-              </Pressable>
+              {canFiles ? (
+                <>
+                  <View style={styles.menuDivider} />
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => {
+                      closeMenu();
+                      router.push({
+                        pathname: '/patient-files',
+                        params: {
+                          patientId: String(patient.id),
+                          patientName: [patient.name, patient.family].filter(Boolean).join(' '),
+                        },
+                      } as never);
+                    }}
+                    style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}>
+                    <Ionicons name="folder-outline" size={ms(18)} color={HEADING_COLOR} />
+                    <Text style={[styles.menuLabel, { color: HEADING_COLOR }]}>Files</Text>
+                  </Pressable>
+                </>
+              ) : null}
               <View style={styles.menuDivider} />
               <Pressable
                 accessibilityRole="button"

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 
 import { Screen } from '@/components/screen';
+import { useAuthorizedPages } from '@/hooks/use-authorized-pages';
 import {
   useDeleteDocument,
   usePatientDocuments,
@@ -68,6 +69,7 @@ export default function PatientFilesScreen() {
   const remove = useDeleteDocument(patientId ?? 0);
   const [preview, setPreview] = useState<PatientDocument | null>(null);
   const [sourceOpen, setSourceOpen] = useState(false);
+  const { can, firstAllowedTab } = useAuthorizedPages();
 
   const files = data ?? [];
 
@@ -158,6 +160,12 @@ export default function PatientFilesScreen() {
         <Text style={styles.errorText}>No patient selected.</Text>
       </Screen>
     );
+  }
+
+  // Patient Files = the web's "documentation" permission. Block the screen for
+  // roles that aren't granted it (covers any direct navigation here).
+  if (!can('documentation')) {
+    return <Redirect href={firstAllowedTab() ?? '/(tabs)/(home)'} />;
   }
 
   return (
